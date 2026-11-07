@@ -7,9 +7,12 @@ import { AlertCircle, Check, Clock, FileText, Loader2, Upload } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveSection } from "@/lib/data";
+import { syncFormValues } from "@/lib/profile/values";
 import type { Confidence, OnboardingField, OnboardingSection } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Card, CardBody, CardHeader, SectionLabel, SourceTag } from "./card";
+
+const fieldValues = (sections: OnboardingSection[]) => Object.fromEntries(sections.flatMap((s) => s.fields.map((f) => [f.id, f.value])));
 
 function ConfidenceTag({ confidence }: { confidence: Confidence }) {
   return confidence === "high" ? (
@@ -135,9 +138,15 @@ export function OnboardingPanel({ sections: initial, initialSectionId }: { secti
   const [currentId, setCurrentId] = useState(
     initial.find((s) => s.id === initialSectionId)?.id ?? initial.find((s) => s.status !== "confirmed")?.id ?? initial[0].id
   );
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(initial.flatMap((s) => s.fields.map((f) => [f.id, f.value])))
-  );
+  const [values, setValues] = useState<Record<string, string>>(() => fieldValues(initial));
+  // After router.refresh() (e.g. an approval saved a field) take the new server values, keeping
+  // whatever the farmer is editing, so a later save doesn't send the old value back.
+  const [received, setReceived] = useState(initial);
+  if (initial !== received) {
+    setReceived(initial);
+    setSections(initial);
+    setValues((prev) => syncFormValues(prev, fieldValues(sections), fieldValues(initial)));
+  }
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -155,7 +164,8 @@ export function OnboardingPanel({ sections: initial, initialSectionId }: { secti
   const save = async () => {
     setSaving(true);
     setMessage("");
-    const sectionValues = Object.fromEntries(current.fields.map((f) => [f.id, values[f.id] ?? ""]));
+    // Only fields the farmer edited; the server keeps its current value for the rest.
+    const sectionValues = Object.fromEntries(current.fields.filter((f) => values[f.id] !== f.value).map((f) => [f.id, values[f.id] ?? ""]));
     try {
       const result = await saveSection(current.id, sectionValues);
       if (!result.ok) {

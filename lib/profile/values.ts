@@ -54,3 +54,11 @@ export function addDays(iso: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/**
+ * Form values after the server's values change (an approval saved a field, another tab saved a
+ * section): fields the farmer hasn't edited take the new value, fields they're editing keep theirs.
+ */
+export function syncFormValues(form: Record<string, string>, before: Record<string, string>, after: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(after).map(([k, v]) => [k, form[k] === undefined || form[k] === before[k] ? v : form[k]]));
+}
