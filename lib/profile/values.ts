@@ -1,14 +1,13 @@
 /** Show and parse profile values according to their catalogue definition. */
+import { shortDate } from "../format";
 import type { ProfileValue } from "../types";
 import type { FieldDef } from "./catalogue";
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 const fmt = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 2 });
 
+/** "31 Mar 2027". Newer ICU writes September as "Sept"; the profile has always shown "Sep". */
 export function formatDate(iso: string): string {
-  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  return `${d} ${MONTHS[m - 1]} ${y}`;
+  return `${shortDate(iso.slice(0, 10)).replace("Sept", "Sep")} ${iso.slice(0, 4)}`;
 }
 
 export function formatValue(def: Pick<FieldDef, "type" | "unit">, value: ProfileValue): string {
@@ -53,4 +52,12 @@ export function addDays(iso: string, days: number): string {
   const d = new Date(iso);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Form values after the server's values change (an approval saved a field, another tab saved a
+ * section): fields the farmer hasn't edited take the new value, fields they're editing keep theirs.
+ */
+export function syncFormValues(form: Record<string, string>, before: Record<string, string>, after: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(after).map(([k, v]) => [k, form[k] === undefined || form[k] === before[k] ? v : form[k]]));
 }

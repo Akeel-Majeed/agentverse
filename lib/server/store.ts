@@ -5,6 +5,7 @@ import "server-only";
  * server restarts). Server-side only: the secret key never reaches the browser.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { londonDay, londonTime } from "../format";
 import * as mock from "../mock";
 import * as demo from "../profile/fenland-ridge";
 import { makeSnapshot } from "../profile/risk-profile";
@@ -43,8 +44,9 @@ export interface Store {
   getSectionConfirmations(): Promise<Record<string, string>>;
   confirmSection(id: string, at: string): Promise<void>;
   getSnapshot(): Promise<ProfileSnapshot>;
-  insertSnapshot(s: ProfileSnapshot): Promise<void>;
-  getMarket(): Promise<MarketBaseline>;
+  /** False if the farm already has a snapshot with this version (another tab got there first). */
+  insertSnapshot(s: ProfileSnapshot): Promise<boolean>;
+  deleteSnapshot(id: string): Promise<void>;
   /** Signals published after `since`, newest first. */
   getSignals(since: string): Promise<Signal[]>;
   getPendingChanges(): Promise<PendingChange[]>;
@@ -52,8 +54,6 @@ export interface Store {
 }
 
 /* ---------- In-memory demo store ---------- */
-
-const clone = <T>(v: T): T => structuredClone(v);
 
 function createMockStore(): Store {
   const firstSnapshot = makeSnapshot({
@@ -65,56 +65,60 @@ function createMockStore(): Store {
     market: demo.market,
   });
   const state = {
-    fields: clone(demo.profileFields),
-    confirmations: clone(demo.sectionConfirmations),
+    fields: structuredClone(demo.profileFields),
+    confirmations: structuredClone(demo.sectionConfirmations),
     snapshots: [firstSnapshot],
     assessments: [
       {
         id: "assessment-1",
         snapshotId: firstSnapshot.id,
-        meta: clone(mock.meta),
-        profit: clone(mock.profit),
-        breakEvens: clone(mock.breakEvens),
+        meta: structuredClone(mock.meta),
+        profit: structuredClone(mock.profit),
+        breakEvens: structuredClone(mock.breakEvens),
         topMitigationIds: [...mock.topMitigationIds],
-        risks: clone(mock.risks),
+        risks: structuredClone(mock.risks),
       },
     ] as Assessment[],
-    pending: clone(mock.pendingChanges),
+    pending: structuredClone(mock.pendingChanges),
   };
 
   return {
     kind: "mock",
-    getFarm: async () => clone(mock.farm),
-    getAssessment: async () => clone(state.assessments.at(-1)!),
+    getFarm: async () => structuredClone(mock.farm),
+    getAssessment: async () => structuredClone(state.assessments.at(-1)!),
     insertAssessment: async (a) => {
-      state.assessments.push({ ...clone(a), id: `assessment-${state.assessments.length + 1}` });
+      state.assessments.push({ ...structuredClone(a), id: `assessment-${state.assessments.length + 1}` });
     },
-    getProfileFields: async () => clone(state.fields),
+    getProfileFields: async () => structuredClone(state.fields),
     saveProfileFields: async (fields) => {
       for (const f of fields) {
         const i = state.fields.findIndex((x) => x.key === f.key);
-        if (i === -1) state.fields.push(clone(f));
-        else state.fields[i] = clone(f);
+        if (i === -1) state.fields.push(structuredClone(f));
+        else state.fields[i] = structuredClone(f);
       }
     },
-    getSectionConfirmations: async () => clone(state.confirmations),
+    getSectionConfirmations: async () => structuredClone(state.confirmations),
     confirmSection: async (id, at) => {
       state.confirmations[id] = at;
     },
-    getSnapshot: async () => clone(state.snapshots.at(-1)!),
+    getSnapshot: async () => structuredClone(state.snapshots.at(-1)!),
     insertSnapshot: async (s) => {
-      state.snapshots.push(clone(s));
+      if (state.snapshots.some((x) => x.version === s.version)) return false;
+      state.snapshots.push(structuredClone(s));
+      return true;
     },
-    getMarket: async () => clone(state.snapshots.at(-1)!.market),
+    deleteSnapshot: async (id) => {
+      state.snapshots = state.snapshots.filter((x) => x.id !== id);
+    },
     getSignals: async (since) =>
-      clone(demo.signals.filter((s) => s.publishedAt > since).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))),
-    getPendingChanges: async () => clone(state.pending),
+      structuredClone(demo.signals.filter((s) => s.publishedAt > since).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))),
+    getPendingChanges: async () => structuredClone(state.pending),
     updatePendingChange: async (id, status, proposedValue) => {
       const item = state.pending.find((p) => p.id === id);
       if (!item) return null;
       item.status = status;
       if (proposedValue !== undefined) item.proposedValue = proposedValue;
-      return clone(item);
+      return structuredClone(item);
     },
   };
 }
@@ -123,15 +127,13 @@ function createMockStore(): Store {
 
 type Row = Record<string, unknown>;
 
-const TIME_FMT = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 const DAY_FMT = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "Europe/London" });
-const DATE_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" });
 
 /** "Today 06:00" or "Fri 17:42", as the approval queue shows it. */
 function receivedLabel(iso: string): string {
   const d = new Date(iso);
-  const day = DATE_KEY.format(d) === DATE_KEY.format(new Date()) ? "Today" : DAY_FMT.format(d);
-  return `${day} ${TIME_FMT.format(d)}`;
+  const day = londonDay(d) === londonDay(new Date()) ? "Today" : DAY_FMT.format(d);
+  return `${day} ${londonTime(d)}`;
 }
 
 function must<T>(result: { data: T; error: { message: string } | null }, what: string): NonNullable<T> {
@@ -247,10 +249,13 @@ function createSupabaseStore(db: SupabaseClient): Store {
         market: s.market,
         exposures: s.exposures,
       });
+      if (error?.code === "23505") return false; // unique (farm_id, version)
       if (error) throw new Error(`Supabase: save snapshot: ${error.message}`);
+      return true;
     },
-    async getMarket() {
-      return (await this.getSnapshot()).market;
+    async deleteSnapshot(id) {
+      const { error } = await db.from("profile_snapshots").delete().eq("farm_id", farm).eq("id", id);
+      if (error) throw new Error(`Supabase: delete snapshot: ${error.message}`);
     },
     async getSignals(since) {
       const rows = must(
@@ -288,10 +293,14 @@ let mockStore: Store | undefined;
 let retryAt = 0;
 let checking: Promise<Store | undefined> | undefined;
 
+/** Postgres "table missing", PostgREST "table not in schema cache", and no row for the farm (seed not run). */
+const NOT_DEPLOYED = new Set(["42P01", "PGRST205", "PGRST116"]);
+
 /**
- * Supabase if configured and reachable, otherwise the demo store. If the tables are missing
- * (migration not run yet) the app logs a warning, keeps working on demo data and checks
- * again a minute later.
+ * Supabase if configured, otherwise the demo store. If the tables are missing or empty
+ * (migration or seed not run yet) the app logs a warning, keeps working on demo data and checks
+ * again a minute later. Any other error (network, timeout) is thrown, so nothing is saved to
+ * memory by mistake.
  */
 export async function getStore(): Promise<Store> {
   if (supabaseStore) return supabaseStore;
@@ -303,6 +312,7 @@ export async function getStore(): Promise<Store> {
       const db = createClient(url.replace(/\/rest\/v1\/?$/, ""), key, { auth: { persistSession: false, autoRefreshToken: false } });
       const { error } = await db.from("latest_assessment").select("id").eq("farm_id", FARM_ID).limit(1).single();
       if (!error) return (supabaseStore = createSupabaseStore(db));
+      if (!NOT_DEPLOYED.has(error.code)) throw new Error(`Supabase: readiness check: ${error.message}`);
       retryAt = Date.now() + 60_000;
       console.warn(`[data] Supabase is configured but not ready (${error.message}). Using demo data. Run supabase/migrations/*.sql, then supabase/seed.sql.`);
       return undefined;

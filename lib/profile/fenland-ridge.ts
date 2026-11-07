@@ -2,7 +2,7 @@
  * Fictional profile for the demo farm, Fenland Ridge Farm Ltd. Figures agree with the
  * risk models in lib/mock.ts. Used as mock data and to generate supabase/seed.sql.
  */
-import type { Confidence, MarketBaseline, ProfileFieldValue, ProfileValue, Signal } from "../types";
+import type { Confidence, MarketBaseline, MetricId, ProfileFieldValue, ProfileValue, Signal } from "../types";
 import { fieldDef } from "./catalogue";
 import { addDays } from "./values";
 
@@ -116,6 +116,9 @@ export const market: MarketBaseline = {
   yield_outlook_pct: { value: 0, unit: "%", label: "Regional yield outlook vs normal", source: "Met Office · Model", date: "2026-11-06" },
   sfi_gap_months: { value: 0, unit: "months", label: "Months without SFI payments", source: "RPA agreement", date: "2026-10-12" },
 };
+
+/** How market figures moved over the week before the first risk profile (expected profit "vs last week"). */
+export const weekMoves: Partial<Record<MetricId, number>> = { wheat_feed_gbp_t: -4, an_gbp_t: 18 };
 
 /** News, prices and policy items that arrived after the snapshot. */
 export const signals: Signal[] = [

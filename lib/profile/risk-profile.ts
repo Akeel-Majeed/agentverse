@@ -170,8 +170,12 @@ export function makeSnapshot(args: {
 const metricValue = (unit: string, x: number) =>
   unit === "£/t" ? `£${num(x, x % 1 ? 2 : 0)}/t` : unit === "p/L" ? `${num(x, 1)}p/L` : unit === "%" ? `${num(x, 2)}%` : `${num(x)} ${unit}`;
 
-/** Measure one piece of news against the snapshot: change in the figure × what the farm has exposed to it. */
-export function measureSignal(signal: Signal, snapshot: ProfileSnapshot): SignalImpact {
+/**
+ * Measure one piece of news: change in the figure × what the farm has exposed to it. The change
+ * is from `previous` (earlier news on the same figure) if given, else from the snapshot; the
+ * alert is on the move since the snapshot.
+ */
+export function measureSignal(signal: Signal, snapshot: ProfileSnapshot, previous?: Signal): SignalImpact {
   const base = signal.metric ? snapshot.market[signal.metric] : undefined;
   const sens = snapshot.exposures.flatMap((e) => e.sensitivities).find((s) => s.metric === signal.metric);
   if (!signal.metric || signal.value == null || !base || !sens) {
@@ -184,16 +188,31 @@ export function measureSignal(signal: Signal, snapshot: ProfileSnapshot): Signal
     };
   }
   const unit = METRICS[signal.metric]?.unit ?? base.unit;
-  const change = signal.value - base.value;
-  const delta = Math.round(change * sens.perUnit);
+  const from = previous?.value ?? base.value;
+  const change = signal.value - from;
+  // Differences of rounded totals, so a run of news adds up exactly to latest vs snapshot.
+  const sinceSnapshot = Math.round((signal.value - base.value) * sens.perUnit);
+  const delta = sinceSnapshot - Math.round((from - base.value) * sens.perUnit);
   const working: WorkingStep[] = [
-    { label: `${signal.metric} in snapshot v${snapshot.version}`, value: metricValue(unit, base.value) },
+    { label: previous ? `${signal.metric} after “${previous.title}”` : `${signal.metric} in snapshot v${snapshot.version}`, value: metricValue(unit, from) },
     { label: `${signal.metric} now`, value: metricValue(unit, signal.value) },
     { label: "change", value: `${change > 0 ? "+" : change < 0 ? "−" : ""}${metricValue(unit, Math.abs(change))}` },
     { label: `exposed: ${sens.label}`, value: `${gbp(sens.perUnit, { sign: true })} per ${unit === "£/t" ? "£1/t" : unit === "p/L" ? "1p/L" : `1 ${unit === "%" ? "point" : unit.replace(/s$/, "")}`}` },
     { label: "profit_change = change × exposed", value: gbp(delta, { sign: true }) },
+    ...(previous ? [{ label: `since snapshot v${snapshot.version} = (now − snapshot) × exposed`, value: gbp(sinceSnapshot, { sign: true }) }] : []),
   ];
-  return { signal, snapshotVersion: snapshot.version, delta, working, alert: Math.abs(delta) >= ALERT_THRESHOLD };
+  return { signal, snapshotVersion: snapshot.version, delta, working, alert: Math.abs(sinceSnapshot) >= ALERT_THRESHOLD };
+}
+
+/** Measure news in time order, each against the news before it on the same figure. Returns them in the order given. */
+export function measureSignals(signals: Signal[], snapshot: ProfileSnapshot): SignalImpact[] {
+  const latest = new Map<string, Signal>();
+  const measured = new Map<string, SignalImpact>();
+  for (const s of [...signals].sort((a, b) => a.publishedAt.localeCompare(b.publishedAt))) {
+    measured.set(s.id, measureSignal(s, snapshot, s.metric ? latest.get(s.metric) : undefined));
+    if (s.metric && s.value != null) latest.set(s.metric, s);
+  }
+  return signals.map((s) => measured.get(s.id)!);
 }
 
 /** Fields that differ between the live profile and the snapshot, in catalogue order. */

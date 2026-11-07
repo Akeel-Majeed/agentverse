@@ -3,10 +3,10 @@
  * a new snapshot and recomputes the figures that follow from it. Agent-written text (summary,
  * reasoning) is kept from the previous assessment until the writer agent exists.
  */
-import { gbpK } from "../format";
+import { gbpK, gbpPerT, signed } from "../format";
 import { scoreFromBadYear } from "../score";
 import { normalCdf, riskWorking, simulateExposure, Z95 } from "../sim";
-import type { ExposureModel, ProfitSummary, RiskExposure, RiskResult, Source } from "../types";
+import type { ExposureModel, MetricId, ProfitSummary, RiskExposure, RiskResult, Source } from "../types";
 
 /** Exposure in the risk model's own unit (£k or ha) from the snapshot. */
 function modelExposure(risk: RiskResult, exposures: RiskExposure[], hectares: number): number | null {
@@ -68,12 +68,26 @@ export function profitSummary(args: {
   };
 }
 
+/** Change in expected profit from the week's market moves, on what the farm has exposed now. */
+function weekChange(exposures: RiskExposure[], moves: Partial<Record<MetricId, number>>): { deltaWeekK: number; deltaWeekLabel: string } {
+  const steps = Object.entries(moves).flatMap(([metric, change]) => {
+    const sens = exposures.flatMap((e) => e.sensitivities).find((s) => s.metric === metric);
+    return sens && change ? [{ change, sens }] : [];
+  });
+  const parts = steps.map(({ change, sens }) => `${sens.unit === "£/t" ? gbpPerT(change, { sign: true }) : signed(change, 2, ` ${sens.unit}`)} × ${sens.label}`);
+  return {
+    deltaWeekK: steps.reduce((s, { change, sens }) => s + change * sens.perUnit, 0) / 1000,
+    deltaWeekLabel: `change vs last week (${parts.join(", ") || "no market moves"})`,
+  };
+}
+
 export function reassess(
   risks: RiskResult[],
   profit: ProfitSummary,
   exposures: RiskExposure[],
   hectares: number,
-  typicalProfit: number
+  typicalProfit: number,
+  weekMoves: Partial<Record<MetricId, number>>
 ): { risks: RiskResult[]; profit: ProfitSummary } {
   const next = risks.map((r) => {
     const exposure = modelExposure(r, exposures, hectares);
@@ -87,8 +101,7 @@ export function reassess(
       meanK: typicalProfit / 1000,
       output: output.model,
       otherSdK: output.model.otherSdK,
-      deltaWeekK: profit.deltaWeek / 1000,
-      deltaWeekLabel: profit.working?.at(-1)?.label ?? "change vs last week",
+      ...weekChange(exposures, weekMoves),
       sources: profit.sources,
     }),
   };

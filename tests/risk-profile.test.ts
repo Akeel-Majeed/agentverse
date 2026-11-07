@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FIELDS, SECTIONS } from "@/lib/profile/catalogue";
-import { market, profileFields, signals, SNAPSHOT_AT } from "@/lib/profile/fenland-ridge";
-import { makeSnapshot, measureSignal, profileChanges } from "@/lib/profile/risk-profile";
+import { market, profileFields, signals, SNAPSHOT_AT, weekMoves } from "@/lib/profile/fenland-ridge";
+import { makeSnapshot, measureSignal, measureSignals, profileChanges } from "@/lib/profile/risk-profile";
 import { formatValue, parseValue } from "@/lib/profile/values";
 import { risks } from "@/lib/mock";
 
@@ -75,6 +75,30 @@ describe("measuring news against the snapshot", () => {
   });
 });
 
+describe("several news items on the same figure", () => {
+  const wheat175 = { ...signal("sig-wheat-172"), id: "sig-wheat-175", value: 175, publishedAt: "2026-11-07T12:00:00Z" };
+  const news = [signal("sig-wheat-172"), signal("sig-an-522"), wheat175]; // newest first, as the store returns them
+
+  it("measures each against the figure before it, so they add up to latest vs snapshot", () => {
+    const impacts = measureSignals(news, snapshot);
+    expect(impacts.map((i) => i.signal.id)).toEqual(["sig-wheat-172", "sig-an-522", "sig-wheat-175"]);
+    expect(impacts.map((i) => i.delta)).toEqual([-8_694, -2_988, -8_694]);
+    const wheat = impacts.filter((i) => i.signal.metric === "wheat_feed_gbp_t").reduce((s, i) => s + i.delta!, 0);
+    expect(wheat).toBe(measureSignal(signal("sig-wheat-172"), snapshot).delta); // −£6/t × 2,898 t
+  });
+
+  it("alerts on the move since the snapshot, not just the latest step", () => {
+    const small = [
+      { ...wheat175, id: "w177", value: 177, publishedAt: "2026-11-07T12:00:00Z" },
+      { ...wheat175, id: "w176", value: 176, publishedAt: "2026-11-07T13:00:00Z" },
+    ];
+    const [first, second] = measureSignals(small, snapshot);
+    expect(first.delta).toBe(-2_898);
+    expect(second.delta).toBe(-2_898);
+    expect(second.alert).toBe(true); // −£2/t since the snapshot = −£5,796
+  });
+});
+
 describe("entering values", () => {
   const def = (key: string) => FIELDS.find((f) => f.key === key)!;
   it.each([
@@ -107,7 +131,7 @@ describe("updating the risk profile", () => {
     const { profit } = await import("@/lib/mock");
     const sold = profileFields.map((f) => (f.key === "sales.wheat_2026_unsold_t" ? { ...f, value: 828 } : f));
     const v2 = makeSnapshot({ id: "s2", version: 2, takenAt: SNAPSHOT_AT, reason: "sold 200 t", fields: sold, market });
-    const next = reassess(risks, profit, v2.exposures, 450, 85_000);
+    const next = reassess(risks, profit, v2.exposures, 450, 85_000, weekMoves);
     const before = (id: string) => risks.find((r) => r.id === id)!;
     const after = (id: string) => next.risks.find((r) => r.id === id)!;
     expect(after("output_prices").model.exposure).toBe(757);
@@ -116,5 +140,19 @@ describe("updating the risk profile", () => {
     for (const id of ["input_prices", "weather_yield", "regulation", "interest_rates"]) {
       expect(after(id).badYear).toBe(before(id).badYear);
     }
+  });
+
+  it("works out the week's change on what is unsold now, not the old tonnage", async () => {
+    const { reassess } = await import("@/lib/profile/assess");
+    const { profit } = await import("@/lib/mock");
+    const sold = profileFields.map((f) => (f.key === "sales.wheat_2026_unsold_t" ? { ...f, value: 828 } : f));
+    const v2 = makeSnapshot({ id: "s2", version: 2, takenAt: SNAPSHOT_AT, reason: "sold 200 t", fields: sold, market });
+    const same = reassess(risks, profit, snapshot.exposures, 450, 85_000, weekMoves).profit;
+    expect(same.deltaWeek).toBe(profit.deltaWeek); // −£4/t × 2,898 t − £18/t × 166 t = −£14.6k
+    const next = reassess(risks, profit, v2.exposures, 450, 85_000, weekMoves).profit;
+    expect(next.deltaWeek).toBe(-14_000); // −£4/t × 2,698 t − £18/t × 166 t = −£13.8k
+    const label = next.working!.at(-1)!.label;
+    expect(label).toContain("2,698 t");
+    expect(label).not.toContain("2,898");
   });
 });
