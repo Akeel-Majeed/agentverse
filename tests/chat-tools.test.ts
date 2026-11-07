@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { createTools } from "@/lib/agents/chat/tools";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
-
-const { createTools } = await import("@/lib/agents/chat/tools");
 
 type Calls = Parameters<typeof createTools>[0];
 async function call(name: string, input: Record<string, unknown> = {}) {
