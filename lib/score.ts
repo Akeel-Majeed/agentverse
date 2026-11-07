@@ -34,36 +34,3 @@ export function bandFor(score: number): Band {
   if (score <= 7) return BANDS[2];
   return BANDS[3];
 }
-
-export const SCORE_MAX = 10;
-
-/** Share of a ring to fill for a score: 0 for missing or ≤ 0, 1 for ≥ 10. */
-export function ringFraction(score: number | null): number {
-  if (score === null || !Number.isFinite(score)) return 0;
-  return Math.min(Math.max(score / SCORE_MAX, 0), 1);
-}
-
-export interface RingGeometry {
-  circumference: number;
-  /** Length of the drawable track once the label gap is removed. */
-  trackLength: number;
-  /** Length of the filled arc. */
-  fillLength: number;
-  /** Degrees to rotate an SVG circle (which starts at 3 o'clock) so the arc starts just after the gap at 12 o'clock. */
-  rotation: number;
-}
-
-/**
- * Geometry for a progress ring drawn with stroke-dasharray. `gapDeg` leaves a gap at 12 o'clock for a
- * ring label; the full scale is the remaining track, so a 10 fills the whole track and a 0 draws nothing.
- */
-export function ringGeometry(score: number | null, radius: number, gapDeg = 0): RingGeometry {
-  const circumference = 2 * Math.PI * radius;
-  const trackLength = circumference * (1 - gapDeg / 360);
-  return {
-    circumference,
-    trackLength,
-    fillLength: trackLength * ringFraction(score),
-    rotation: -90 + gapDeg / 2,
-  };
-}

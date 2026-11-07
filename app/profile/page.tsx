@@ -1,37 +1,25 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { ApprovalQueue, PendingCounter } from "@/components/headwind/approvals";
 import { Card, CardBody, CardHeader } from "@/components/headwind/card";
 import { OnboardingPanel } from "@/components/headwind/onboarding-panel";
 import { PageHeader, PageShell } from "@/components/headwind/page-header";
 import { getFarm, getOnboarding } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Farm setup" };
-
 export default async function ProfilePage() {
   const [farm, sections] = await Promise.all([getFarm(), getOnboarding()]);
   return (
-    <PageShell className="gap-6 sm:gap-8">
+    <PageShell>
       <PageHeader
-        title="Farm setup"
-        subtitle={`What Headwind knows about ${farm.name}, section by section. Check each value, then confirm the section so the assessment can rely on it.`}
+        label="Farm profile · Demo data"
+        title={farm.name}
+        subtitle="Everything Headwind knows about the farm, section by section. Upload documents and the agent fills in what it can; you confirm."
       />
       <OnboardingPanel sections={sections} />
-      <div id="approvals">
-        <Card label="Proposed changes">
+      <div id="approvals" className="scroll-mt-24">
+        <Card label="Approval queue">
           <CardHeader
-            title="Proposed changes to your farm data"
+            title="Approval queue"
             leading={<PendingCounter />}
-            description="Changes suggested by documents, freshness checks, your iMessage replies, your adviser's connected service and Companies House. Nothing changes until you approve it."
-            action={
-              <Link
-                href="/actions"
-                className="inline-flex min-h-9 items-center gap-1 rounded-sm text-[13px] font-medium text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Open Actions <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            }
+            description="Changes proposed by document reads, freshness checks, your iMessage replies, adviser agents and Companies House. Nothing changes until you approve."
           />
           <CardBody>
             <ApprovalQueue />

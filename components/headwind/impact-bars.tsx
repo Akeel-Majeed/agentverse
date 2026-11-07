@@ -14,7 +14,7 @@ export function ImpactBars({ items }: { items: { id: string; label: string; valu
           const positive = item.valueK >= 0;
           const rounded = Math.round(item.valueK);
           return (
-            <li key={item.id} className="grid grid-cols-[6.5rem_1fr_4rem] items-center gap-3 py-2.5 sm:grid-cols-[8.5rem_1fr_4.5rem] sm:gap-4">
+            <li key={item.id} className="grid grid-cols-[8.5rem_1fr_4.5rem] items-center gap-4 py-2.5">
               <span className="text-[13.5px] font-medium">{item.label}</span>
               <div aria-hidden className="relative h-6">
                 <div className="absolute inset-y-[-6px] left-1/2 w-px bg-ink/60" />
@@ -42,13 +42,13 @@ export function ImpactBars({ items }: { items: { id: string; label: string; valu
           );
         })}
       </ul>
-      <div aria-hidden className="grid grid-cols-[6.5rem_1fr_4rem] gap-3 sm:grid-cols-[8.5rem_1fr_4.5rem] sm:gap-4">
+      <div aria-hidden className="grid grid-cols-[8.5rem_1fr_4.5rem] gap-4">
         <span />
         <div className="relative h-4">
           {TICKS.map((t) => (
             <span
               key={t}
-              className={`absolute -translate-x-1/2 whitespace-nowrap font-mono text-[10.5px] text-sub tabular ${Math.abs(t) === 75 ? "hidden sm:inline" : ""}`}
+              className="absolute -translate-x-1/2 whitespace-nowrap font-mono text-[10.5px] text-sub tabular"
               style={{ left: `${50 + (t / SCALE_K) * 50}%` }}
             >
               {gbpK(t, { sign: t > 0 })}

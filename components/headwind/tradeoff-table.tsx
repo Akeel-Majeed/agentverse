@@ -13,7 +13,7 @@ export function TradeoffTable({ risk }: { risk: RiskResult }) {
   const { model } = risk;
   return (
     <div>
-      <div className="relative overflow-x-auto" role="region" aria-label="Trade-off table" tabIndex={0}>
+      <div className="overflow-x-auto">
         <Table className="min-w-[620px]">
           <TableHeader>
             <TableRow className="border-line hover:bg-transparent">

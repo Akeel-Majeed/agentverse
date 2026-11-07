@@ -70,20 +70,16 @@ export function formatShock(model: ExposureModel, perUnit: number): string {
 export function riskWorking(model: ExposureModel, sim: RiskSim): WorkingStep[] {
   const { exposure: ek, sd, shock } = model.keys;
   return [
-    { label: model.exposureLabel, value: amount(sim.exposure, model.unit), formula: ek },
-    { label: "Typical yearly swing (1 standard deviation)", value: formatShock(model, model.unitSd), formula: sd },
-    { label: model.shockLabel, value: formatShock(model, model.unitSd * Z95), formula: `${shock} = ${sd} × ${Z95}` },
-    { label: "This risk's hit in a 1-in-20 bad year", value: gbpK(sim.hitK), formula: `bad_year_hit = ${ek} × ${shock}` },
-    { label: "This risk's typical swing in profit", value: gbpK(sim.riskSdK), formula: `risk_sd = ${ek} × ${sd}` },
-    { label: "Typical swing from all other risks", value: gbpK(model.otherSdK), formula: "other_risks_sd" },
-    { label: "Whole-farm typical swing (risks don't all peak together)", value: gbpK(sim.sdK), formula: "farm_sd = √(risk_sd² + other_risks_sd²)" },
-    { label: "Expected farm profit", value: gbpK(sim.meanK), formula: "expected_profit" },
-    {
-      label: "Whole-farm profit in a 1-in-20 bad year",
-      value: gbpK(sim.badYearProfitK),
-      formula: `bad_year_profit = expected_profit − ${Z95} × farm_sd`,
-    },
-    { label: "Loss-making years (modelled)", value: `${sim.lossYears} in 20`, formula: "loss_years = 20 × Φ(−expected_profit ÷ farm_sd)" },
+    { label: ek, value: amount(sim.exposure, model.unit) },
+    { label: sd, value: formatShock(model, model.unitSd) },
+    { label: `${shock} = ${sd} × ${Z95}`, value: formatShock(model, model.unitSd * Z95) },
+    { label: `bad_year_hit = ${ek} × ${shock}`, value: gbpK(sim.hitK) },
+    { label: `risk_sd = ${ek} × ${sd}`, value: gbpK(sim.riskSdK) },
+    { label: "other_risks_sd", value: gbpK(model.otherSdK) },
+    { label: "farm_sd = √(risk_sd² + other_risks_sd²)", value: gbpK(sim.sdK) },
+    { label: "expected_profit", value: gbpK(sim.meanK) },
+    { label: `bad_year_profit = expected_profit − ${Z95} × farm_sd`, value: gbpK(sim.badYearProfitK) },
+    { label: "loss_years = 20 × Φ(−expected_profit ÷ farm_sd)", value: `${sim.lossYears} in 20` },
   ];
 }
 

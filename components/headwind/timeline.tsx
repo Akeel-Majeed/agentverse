@@ -1,10 +1,8 @@
-"use client";
-
 import type { CalendarItem, CalendarLane } from "@/lib/types";
 import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export const LANES: CalendarLane[] = ["Selling", "Inputs", "Finance", "Schemes", "Markets"];
+const LANES: CalendarLane[] = ["Selling", "Inputs", "Finance", "Schemes", "Markets"];
 /** Narrowest track width (px) the label-packing estimate assumes; the track scrolls below this. */
 const MIN_TRACK_PX = 860;
 const PERIOD_ROW = 30;
@@ -27,35 +25,16 @@ function pack<T>(items: T[], extent: (item: T) => [number, number]): { placed: P
   return { placed, rows: rowEnds.length };
 }
 
-/** Filled diamond = confirmed date, hollow = expected, circle = market event. Blue = next key decision. */
-export function Marker({ kind, certainty }: { kind: CalendarItem["kind"]; certainty: CalendarItem["certainty"] }) {
-  const color = kind === "key" ? "border-brand bg-brand" : "border-ink bg-ink";
-  if (certainty === "market") return <span aria-hidden className="block h-[9px] w-[9px] shrink-0 rounded-full border-[1.5px] border-ink bg-white" />;
+function Diamond({ kind }: { kind: CalendarItem["kind"] }) {
   return (
     <span
       aria-hidden
-      className={cn("block h-[10px] w-[10px] shrink-0 rotate-45 rounded-[1.5px] border-[1.5px]", color, certainty === "expected" && "bg-white")}
+      className={cn("block h-[10px] w-[10px] shrink-0 rotate-45 rounded-[1.5px]", kind === "key" ? "bg-brand" : "bg-ink")}
     />
   );
 }
 
-const CERTAINTY_SR = { confirmed: "confirmed date", expected: "expected, not confirmed", market: "market event" } as const;
-
-export function Timeline({
-  items,
-  start,
-  months = 12,
-  today,
-  selectedId,
-  onSelect,
-}: {
-  items: CalendarItem[];
-  start: string;
-  months?: number;
-  today: string;
-  selectedId?: string | null;
-  onSelect?: (id: string) => void;
-}) {
+export function Timeline({ items, start, months = 12, today }: { items: CalendarItem[]; start: string; months?: number; today: string }) {
   const startMs = Date.parse(start);
   const startDate = new Date(startMs);
   const endMs = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + months, 1);
@@ -71,7 +50,7 @@ export function Timeline({
   const todayX = x(today);
 
   return (
-    <div className="relative overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0} role="region" aria-label="12-month timeline. Scroll sideways to see the whole year.">
+    <div className="overflow-x-auto">
       <div className="relative min-w-[980px]">
         <div className="grid grid-cols-[120px_1fr]">
           <div className="border-b border-line" />
@@ -114,24 +93,19 @@ export function Timeline({
                     const width = Math.max(x(item.end ?? item.start) - left, 1);
                     const warn = item.tone === "warning";
                     return (
-                      <li key={item.id} className="absolute h-6" style={{ left: `${left}%`, width: `${width}%`, top: 10 + row * PERIOD_ROW }}>
-                        <button
-                          type="button"
-                          onClick={() => onSelect?.(item.id)}
-                          aria-pressed={selectedId === item.id}
-                          title={`${item.label}: ${shortDate(item.start)} – ${shortDate(item.end ?? item.start)}`}
-                          className={cn(
-                            "relative flex h-6 w-full items-center overflow-hidden rounded-md border px-2 text-left text-[12px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            warn ? "border-[#FCA5A5] bg-[#FEE2E2] text-bad" : "border-[#D4D4D4] bg-[#F0F0F0] text-ink",
-                            item.certainty === "expected" && "border-dashed bg-white",
-                            selectedId === item.id && "ring-2 ring-ink"
-                          )}
-                        >
-                          <span className="truncate">{item.label}</span>
-                          <span className="sr-only">
-                            , {shortDate(item.start)} to {shortDate(item.end ?? item.start)}, {CERTAINTY_SR[item.certainty]}
-                          </span>
-                        </button>
+                      <li
+                        key={item.id}
+                        title={`${item.label}: ${shortDate(item.start)} – ${shortDate(item.end ?? item.start)}`}
+                        className={cn(
+                          "absolute flex h-6 items-center overflow-hidden rounded-md border px-2 text-[12px] font-medium",
+                          warn ? "border-[#FCA5A5] bg-[#FEE2E2] text-bad" : "border-[#E2E2E2] bg-[#F0F0F0] text-ink"
+                        )}
+                        style={{ left: `${left}%`, width: `${width}%`, top: 10 + row * PERIOD_ROW }}
+                      >
+                        <span className="truncate">{item.label}</span>
+                        <span className="sr-only">
+                          , {shortDate(item.start)} to {shortDate(item.end ?? item.start)}
+                        </span>
                       </li>
                     );
                   })}
@@ -143,31 +117,24 @@ export function Timeline({
                     return (
                       <li
                         key={item.id}
-                        className={cn("absolute", flip ? "-translate-x-full" : "")}
+                        className={cn(
+                          "absolute flex items-center gap-2 whitespace-nowrap text-[12px]",
+                          flip ? "-translate-x-full flex-row-reverse" : "",
+                          isKey ? "font-semibold text-brand" : "text-ink"
+                        )}
                         style={{
                           left: `calc(${pos}% ${flip ? "+ 5px" : "- 5px"})`,
-                          top: 10 + periods.rows * PERIOD_ROW + row * MARKER_ROW + 2,
+                          top: 10 + periods.rows * PERIOD_ROW + row * MARKER_ROW + 4,
                         }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => onSelect?.(item.id)}
-                          aria-pressed={selectedId === item.id}
-                          className={cn(
-                            "relative flex items-center gap-2 whitespace-nowrap rounded px-0.5 py-0.5 text-[12px] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            flip ? "flex-row-reverse" : "",
-                            isKey ? "font-semibold text-brand" : "text-ink",
-                            selectedId === item.id && "bg-hover ring-2 ring-ink"
-                          )}
-                        >
-                          <Marker kind={item.kind} certainty={item.certainty} />
-                          <span>
-                            <span className={cn("font-mono text-[11px] uppercase", isKey ? "text-brand" : "text-sub")}>{shortDate(item.start)}</span> {item.label}
-                            <span className="sr-only">
-                              {isKey ? ", next key decision" : ""}, {CERTAINTY_SR[item.certainty]}
-                            </span>
-                          </span>
-                        </button>
+                        <Diamond kind={item.kind} />
+                        <span>
+                          <span className={cn("font-mono text-[11px] uppercase", isKey ? "text-brand" : "text-sub")}>
+                            {shortDate(item.start)}
+                          </span>{" "}
+                          {item.label}
+                          <span className="sr-only">{isKey ? " (next key decision)" : " (deadline)"}</span>
+                        </span>
                       </li>
                     );
                   })}
@@ -198,22 +165,13 @@ export function TimelineLegend() {
   return (
     <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] text-sub">
       <li className="flex items-center gap-2">
-        <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#D4D4D4] bg-[#F0F0F0]" /> Confirmed period
+        <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#E2E2E2] bg-[#F0F0F0]" /> Period
       </li>
       <li className="flex items-center gap-2">
-        <span aria-hidden className="h-3 w-6 rounded-[4px] border border-dashed border-[#D4D4D4] bg-white" /> Expected window
+        <Diamond kind="deadline" /> Deadline
       </li>
       <li className="flex items-center gap-2">
-        <Marker kind="deadline" certainty="confirmed" /> Confirmed date
-      </li>
-      <li className="flex items-center gap-2">
-        <Marker kind="deadline" certainty="expected" /> Expected date
-      </li>
-      <li className="flex items-center gap-2">
-        <Marker kind="deadline" certainty="market" /> Market event
-      </li>
-      <li className="flex items-center gap-2">
-        <Marker kind="key" certainty="confirmed" /> Next key decision
+        <Diamond kind="key" /> Next key decision
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden className="h-4 border-l-[1.5px] border-dashed border-ink/70" /> Today

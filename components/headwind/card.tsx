@@ -32,7 +32,7 @@ export function CardHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-4 py-4 sm:px-6", className)}>
+    <div className={cn("flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-6 py-4", className)}>
       <div className="flex min-w-0 items-center gap-2.5">
         {leading}
         <div className="min-w-0">
@@ -46,7 +46,7 @@ export function CardHeader({
 }
 
 export function CardBody({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("px-4 py-5 sm:px-6", className)}>{children}</div>;
+  return <div className={cn("px-6 py-5", className)}>{children}</div>;
 }
 
 export function SectionLabel({ className, children, as: Tag = "p" }: { className?: string; children: ReactNode; as?: "p" | "span" | "h2" | "h3" | "dt" }) {
