@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // lib/data.ts runs on the in-memory demo store here: no Supabase env vars.
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+// React's cache() is per server request; these tests make several requests, so don't memoise.
+vi.mock("react", async (original) => ({ ...(await original<typeof import("react")>()), cache: <T>(fn: T) => fn }));
 
 const load = () => import("@/lib/data");
 

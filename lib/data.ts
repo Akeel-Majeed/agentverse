@@ -6,6 +6,7 @@
  * demo data (see lib/server/store.ts).
  */
 import { revalidatePath } from "next/cache";
+import { cache } from "react";
 import * as mock from "./mock";
 import { reassess } from "./profile/assess";
 import { weekMoves } from "./profile/fenland-ridge";
@@ -48,28 +49,39 @@ const today = () => LONDON_DATE.format(new Date());
 
 const refresh = () => revalidatePath("/", "layout");
 
+// One query each per request, however many getters a page calls. Not exported: a "use server"
+// file may only export async functions. Writes read the store directly, never these.
+const loadFarm = cache(async () => (await getStore()).getFarm());
+const loadAssessment = cache(async () => (await getStore()).getAssessment());
+const loadSnapshot = cache(async () => (await getStore()).getSnapshot());
+const loadProfileFields = cache(async () => (await getStore()).getProfileFields());
+const loadImpacts = cache(async (): Promise<SignalImpact[]> => {
+  const snapshot = await loadSnapshot();
+  return measureSignals(await (await getStore()).getSignals(snapshot.takenAt), snapshot);
+});
+
 /* ---------- Farm and assessment ---------- */
 
 export async function getFarm(): Promise<Farm> {
-  return (await getStore()).getFarm();
+  return loadFarm();
 }
 
 export async function getAssessmentMeta(): Promise<AssessmentMeta> {
-  return (await (await getStore()).getAssessment()).meta;
+  return (await loadAssessment()).meta;
 }
 
 export async function getRisks(): Promise<RiskResult[]> {
-  const { risks } = await (await getStore()).getAssessment();
-  return risks.sort((a, b) => b.score - a.score || b.badYear - a.badYear);
+  const { risks } = await loadAssessment();
+  return [...risks].sort((a, b) => b.score - a.score || b.badYear - a.badYear);
 }
 
 export async function getRisk(id: string): Promise<RiskResult | null> {
-  const { risks } = await (await getStore()).getAssessment();
+  const { risks } = await loadAssessment();
   return risks.find((r) => r.id === id) ?? null;
 }
 
 export async function getTopMitigations(): Promise<TopMitigation[]> {
-  const { risks, topMitigationIds } = await (await getStore()).getAssessment();
+  const { risks, topMitigationIds } = await loadAssessment();
   return topMitigationIds.flatMap((id, i) => {
     const risk = risks.find((r) => r.mitigations.some((m) => m.id === id));
     const mitigation = risk?.mitigations.find((m) => m.id === id);
@@ -79,11 +91,11 @@ export async function getTopMitigations(): Promise<TopMitigation[]> {
 }
 
 export async function getProfitSummary(): Promise<ProfitSummary> {
-  return (await (await getStore()).getAssessment()).profit;
+  return (await loadAssessment()).profit;
 }
 
 export async function getBreakEvens(): Promise<BreakEven[]> {
-  return (await (await getStore()).getAssessment()).breakEvens;
+  return (await loadAssessment()).breakEvens;
 }
 
 /* ---------- Approval queue ---------- */
@@ -167,18 +179,17 @@ function buildSections(fields: ProfileFieldValue[], confirmations: Record<string
 }
 
 export async function getOnboarding(): Promise<OnboardingSection[]> {
-  const store = await getStore();
-  const [fields, confirmations] = await Promise.all([store.getProfileFields(), store.getSectionConfirmations()]);
+  const [fields, confirmations] = await Promise.all([loadProfileFields(), (await getStore()).getSectionConfirmations()]);
   return buildSections(fields, confirmations);
 }
 
-async function profileStatus(store: Store, fields?: ProfileFieldValue[]): Promise<ProfileStatus> {
-  const [current, snapshot] = await Promise.all([fields ?? store.getProfileFields(), store.getSnapshot()]);
-  return { snapshot: { version: snapshot.version, takenAt: snapshot.takenAt }, changes: profileChanges(current, snapshot) };
+function profileStatus(fields: ProfileFieldValue[], snapshot: ProfileSnapshot): ProfileStatus {
+  return { snapshot: { version: snapshot.version, takenAt: snapshot.takenAt }, changes: profileChanges(fields, snapshot) };
 }
 
 export async function getProfileStatus(): Promise<ProfileStatus> {
-  return profileStatus(await getStore());
+  const [fields, snapshot] = await Promise.all([loadProfileFields(), loadSnapshot()]);
+  return profileStatus(fields, snapshot);
 }
 
 /**
@@ -208,12 +219,12 @@ export async function saveSection(sectionId: string, values: Record<string, stri
 
   await store.saveProfileFields(updates);
   await store.confirmSection(sectionId, now);
-  const [after, confirmations] = await Promise.all([store.getProfileFields(), store.getSectionConfirmations()]);
+  const [after, confirmations, snapshot] = await Promise.all([store.getProfileFields(), store.getSectionConfirmations(), store.getSnapshot()]);
   refresh();
   return {
     ok: true,
     section: buildSections(after, confirmations).find((s) => s.id === sectionId)!,
-    status: await profileStatus(store, after),
+    status: profileStatus(after, snapshot),
   };
 }
 
@@ -245,9 +256,7 @@ export async function getRiskProfile(): Promise<{
   rows: RiskProfileRow[];
   impacts: SignalImpact[];
 }> {
-  const store = await getStore();
-  const [snapshot, assessment] = await Promise.all([store.getSnapshot(), store.getAssessment()]);
-  const impacts = await impactsSince(store, snapshot);
+  const [snapshot, assessment, impacts] = await Promise.all([loadSnapshot(), loadAssessment(), loadImpacts()]);
   const rows = RISKS.flatMap(({ id, name }): RiskProfileRow[] => {
     const exposure = snapshot.exposures.find((e) => e.riskId === id);
     const risk = assessment.risks.find((r) => r.id === id);
@@ -270,10 +279,9 @@ export async function getRiskProfile(): Promise<{
 }
 
 export async function getRiskInputs(riskId: string): Promise<RiskInputs> {
-  const store = await getStore();
-  const [fields, snapshot] = await Promise.all([store.getProfileFields(), store.getSnapshot()]);
+  const [fields, snapshot, allImpacts] = await Promise.all([loadProfileFields(), loadSnapshot(), loadImpacts()]);
   const byKey = new Map(fields.map((f) => [f.key, f]));
-  const impacts = (await impactsSince(store, snapshot)).filter((i) => i.signal.riskId === riskId);
+  const impacts = allImpacts.filter((i) => i.signal.riskId === riskId);
   return {
     fields: FIELDS.filter((d) => d.risks.includes(riskId as RiskId)).map((def) => ({
       key: def.key,
