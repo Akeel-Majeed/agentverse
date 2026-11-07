@@ -11,7 +11,7 @@ import { reassess } from "./profile/assess";
 import { FIELDS, SECTIONS, fieldDef, riskName, RISKS } from "./profile/catalogue";
 import { makeSnapshot, measureSignals, profileChanges } from "./profile/risk-profile";
 import { addDays, formatValue, parseValue } from "./profile/values";
-import { getStore, type Store } from "./server/store";
+import { getStore, type Assessment, type Store } from "./server/store";
 import type {
   AssessmentMeta,
   BreakEven,
@@ -288,10 +288,22 @@ export async function getRiskInputs(riskId: string): Promise<RiskInputs> {
 }
 
 /**
- * Freeze the profile into a new snapshot, at today's market figures, and store a new
- * assessment built from it. Until the engine exists, exposures and the figures that follow
- * from them are recomputed; agent-written text is carried over.
+ * Store a new assessment built from `snapshot`. Until the engine exists, exposures and the
+ * figures that follow from them are recomputed; agent-written text is carried over.
  */
+async function assess(store: Store, snapshot: ProfileSnapshot, assessment: Assessment, now: Date): Promise<AssessmentMeta> {
+  const typicalProfit = Number(snapshot.fields["pnl.typical_profit"] ?? assessment.meta.typicalProfit) || assessment.meta.typicalProfit;
+  const hectares = Number(snapshot.fields["land.area_ha"] ?? 0);
+  const { risks, profit } = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit);
+  const meta: AssessmentMeta = { ...assessment.meta, date: today(), updatedAt: LONDON_TIME.format(now), typicalProfit };
+  await store.insertAssessment(
+    { snapshotId: snapshot.id, meta, profit, breakEvens: assessment.breakEvens, topMitigationIds: assessment.topMitigationIds, risks },
+    now.toISOString()
+  );
+  return meta;
+}
+
+/** Freeze the profile into a new snapshot, at today's market figures, and assess it. */
 export async function updateRiskProfile(reason = "Profile updated"): Promise<{ version: number; takenAt: string; meta: AssessmentMeta }> {
   const store = await getStore();
   const [fields, previous, assessment] = await Promise.all([store.getProfileFields(), store.getSnapshot(), store.getAssessment()]);
@@ -306,21 +318,18 @@ export async function updateRiskProfile(reason = "Profile updated"): Promise<{ v
     market: marketNow(previous, await impactsSince(store, previous)),
   });
   await store.insertSnapshot(snapshot);
-
-  const typicalProfit = Number(snapshot.fields["pnl.typical_profit"] ?? assessment.meta.typicalProfit) || assessment.meta.typicalProfit;
-  const hectares = Number(snapshot.fields["land.area_ha"] ?? 0);
-  const { risks, profit } = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit);
-  const meta: AssessmentMeta = { ...assessment.meta, date: today(), updatedAt: LONDON_TIME.format(now), typicalProfit };
-  await store.insertAssessment(
-    { snapshotId: snapshot.id, meta, profit, breakEvens: assessment.breakEvens, topMitigationIds: assessment.topMitigationIds, risks },
-    takenAt
-  );
+  const meta = await assess(store, snapshot, assessment, now);
   refresh();
   return { version: snapshot.version, takenAt, meta };
 }
 
+/** Assess the current snapshot again. News is still measured against it: only the farmer's "Update risk profile" moves it. */
 export async function rerunAssessment(): Promise<AssessmentMeta> {
-  return (await updateRiskProfile("Re-run from the overview")).meta;
+  const store = await getStore();
+  const [snapshot, assessment] = await Promise.all([store.getSnapshot(), store.getAssessment()]);
+  const meta = await assess(store, snapshot, assessment, new Date());
+  refresh();
+  return meta;
 }
 
 /* ---------- Not in the database yet: calendar, reminders, what-if ---------- */

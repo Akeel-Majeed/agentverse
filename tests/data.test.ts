@@ -30,3 +30,15 @@ describe("approving a proposed change", () => {
     expect(field?.value).toBe("1,028 t");
   });
 });
+
+describe("re-running the assessment", () => {
+  it("keeps the snapshot, so news since it still shows", async () => {
+    const data = await load();
+    const before = await data.getRiskProfile();
+    await data.rerunAssessment();
+    const after = await data.getRiskProfile();
+    expect(after.snapshot.version).toBe(before.snapshot.version);
+    expect(after.impacts.length).toBe(before.impacts.length);
+    expect(after.impacts.length).toBeGreaterThan(0);
+  });
+});
