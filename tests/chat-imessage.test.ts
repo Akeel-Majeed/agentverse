@@ -1,5 +1,8 @@
 import type { IMessageWebhookPayload } from "@inkbox/sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+// React's cache() only exists in the Next server runtime; run the data layer without memoising.
+vi.mock("react", async (original) => ({ ...(await original<typeof import("react")>()), cache: <T>(fn: T) => fn }));
 import { ChatUnavailableError, type ChatResult } from "@/lib/agents/chat/agent";
 import { FAILED, NOT_SET_UP, handleIMessage, historyToMessages, splitForIMessage, type IMessageDeps } from "@/lib/agents/chat/imessage";
 

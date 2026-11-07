@@ -4,6 +4,8 @@ import { ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
 import { checkFigures, extractFigures } from "@/lib/agents/checker";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+// React's cache() only exists in the Next server runtime; run the data layer without memoising.
+vi.mock("react", async (original) => ({ ...(await original<typeof import("react")>()), cache: <T>(fn: T) => fn }));
 
 describe("figure checker", () => {
   it("finds money, percentages, tonnes, hectares, scores and x in 20", () => {

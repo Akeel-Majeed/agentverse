@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createTools } from "@/lib/agents/chat/tools";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+// React's cache() only exists in the Next server runtime; run the data layer without memoising.
+vi.mock("react", async (original) => ({ ...(await original<typeof import("react")>()), cache: <T>(fn: T) => fn }));
 
 type Calls = Parameters<typeof createTools>[0];
 async function call(name: string, input: Record<string, unknown> = {}) {
