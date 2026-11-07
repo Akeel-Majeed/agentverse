@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "db:seed-sql": "bun scripts/generate-seed.ts > supabase/seed.sql"
+    "db:seed-sql": "bun scripts/generate-seed.ts > supabase/seed.sql",
+    "ask": "bun --preload ./scripts/shims.ts scripts/ask.ts",
+    "inkbox:setup": "bun scripts/inkbox-setup.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
