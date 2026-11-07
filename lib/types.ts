@@ -367,3 +367,8 @@ export interface ChatTurn {
   model?: string;
   error?: string;
 }
+
+/** What the onboarding's optional iMessage step can show. No secrets. */
+export type IMessageSetup =
+  | { available: true; number: string; connectCommand: string; replies: boolean }
+  | { available: false; reason: string };
