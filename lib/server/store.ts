@@ -43,7 +43,9 @@ export interface Store {
   getSectionConfirmations(): Promise<Record<string, string>>;
   confirmSection(id: string, at: string): Promise<void>;
   getSnapshot(): Promise<ProfileSnapshot>;
-  insertSnapshot(s: ProfileSnapshot): Promise<void>;
+  /** False if the farm already has a snapshot with this version (another tab got there first). */
+  insertSnapshot(s: ProfileSnapshot): Promise<boolean>;
+  deleteSnapshot(id: string): Promise<void>;
   getMarket(): Promise<MarketBaseline>;
   /** Signals published after `since`, newest first. */
   getSignals(since: string): Promise<Signal[]>;
@@ -103,7 +105,12 @@ function createMockStore(): Store {
     },
     getSnapshot: async () => clone(state.snapshots.at(-1)!),
     insertSnapshot: async (s) => {
+      if (state.snapshots.some((x) => x.version === s.version)) return false;
       state.snapshots.push(clone(s));
+      return true;
+    },
+    deleteSnapshot: async (id) => {
+      state.snapshots = state.snapshots.filter((x) => x.id !== id);
     },
     getMarket: async () => clone(state.snapshots.at(-1)!.market),
     getSignals: async (since) =>
@@ -247,7 +254,13 @@ function createSupabaseStore(db: SupabaseClient): Store {
         market: s.market,
         exposures: s.exposures,
       });
+      if (error?.code === "23505") return false; // unique (farm_id, version)
       if (error) throw new Error(`Supabase: save snapshot: ${error.message}`);
+      return true;
+    },
+    async deleteSnapshot(id) {
+      const { error } = await db.from("profile_snapshots").delete().eq("farm_id", farm).eq("id", id);
+      if (error) throw new Error(`Supabase: delete snapshot: ${error.message}`);
     },
     async getMarket() {
       return (await this.getSnapshot()).market;

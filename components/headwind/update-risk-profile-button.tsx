@@ -10,6 +10,7 @@ import { updateRiskProfile } from "@/lib/data";
 export function UpdateRiskProfileButton({ reason, variant }: { reason: string; variant?: ButtonProps["variant"] }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [error, setError] = useState("Couldn't update. Try again.");
   return (
     <>
       <Button
@@ -18,10 +19,16 @@ export function UpdateRiskProfileButton({ reason, variant }: { reason: string; v
         onClick={async () => {
           setState("running");
           try {
-            await updateRiskProfile(reason);
+            const result = await updateRiskProfile(reason);
+            if (!result.ok) {
+              setError(result.error);
+              setState("error");
+              return;
+            }
             setState("done");
             router.refresh();
           } catch {
+            setError("Couldn't update. Try again.");
             setState("error");
           }
         }}
@@ -30,7 +37,7 @@ export function UpdateRiskProfileButton({ reason, variant }: { reason: string; v
         {state === "running" ? "Updating…" : "Update risk profile"}
       </Button>
       <span role="status" className={state === "error" ? "text-[12.5px] text-bad" : "sr-only"}>
-        {state === "running" ? "Updating risk profile" : state === "done" ? "Risk profile updated" : state === "error" ? "Couldn't update. Try again." : ""}
+        {state === "running" ? "Updating risk profile" : state === "done" ? "Risk profile updated" : state === "error" ? error : ""}
       </span>
     </>
   );

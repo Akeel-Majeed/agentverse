@@ -303,8 +303,13 @@ async function assess(store: Store, snapshot: ProfileSnapshot, assessment: Asses
   return meta;
 }
 
-/** Freeze the profile into a new snapshot, at today's market figures, and assess it. */
-export async function updateRiskProfile(reason = "Profile updated"): Promise<{ version: number; takenAt: string; meta: AssessmentMeta }> {
+/**
+ * Freeze the profile into a new snapshot, at today's market figures, and assess it. If the
+ * assessment can't be saved the snapshot is removed again, so the two never get out of step.
+ */
+export async function updateRiskProfile(
+  reason = "Profile updated"
+): Promise<{ ok: true; version: number; takenAt: string; meta: AssessmentMeta } | { ok: false; error: string }> {
   const store = await getStore();
   const [fields, previous, assessment] = await Promise.all([store.getProfileFields(), store.getSnapshot(), store.getAssessment()]);
   const now = new Date();
@@ -317,10 +322,18 @@ export async function updateRiskProfile(reason = "Profile updated"): Promise<{ v
     fields,
     market: marketNow(previous, await impactsSince(store, previous)),
   });
-  await store.insertSnapshot(snapshot);
-  const meta = await assess(store, snapshot, assessment, now);
+  if (!(await store.insertSnapshot(snapshot))) {
+    return { ok: false, error: "Risk profile was just updated in another tab. Refresh to see it." };
+  }
+  let meta: AssessmentMeta;
+  try {
+    meta = await assess(store, snapshot, assessment, now);
+  } catch (e) {
+    await store.deleteSnapshot(snapshot.id).catch((d) => console.error(`[data] Couldn't remove snapshot ${snapshot.id} after a failed assessment`, d));
+    throw e;
+  }
   refresh();
-  return { version: snapshot.version, takenAt, meta };
+  return { ok: true, version: snapshot.version, takenAt, meta };
 }
 
 /** Assess the current snapshot again. News is still measured against it: only the farmer's "Update risk profile" moves it. */

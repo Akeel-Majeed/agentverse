@@ -42,3 +42,21 @@ describe("re-running the assessment", () => {
     expect(after.impacts.length).toBeGreaterThan(0);
   });
 });
+
+describe("updating the risk profile", () => {
+  it("removes the new snapshot if the assessment can't be saved", async () => {
+    const data = await load();
+    const store = await (await import("@/lib/server/store")).getStore();
+    vi.spyOn(store, "insertAssessment").mockRejectedValueOnce(new Error("Supabase: save assessment: timeout"));
+    await expect(data.updateRiskProfile("test")).rejects.toThrow(/timeout/);
+    expect((await data.getRiskProfile()).snapshot.version).toBe(1);
+  });
+
+  it("says so when another tab updated it first", async () => {
+    const data = await load();
+    const results = await Promise.all([data.updateRiskProfile("tab 1"), data.updateRiskProfile("tab 2")]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.find((r) => !r.ok)).toEqual({ ok: false, error: expect.stringContaining("another tab") });
+    expect((await data.getRiskProfile()).snapshot.version).toBe(2);
+  });
+});
