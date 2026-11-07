@@ -1,4 +1,4 @@
-import { bandFor } from "@/lib/score";
+import { bandFor, ringGeometry } from "@/lib/score";
 import { cn } from "@/lib/utils";
 
 export function ScoreRing({
@@ -16,8 +16,7 @@ export function ScoreRing({
   const band = bandFor(score);
   const stroke = Math.max(5, Math.round(size * 0.075));
   const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - Math.min(Math.max(score, 0), 10) / 10);
+  const g = ringGeometry(score, r);
   return (
     <div
       role="img"
@@ -25,20 +24,21 @@ export function ScoreRing({
       className={cn("relative shrink-0", className)}
       style={{ width: size, height: size }}
     >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EFEFEF" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={band.color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 500ms ease, stroke 500ms ease" }}
-        />
+        {g.fillLength > 0 ? (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={band.color}
+            strokeWidth={stroke}
+            strokeDasharray={`${g.fillLength} ${g.circumference}`}
+            transform={`rotate(${g.rotation} ${size / 2} ${size / 2})`}
+            style={{ transition: "stroke-dasharray 500ms ease, stroke 500ms ease" }}
+          />
+        ) : null}
       </svg>
       <div aria-hidden className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-mono font-semibold leading-none tracking-tight text-ink tabular" style={{ fontSize: Math.round(size * 0.3) }}>

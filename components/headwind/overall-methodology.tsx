@@ -32,7 +32,7 @@ export function OverallMethodology({ summary, harvestYear, className }: { summar
             profit, the score is 1 (Low). It is never 0, because some risk always remains.
           </p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[280px] text-left text-[12.5px]">
             <caption className="sr-only">Score bands</caption>
             <thead>

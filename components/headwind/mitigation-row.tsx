@@ -39,11 +39,13 @@ export function DeadlineText({ item }: { item: CalendarItem }) {
 export function MitigationRow({
   risk,
   mitigation,
+  deadline,
   active,
   onToggle,
 }: {
   risk: RiskResult;
   mitigation: Mitigation;
+  deadline?: CalendarItem;
   active: boolean;
   onToggle: () => void;
 }) {
@@ -59,6 +61,11 @@ export function MitigationRow({
         <p className="mt-1 text-[12.5px] text-sub">
           <span className="text-ink">Cost or trade-off:</span> {m.cost} · {scoreChange(risk.score, m.scoreAfter)}
         </p>
+        {deadline ? (
+          <p className="mt-0.5 text-[12.5px]">
+            <DeadlineText item={deadline} />: {deadline.label.toLowerCase()}
+          </p>
+        ) : null}
       </div>
       <Benefit risk={risk} m={m} />
       <Button

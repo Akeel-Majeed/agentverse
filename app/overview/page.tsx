@@ -207,7 +207,7 @@ export default async function OverviewPage() {
             </Link>
           }
         />
-        <div className="overflow-x-auto" role="region" aria-label="All risks table" tabIndex={0}>
+        <div className="relative overflow-x-auto" role="region" aria-label="All risks table" tabIndex={0}>
           <RiskTable risks={risks} />
         </div>
         <details className="group border-t border-line">
