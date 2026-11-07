@@ -31,6 +31,33 @@
   * {
     @apply border-border;
   }
+  /* Keeps anchored and focused content clear of the 56px sticky header. */
+  html {
+    scroll-padding-top: 5rem;
+  }
+  :target {
+    scroll-margin-top: 5rem;
+  }
+  main:focus {
+    outline: none;
+  }
+  details > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
   body {
     @apply bg-background font-sans text-ink antialiased;
     font-feature-settings: "ss01", "cv11";
