@@ -665,8 +665,8 @@ export const whatIfPresets: WhatIfPreset[] = [
 ];
 
 export const whatIfSliders: WhatIfSlider[] = [
-  { key: "wheatPrice", label: "Wheat price", min: 130, max: 240, step: 1, unit: "£/t", source: "AHDB DELIVERED FEED WHEAT · £178/t · 06 NOV" },
-  { key: "fertiliserPrice", label: "AN fertiliser price", min: 300, max: 1000, step: 1, unit: "£/t", source: "AHDB FERTILISER PRICES · £504/t · OCT" },
-  { key: "yieldPct", label: "Yield, all crops", min: 70, max: 115, step: 1, unit: "%", source: "YIELD RECORDS 2021–25 · 100% = 5-YR AVERAGE" },
-  { key: "rateChange", label: "Bank Rate change", min: -1, max: 2, step: 0.25, unit: "pts", source: "BANK OF ENGLAND · YOU PAY BASE + 3.1%" },
+  { key: "wheatPrice", label: "Wheat price", min: 130, max: 240, step: 1, unit: "£/t", source: "AHDB delivered feed wheat, £178/t on 6 Nov 2026" },
+  { key: "fertiliserPrice", label: "AN fertiliser price", min: 300, max: 1000, step: 1, unit: "£/t", source: "AHDB fertiliser prices, £504/t in Oct 2026" },
+  { key: "yieldPct", label: "Yield, all crops", min: 70, max: 115, step: 1, unit: "%", source: "Your yield records 2021–25; 100% is the five-year average" },
+  { key: "rateChange", label: "Bank Rate change", min: -1, max: 2, step: 0.25, unit: "pts", source: "Bank of England; you pay Bank Rate + 3.1% on £840k" },
 ];
