@@ -3,17 +3,13 @@ import { notFound } from "next/navigation";
 import { PageShell } from "@/components/headwind/page-header";
 import { RiskDetail } from "@/components/headwind/risk-detail";
 import { ScoreChip } from "@/components/headwind/score";
-import { getAssessmentMeta, getRisk, getRisks } from "@/lib/data";
+import { RiskInputsCard } from "@/components/headwind/risk-inputs-card";
+import { getAssessmentMeta, getRisk, getRiskInputs, getRisks } from "@/lib/data";
 import { longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export async function generateStaticParams() {
-  const risks = await getRisks();
-  return risks.map((r) => ({ id: r.id }));
-}
-
 export default async function RiskPage({ params }: { params: { id: string } }) {
-  const [risk, risks, meta] = await Promise.all([getRisk(params.id), getRisks(), getAssessmentMeta()]);
+  const [risk, risks, meta, inputs] = await Promise.all([getRisk(params.id), getRisks(), getAssessmentMeta(), getRiskInputs(params.id)]);
   if (!risk) notFound();
 
   return (
@@ -41,7 +37,13 @@ export default async function RiskPage({ params }: { params: { id: string } }) {
             })}
           </ul>
         </nav>
-        <RiskDetail key={risk.id} risk={risk} typicalProfit={meta.typicalProfit} dateLabel={longDate(meta.date)} />
+        <RiskDetail
+          key={risk.id}
+          risk={risk}
+          typicalProfit={meta.typicalProfit}
+          dateLabel={longDate(meta.date)}
+          profile={<RiskInputsCard inputs={inputs} />}
+        />
       </div>
     </PageShell>
   );

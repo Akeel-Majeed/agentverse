@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader } from "@/components/headwind/card";
 import { ComingUp } from "@/components/headwind/coming-up";
 import { ExpectedProfitCard } from "@/components/headwind/expected-profit-card";
 import { MitigationList, TopMitigationItem } from "@/components/headwind/mitigation-row";
+import { NewsImpactList } from "@/components/headwind/news-impacts";
 import { PageHeader, PageShell } from "@/components/headwind/page-header";
 import { RerunButton } from "@/components/headwind/rerun-button";
 import { RiskExposureHero } from "@/components/headwind/risk-exposure-hero";
@@ -16,13 +17,14 @@ import {
   getCalendar,
   getFarm,
   getProfitSummary,
+  getRiskProfile,
   getRisks,
   getTopMitigations,
 } from "@/lib/data";
 import { longDate } from "@/lib/format";
 
 export default async function OverviewPage() {
-  const [farm, meta, risks, top, profit, breakEvens, calendar] = await Promise.all([
+  const [farm, meta, risks, top, profit, breakEvens, calendar, riskProfile] = await Promise.all([
     getFarm(),
     getAssessmentMeta(),
     getRisks(),
@@ -30,6 +32,7 @@ export default async function OverviewPage() {
     getProfitSummary(),
     getBreakEvens(),
     getCalendar(),
+    getRiskProfile(),
   ]);
   const upcoming = calendar
     .filter((c) => c.kind !== "period" && c.start >= meta.date)
@@ -79,6 +82,20 @@ export default async function OverviewPage() {
 
         <aside aria-label="Profit and actions" className="flex min-w-0 flex-col gap-8">
           <ExpectedProfitCard summary={profit} harvestYear={meta.harvestYear} />
+          <Card label="News since your risk profile">
+            <CardHeader
+              title="News since your risk profile"
+              description={`Measured against snapshot v${riskProfile.snapshot.version}.`}
+              action={
+                <Link href="/profile#risk-profile" className="rounded-sm text-[13px] font-medium text-sub hover:text-ink hover:underline">
+                  See all
+                </Link>
+              }
+            />
+            <CardBody>
+              <NewsImpactList impacts={riskProfile.impacts.filter((i) => i.delta !== null)} limit={3} />
+            </CardBody>
+          </Card>
           <BreakEvenList items={breakEvens} />
           <Card label="Needs your input">
             <CardHeader

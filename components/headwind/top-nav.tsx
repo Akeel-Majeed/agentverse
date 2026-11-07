@@ -8,7 +8,7 @@ import { LogoMark } from "./logo";
 
 const LINKS = [
   { href: "/overview", label: "Overview", match: "/overview", icon: LayoutGrid },
-  { href: "/risks/wheat-price", label: "Risks", match: "/risks", icon: Gauge },
+  { href: "/risks", label: "Risks", match: "/risks", icon: Gauge },
   { href: "/what-if", label: "What-if", match: "/what-if", icon: SlidersHorizontal },
   { href: "/calendar", label: "Calendar", match: "/calendar", icon: CalendarDays },
   { href: "/profile", label: "Profile", match: "/profile", icon: Tractor },

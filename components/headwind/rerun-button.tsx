@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { rerunAssessment } from "@/lib/data";
 
 export function RerunButton() {
+  const router = useRouter();
   const [state, setState] = useState<"idle" | "running" | "done">("idle");
   return (
     <>
@@ -15,6 +17,7 @@ export function RerunButton() {
           setState("running");
           await rerunAssessment();
           setState("done");
+          router.refresh();
         }}
       >
         {state === "running" ? <Loader2 className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
