@@ -48,6 +48,15 @@ const LONG_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
+const LONDON_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" });
+const LONDON_TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+
+/** 2026-11-07: the date in London. */
+export const londonDay = (d: Date): string => LONDON_DAY.format(d);
+
+/** 14:05: the time in London. */
+export const londonTime = (d: Date): string => LONDON_TIME.format(d);
+
 export function shortDate(iso: string): string {
   return DATE_FMT.format(new Date(iso));
 }

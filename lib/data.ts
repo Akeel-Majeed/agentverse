@@ -7,6 +7,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { cache } from "react";
+import { londonDay, londonTime } from "./format";
 import * as mock from "./mock";
 import { reassess } from "./profile/assess";
 import { weekMoves } from "./profile/fenland-ridge";
@@ -41,11 +42,7 @@ import type {
   WhatIfSlider,
 } from "./types";
 
-const clone = <T>(value: T): T => structuredClone(value);
-
-const LONDON_DATE = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" });
-const LONDON_TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-const today = () => LONDON_DATE.format(new Date());
+const today = () => londonDay(new Date());
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -232,7 +229,7 @@ export async function saveSection(sectionId: string, values: Record<string, stri
 
 /** The snapshot's market with any measured news since applied, so a new snapshot starts from today's figures. */
 function marketNow(snapshot: ProfileSnapshot, impacts: SignalImpact[]): MarketBaseline {
-  const market = clone(snapshot.market);
+  const market = structuredClone(snapshot.market);
   for (const { signal } of [...impacts].reverse()) {
     if (!signal.metric || signal.value == null || !market[signal.metric]) continue;
     market[signal.metric] = { ...market[signal.metric]!, value: signal.value, source: signal.source, date: signal.publishedAt.slice(0, 10) };
@@ -298,7 +295,7 @@ async function assess(store: Store, snapshot: ProfileSnapshot, assessment: Asses
   const typicalProfit = Number(snapshot.fields["pnl.typical_profit"] ?? assessment.meta.typicalProfit) || assessment.meta.typicalProfit;
   const hectares = Number(snapshot.fields["land.area_ha"] ?? 0);
   const { risks, profit } = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit, weekMoves);
-  const meta: AssessmentMeta = { ...assessment.meta, date: today(), updatedAt: LONDON_TIME.format(now), typicalProfit };
+  const meta: AssessmentMeta = { ...assessment.meta, date: today(), updatedAt: londonTime(now), typicalProfit };
   await store.insertAssessment(
     { snapshotId: snapshot.id, meta, profit, breakEvens: assessment.breakEvens, topMitigationIds: assessment.topMitigationIds, risks },
     now.toISOString()
@@ -351,11 +348,11 @@ export async function rerunAssessment(): Promise<AssessmentMeta> {
 /* ---------- Not in the database yet: calendar, reminders, what-if ---------- */
 
 export async function getCalendar(): Promise<CalendarItem[]> {
-  return clone(mock.calendar);
+  return structuredClone(mock.calendar);
 }
 
 export async function getReminders(): Promise<Reminder[]> {
-  return clone(mock.reminders);
+  return structuredClone(mock.reminders);
 }
 
 export async function getWhatIfConfig(): Promise<{
@@ -363,5 +360,5 @@ export async function getWhatIfConfig(): Promise<{
   presets: WhatIfPreset[];
   sliders: WhatIfSlider[];
 }> {
-  return clone({ baseline: mock.whatIfBaseline, presets: mock.whatIfPresets, sliders: mock.whatIfSliders });
+  return structuredClone({ baseline: mock.whatIfBaseline, presets: mock.whatIfPresets, sliders: mock.whatIfSliders });
 }
