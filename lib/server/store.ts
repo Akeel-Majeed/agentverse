@@ -288,10 +288,14 @@ let mockStore: Store | undefined;
 let retryAt = 0;
 let checking: Promise<Store | undefined> | undefined;
 
+/** Postgres "table missing", PostgREST "table not in schema cache", and no row for the farm (seed not run). */
+const NOT_DEPLOYED = new Set(["42P01", "PGRST205", "PGRST116"]);
+
 /**
- * Supabase if configured and reachable, otherwise the demo store. If the tables are missing
- * (migration not run yet) the app logs a warning, keeps working on demo data and checks
- * again a minute later.
+ * Supabase if configured, otherwise the demo store. If the tables are missing or empty
+ * (migration or seed not run yet) the app logs a warning, keeps working on demo data and checks
+ * again a minute later. Any other error (network, timeout) is thrown, so nothing is saved to
+ * memory by mistake.
  */
 export async function getStore(): Promise<Store> {
   if (supabaseStore) return supabaseStore;
@@ -303,6 +307,7 @@ export async function getStore(): Promise<Store> {
       const db = createClient(url.replace(/\/rest\/v1\/?$/, ""), key, { auth: { persistSession: false, autoRefreshToken: false } });
       const { error } = await db.from("latest_assessment").select("id").eq("farm_id", FARM_ID).limit(1).single();
       if (!error) return (supabaseStore = createSupabaseStore(db));
+      if (!NOT_DEPLOYED.has(error.code)) throw new Error(`Supabase: readiness check: ${error.message}`);
       retryAt = Date.now() + 60_000;
       console.warn(`[data] Supabase is configured but not ready (${error.message}). Using demo data. Run supabase/migrations/*.sql, then supabase/seed.sql.`);
       return undefined;
