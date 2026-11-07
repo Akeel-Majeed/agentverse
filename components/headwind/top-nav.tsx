@@ -21,13 +21,13 @@ export function TopNav({ farmName, updatedAt }: { farmName: string; updatedAt: s
   const pathname = usePathname();
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[224px] flex-col border-r border-line bg-background px-3 py-4 lg:flex">
-        <Link href="/overview" className={cn("flex items-center gap-2.5 rounded-md px-2 py-1.5 text-ink", focus)} aria-label="Headwind home">
-          <LogoMark className="h-6 w-6" />
-          <span className="text-[15px] font-semibold tracking-tight">Headwind</span>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[264px] flex-col border-r border-line bg-background px-4 py-5 lg:flex">
+        <Link href="/overview" className={cn("flex items-center gap-3 rounded-md px-2 py-1.5 text-ink", focus)} aria-label="Headwind home">
+          <LogoMark className="h-8 w-8" />
+          <span className="text-[18px] font-semibold tracking-tight">Headwind</span>
         </Link>
-        <nav aria-label="Main" className="mt-6">
-          <ul className="flex flex-col gap-0.5">
+        <nav aria-label="Main" className="mt-8">
+          <ul className="flex flex-col gap-1">
             {LINKS.map(({ href, label, match, icon: Icon }) => {
               const active = pathname.startsWith(match);
               return (
@@ -36,12 +36,12 @@ export function TopNav({ farmName, updatedAt }: { farmName: string; updatedAt: s
                     href={href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13.5px] font-medium transition-colors",
+                      "flex h-10 items-center gap-3 rounded-lg px-3 text-[15px] font-medium transition-colors",
                       focus,
                       active ? "bg-hover text-ink" : "text-sub hover:bg-hover/70 hover:text-ink"
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
+                    <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
                     {label}
                   </Link>
                 </li>
@@ -49,7 +49,7 @@ export function TopNav({ farmName, updatedAt }: { farmName: string; updatedAt: s
             })}
           </ul>
         </nav>
-        <div className="mt-auto border-t border-line px-2 pt-4 text-[12.5px] leading-relaxed">
+        <div className="mt-auto border-t border-line px-3 pt-4 text-[13px] leading-relaxed">
           <p className="font-medium text-ink">{farmName}</p>
           <p className="text-sub">Demo data · updated {updatedAt}</p>
         </div>

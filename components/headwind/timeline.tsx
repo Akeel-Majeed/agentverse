@@ -51,10 +51,10 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
 
   return (
     <div className="overflow-x-auto">
-      <div className="relative min-w-[980px]">
+      <div className="relative min-w-[980px] pb-5">
         <div className="grid grid-cols-[120px_1fr]">
           <div className="border-b border-line" />
-          <div className="relative h-12 border-b border-line">
+          <div className="relative h-10 border-b border-line">
             {monthStarts.map((m) => (
               <span
                 key={m.iso}
@@ -85,7 +85,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
             return (
               <div key={lane} className="contents">
                 <div className="flex items-start border-b border-line py-4 pr-3">
-                  <h3 className="text-label text-ink">{lane}</h3>
+                  <h3 className="text-[12px] text-sub">{lane}</h3>
                 </div>
                 <ul aria-label={`${lane} timeline`} className="relative border-b border-line" style={{ height }}>
                   {periods.placed.map(({ item, row }) => {
@@ -97,7 +97,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
                         key={item.id}
                         title={`${item.label}: ${shortDate(item.start)} – ${shortDate(item.end ?? item.start)}`}
                         className={cn(
-                          "absolute flex h-6 items-center overflow-hidden rounded-md border px-2 text-[12px] font-medium",
+                          "absolute flex h-6 items-center overflow-hidden rounded-md border px-2 text-[12px]",
                           warn ? "border-[#FCA5A5] bg-[#FEE2E2] text-bad" : "border-[#E2E2E2] bg-[#F0F0F0] text-ink"
                         )}
                         style={{ left: `${left}%`, width: `${width}%`, top: 10 + row * PERIOD_ROW }}
@@ -146,13 +146,10 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
 
         <div aria-hidden className="pointer-events-none absolute bottom-0 left-[120px] right-0 top-0">
           {monthStarts.slice(1).map((m) => (
-            <div key={m.iso} className="absolute bottom-0 top-12 w-px bg-line/70" style={{ left: `${x(m.iso)}%` }} />
+            <div key={m.iso} className="absolute bottom-5 top-10 w-px bg-line/50" style={{ left: `${x(m.iso)}%` }} />
           ))}
-          <div className="absolute bottom-0 top-0 border-l-[1.5px] border-dashed border-ink/70" style={{ left: `${todayX}%` }} />
-          <span
-            className="absolute top-0 -translate-x-1/2 rounded-md bg-ink px-1.5 py-0.5 text-[11px] font-medium text-white"
-            style={{ left: `${todayX}%` }}
-          >
+          <div className="absolute bottom-5 top-0 border-l-[1.5px] border-dashed border-ink/50" style={{ left: `${todayX}%` }} />
+          <span className="absolute bottom-0 -translate-x-1/2 text-[11px] text-sub" style={{ left: `${todayX}%` }}>
             Today
           </span>
         </div>
@@ -163,7 +160,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
 
 export function TimelineLegend() {
   return (
-    <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] text-sub">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-sub">
       <li className="flex items-center gap-2">
         <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#E2E2E2] bg-[#F0F0F0]" /> Period
       </li>
@@ -174,7 +171,7 @@ export function TimelineLegend() {
         <Diamond kind="key" /> Next key decision
       </li>
       <li className="flex items-center gap-2">
-        <span aria-hidden className="h-4 border-l-[1.5px] border-dashed border-ink/70" /> Today
+        <span aria-hidden className="h-4 border-l-[1.5px] border-dashed border-ink/50" /> Today
       </li>
       <li className="flex items-center gap-2">
         <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#FCA5A5] bg-[#FEE2E2]" /> Overdraft peak

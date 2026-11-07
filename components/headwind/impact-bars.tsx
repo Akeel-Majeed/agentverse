@@ -1,62 +1,49 @@
+"use client";
+
+import { Bar, BarChart, Cell, ReferenceLine, XAxis, YAxis } from "recharts";
+
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { gbpK } from "@/lib/format";
 
 const SCALE_K = 150;
-const TICKS = [-150, -75, 0, 75, 150];
+const ROW_H = 36;
+const GOOD = "#15803D";
+const BAD = "#B91C1C";
+
+const config = { valueK: { label: "Change" } } satisfies ChartConfig;
 
 /** Diverging bars around a centre line: gains to the right in green, losses to the left in red. */
 export function ImpactBars({ items }: { items: { id: string; label: string; valueK: number }[] }) {
   return (
-    <div className="flex flex-col gap-1">
-      <ul className="flex flex-col">
-        {items.map((item) => {
-          const clipped = Math.abs(item.valueK) > SCALE_K;
-          const width = (Math.min(Math.abs(item.valueK), SCALE_K) / SCALE_K) * 50;
-          const positive = item.valueK >= 0;
-          const rounded = Math.round(item.valueK);
-          return (
-            <li key={item.id} className="grid grid-cols-[8.5rem_1fr_4.5rem] items-center gap-4 py-2.5">
-              <span className="text-[13.5px] font-medium">{item.label}</span>
-              <div aria-hidden className="relative h-6">
-                <div className="absolute inset-y-[-6px] left-1/2 w-px bg-ink/60" />
-                {rounded !== 0 ? (
-                  <div
-                    className="absolute top-1 h-4 transition-all duration-300 ease-out"
-                    style={{
-                      left: positive ? "50%" : `${50 - width}%`,
-                      width: `${width}%`,
-                      backgroundColor: positive ? "#16A34A" : "#DC2626",
-                      borderRadius: positive ? "0 3px 3px 0" : "3px 0 0 3px",
-                    }}
-                  />
-                ) : null}
-              </div>
-              <span
-                className={`text-right text-[13px] font-semibold tabular ${
-                  rounded === 0 ? "text-sub" : positive ? "text-good" : "text-bad"
-                }`}
-              >
-                {gbpK(item.valueK, { sign: true })}
-                {clipped ? <span className="sr-only"> (beyond chart scale)</span> : null}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-      <div aria-hidden className="grid grid-cols-[8.5rem_1fr_4.5rem] gap-4">
-        <span />
-        <div className="relative h-4">
-          {TICKS.map((t) => (
-            <span
-              key={t}
-              className="absolute -translate-x-1/2 whitespace-nowrap text-[10.5px] text-sub tabular"
-              style={{ left: `${50 + (t / SCALE_K) * 50}%` }}
-            >
-              {gbpK(t, { sign: t > 0 })}
-            </span>
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height: items.length * ROW_H + 8 }}>
+      <BarChart data={items} layout="vertical" margin={{ top: 4, right: 12, bottom: 4, left: 0 }}>
+        <XAxis type="number" domain={[-SCALE_K, SCALE_K]} allowDataOverflow hide />
+        <YAxis
+          type="category"
+          dataKey="label"
+          width={120}
+          tickLine={false}
+          axisLine={false}
+          interval={0}
+          tick={{ fontSize: 13, fill: "#1C1C1A" }}
+        />
+        <ReferenceLine x={0} stroke="#1C1C1A" strokeWidth={1} strokeDasharray="3 3" />
+        <ChartTooltip
+          cursor={false}
+          content={
+            <ChartTooltipContent
+              hideIndicator
+              labelFormatter={(label) => label}
+              valueFormatter={(v) => gbpK(Number(v), { sign: true })}
+            />
+          }
+        />
+        <Bar dataKey="valueK" barSize={12} radius={4} isAnimationActive={false}>
+          {items.map((item) => (
+            <Cell key={item.id} fill={item.valueK >= 0 ? GOOD : BAD} />
           ))}
-        </div>
-        <span />
-      </div>
-    </div>
+        </Bar>
+      </BarChart>
+    </ChartContainer>
   );
 }

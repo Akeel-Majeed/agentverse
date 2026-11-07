@@ -138,6 +138,9 @@ export function WhatIfPanel({
             <CardHeader title="What moved your profit" description="Change from today, by driver. Scale ±£150k." />
             <CardBody>
               <ImpactBars items={result.impacts} />
+              {result.impacts.every((i) => Math.round(i.valueK) === 0) ? (
+                <p className="mt-2 text-[12.5px] text-sub">Nothing has changed yet. Move a slider or pick a preset to see the drivers.</p>
+              ) : null}
             </CardBody>
           </Card>
         </div>

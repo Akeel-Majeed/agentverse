@@ -40,7 +40,6 @@ export default async function OverviewPage() {
     <PageShell>
       <PageHeader
         title={farm.name}
-        subtitle={`${farm.hectares} ha arable, ${farm.location.toLowerCase()}. ${farm.crops.join(", ")}. Risks to profit for the ${meta.harvestYear} harvest year.`}
         meta={`Assessed ${longDate(meta.date)}`}
         actions={
           <>

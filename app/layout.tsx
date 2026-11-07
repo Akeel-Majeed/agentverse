@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background font-sans antialiased`}>
         <ApprovalProvider initial={pending}>
           <TopNav farmName={farm.name} updatedAt={meta.updatedAt} />
-          <div className="lg:pl-[224px]">{children}</div>
+          <div className="lg:pl-[264px]">{children}</div>
         </ApprovalProvider>
       </body>
     </html>

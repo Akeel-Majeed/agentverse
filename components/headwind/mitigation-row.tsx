@@ -44,8 +44,8 @@ export function MitigationRow({
           {m.status === "planned" || m.status === "done" ? <SourceTag>{m.status}</SourceTag> : null}
         </div>
         <p className="mt-0.5 text-[13px] text-sub">{m.description}</p>
-        <p className="mt-1 text-[12px] text-sub">
-          {scoreChange(risk.score, m.scoreAfter)} · {m.cost}
+        <p className="mt-1 text-[12.5px] text-sub">
+          {m.cost} · {scoreChange(risk.score, m.scoreAfter)}
         </p>
       </div>
       <Benefit risk={risk} m={m} />

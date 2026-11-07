@@ -7,7 +7,7 @@ import { amount, gbpK } from "@/lib/format";
 import { scoreFromBadYear } from "@/lib/score";
 import { riskWorking, simulateRisk } from "@/lib/sim";
 import type { RiskResult } from "@/lib/types";
-import { Card, CardBody, CardHeader, Counter } from "./card";
+import { Card, CardBody, CardHeader, Counter, Disclosure } from "./card";
 import { KpiCell, KpiStrip } from "./kpi-cell";
 import { MitigationList, MitigationRow } from "./mitigation-row";
 import { MoneyFigure } from "./money-figure";
@@ -33,7 +33,7 @@ export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResul
     setActiveIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
   return (
-    <div className="flex flex-col gap-9">
+    <div className="flex flex-col gap-8">
       <PageHeader
         leading={<ScoreRing score={score} size={96} name={risk.name} />}
         title={
@@ -49,95 +49,91 @@ export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResul
         Score {score} out of 10. Bad-year hit {gbpK(sim.hitK)}. Farm profit in a bad year {gbpK(sim.badYearProfitK)}.
       </p>
 
-      <div className="grid gap-8 min-[1200px]:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex min-w-0 flex-col gap-8">
-          <KpiStrip>
-            <KpiCell
-              label="Bad-year hit"
-              value={<MoneyFigure detail={simDetail(risk, sim, `${risk.name}: bad-year hit`, sim.hitK)} />}
-              sub={
-                changed && Math.round(hitDelta) !== 0 ? (
-                  <span className="text-good">{gbpK(hitDelta, { sign: true })} vs today</span>
-                ) : (
-                  "1-in-20 year"
-                )
-              }
+      <KpiStrip>
+        <KpiCell
+          label="Bad-year hit"
+          value={<MoneyFigure detail={simDetail(risk, sim, `${risk.name}: bad-year hit`, sim.hitK)} />}
+          sub={
+            changed && Math.round(hitDelta) !== 0 ? (
+              <span className="text-good">{gbpK(hitDelta, { sign: true })} vs today</span>
+            ) : (
+              "1-in-20 year"
+            )
+          }
+        />
+        <KpiCell
+          label="Farm profit in a bad year"
+          value={
+            <MoneyFigure
+              detail={simDetail(risk, sim, "Farm profit in a bad year", sim.badYearProfitK, "Whole farm, all risks, in a 1-in-20 bad year.")}
+              className={sim.badYearProfitK < 0 ? "text-bad" : "text-good"}
             />
-            <KpiCell
-              label="Farm profit in a bad year"
-              value={
-                <MoneyFigure
-                  detail={simDetail(risk, sim, "Farm profit in a bad year", sim.badYearProfitK, "Whole farm, all risks, in a 1-in-20 bad year.")}
-                  className={sim.badYearProfitK < 0 ? "text-bad" : "text-good"}
-                />
-              }
-              sub={
-                changed && Math.round(profitDelta) !== 0 ? (
-                  <span className={profitDelta > 0 ? "text-good" : "text-bad"}>{gbpK(profitDelta, { sign: true })} vs today</span>
-                ) : (
-                  `Expected ${gbpK(sim.meanK)}`
-                )
-              }
-            />
-            <KpiCell
-              label="Loss-making years"
-              value={`${sim.lossYears} in 20`}
-              sub={changed && sim.lossYears !== today.lossYears ? `${today.lossYears} in 20 today` : `${Math.round(sim.lossChance * 100)}% chance`}
-            />
-            <KpiCell
-              label={risk.model.exposureLabel}
-              value={amount(sim.exposure, risk.model.unit)}
-              sub={
-                changed && exposureDelta !== 0
-                  ? `${exposureDelta < 0 ? "−" : "+"}${amount(Math.abs(exposureDelta), risk.model.unit)} from options`
-                  : "Unhedged today"
-              }
-            />
-          </KpiStrip>
+          }
+          sub={
+            changed && Math.round(profitDelta) !== 0 ? (
+              <span className={profitDelta > 0 ? "text-good" : "text-bad"}>{gbpK(profitDelta, { sign: true })} vs today</span>
+            ) : (
+              `Expected ${gbpK(sim.meanK)}`
+            )
+          }
+        />
+        <KpiCell
+          label="Loss-making years"
+          value={`${sim.lossYears} in 20`}
+          sub={changed && sim.lossYears !== today.lossYears ? `${today.lossYears} in 20 today` : `${Math.round(sim.lossChance * 100)}% chance`}
+        />
+        <KpiCell
+          label={risk.model.exposureLabel}
+          value={amount(sim.exposure, risk.model.unit)}
+          sub={
+            changed && exposureDelta !== 0
+              ? `${exposureDelta < 0 ? "−" : "+"}${amount(Math.abs(exposureDelta), risk.model.unit)} from options`
+              : "Unhedged today"
+          }
+        />
+      </KpiStrip>
 
-          <Card label="20 simulated years">
-            <CardHeader
-              title="20 simulated years, worst to best"
-              description="Whole-farm profit in each simulated year, with the options you've added."
-            />
-            <CardBody className="pt-6">
-              <SimulationBars bars={sim.bars} ghost={today.bars} />
-            </CardBody>
-          </Card>
+      <Card label="20 simulated years">
+        <CardHeader
+          title="20 simulated years, worst to best"
+          description="Whole-farm profit in each simulated year, with the options you've added."
+        />
+        <CardBody className="pt-6">
+          <SimulationBars bars={sim.bars} ghost={today.bars} />
+        </CardBody>
+      </Card>
 
-          <Card label="Mitigation options">
-            <CardHeader
-              title="Mitigation options"
-              description="Add options to the simulation to see their effect above."
-              action={
-                changed ? (
-                  <>
-                    <Counter label={`${active.length} added`}>{active.length}</Counter>
-                    <Button variant="ghost" size="sm" onClick={() => setActiveIds([])}>
-                      Clear
-                    </Button>
-                  </>
-                ) : null
-              }
-            />
-            <CardBody>
-              <MitigationList>
-                {risk.mitigations.map((m) => (
-                  <MitigationRow key={m.id} risk={risk} mitigation={m} active={activeIds.includes(m.id)} onToggle={() => toggle(m.id)} />
-                ))}
-              </MitigationList>
-            </CardBody>
-          </Card>
+      <Card label="Mitigation options">
+        <CardHeader
+          title="Mitigation options"
+          description="Add options to the simulation to see their effect above."
+          action={
+            changed ? (
+              <>
+                <Counter label={`${active.length} added`}>{active.length}</Counter>
+                <Button variant="ghost" size="sm" onClick={() => setActiveIds([])}>
+                  Clear
+                </Button>
+              </>
+            ) : null
+          }
+        />
+        <CardBody>
+          <MitigationList>
+            {risk.mitigations.map((m) => (
+              <MitigationRow key={m.id} risk={risk} mitigation={m} active={activeIds.includes(m.id)} onToggle={() => toggle(m.id)} />
+            ))}
+          </MitigationList>
+        </CardBody>
+      </Card>
 
-          <Card label={risk.model.tradeoff.title}>
-            <CardHeader title={risk.model.tradeoff.title} description="Less risk in a bad year against less upside in a good one." />
-            <TradeoffTable risk={risk} />
-          </Card>
-        </div>
-
-        <aside aria-label="Reasoning and sources" className="flex min-w-0 flex-col gap-8">
-          <Card label="Agent reasoning">
-            <CardHeader title="Agent reasoning" />
+      <Card label="How this was worked out">
+        <CardHeader
+          title="How this was worked out"
+          description="The agent's reasoning, the formula, the trade-off and the inputs behind these figures."
+        />
+        <div className="divide-y divide-line">
+          <Disclosure title="Agent reasoning">
             <CardBody>
               <ul className="flex flex-col gap-3 text-[13.5px] leading-relaxed">
                 {risk.reasoning.map((line) => (
@@ -148,22 +144,23 @@ export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResul
                 ))}
               </ul>
             </CardBody>
-          </Card>
-          <Card label="The working">
-            <CardHeader title="The working" description={changed ? "Live, with your options added." : "Today, before any options."} />
+          </Disclosure>
+          <Disclosure title="The working" description={changed ? "Live, with your options added." : "Today, before any options."}>
             <CardBody>
               <WorkingPanel steps={riskWorking(risk.model, sim)} />
             </CardBody>
-          </Card>
-          <Card label="Inputs and sources">
-            <CardHeader title="Inputs and sources" />
+          </Disclosure>
+          <Disclosure title={risk.model.tradeoff.title} description="Less risk in a bad year against less upside in a good one.">
+            <TradeoffTable risk={risk} />
+          </Disclosure>
+          <Disclosure title="Inputs and sources">
             <CardBody>
               <SourcesList sources={risk.sources} />
             </CardBody>
-          </Card>
-          <Disclaimer className="px-1" />
-        </aside>
-      </div>
+          </Disclosure>
+        </div>
+      </Card>
+      <Disclaimer className="px-1" />
     </div>
   );
 }
