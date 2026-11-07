@@ -9,9 +9,12 @@ export interface Farm {
 }
 
 export interface WorkingStep {
+  /** Plain-language name of the quantity. */
   label: string;
   value: string;
   unit?: string;
+  /** Model variable or formula, shown only in the optional methodology view. */
+  formula?: string;
 }
 
 export interface Source {
@@ -35,6 +38,10 @@ export interface Mitigation {
   status: MitigationStatus;
   /** "risk" = cuts the bad-year hit; "profit" = raises expected profit every year. */
   benefitKind?: "risk" | "profit";
+  /** Specific next-step label, e.g. "Compare wheat contracts". */
+  actionLabel?: string;
+  /** Calendar item that sets the deadline for this option, when there is one. */
+  deadlineId?: string;
   effect: {
     tonnesRemoved?: number;
     /** Exposure removed for risks not measured in tonnes (hectares, £k of debt, …). */
@@ -69,9 +76,21 @@ export interface ExposureModel {
   };
 }
 
+/** How far an input can be trusted. Anything other than "confirmed" makes dependent results provisional. */
+export type InputQuality = "confirmed" | "unconfirmed" | "stale" | "missing";
+
+export interface DataQuality {
+  quality: InputQuality;
+  /** Plain-language explanation of what is unconfirmed, stale or missing. */
+  note: string;
+}
+
+export type RiskGroup = "Prices" | "Weather" | "Schemes" | "Finance";
+
 export interface RiskResult {
   id: string;
   name: string;
+  group: RiskGroup;
   /** 1–10 */
   score: number;
   /** £ hit to farm profit in a 1-in-20 bad year. */
@@ -88,6 +107,7 @@ export interface RiskResult {
   sources: Source[];
   mitigations: Mitigation[];
   model: ExposureModel;
+  dataQuality: DataQuality;
 }
 
 export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house";
@@ -102,9 +122,18 @@ export interface PendingChange {
   reason: string;
   status: PendingStatus;
   receivedAt?: string;
+  /** Risk whose inputs this change affects. */
+  riskId?: string;
+  /** Plain-language effect on the model if approved. */
+  impact?: string;
+  /** Set when the change has been approved or rejected. */
+  resolvedAt?: string;
 }
 
 export type CalendarLane = "Selling" | "Inputs" | "Finance" | "Schemes" | "Markets";
+
+/** "confirmed" = a fixed date; "expected" = an estimated date or window; "market" = a scheduled market or policy event. */
+export type CalendarCertainty = "confirmed" | "expected" | "market";
 
 export interface CalendarItem {
   id: string;
@@ -115,6 +144,12 @@ export interface CalendarItem {
   end?: string;
   label: string;
   tone?: "warning";
+  certainty: CalendarCertainty;
+  /** Why this date matters for the farm. */
+  why: string;
+  /** Where the date comes from. */
+  source: string;
+  riskId?: string;
 }
 
 export interface ProfitSummary {
@@ -141,14 +176,22 @@ export interface TopMitigation {
   riskName: string;
   scoreBefore: number;
   mitigation: Mitigation;
+  deadline?: CalendarItem;
 }
 
 export interface AssessmentMeta {
   /** ISO date of the assessment */
   date: string;
+  /** Time the assessment last ran (simulated in the demo). */
   updatedAt: string;
   harvestYear: number;
   typicalProfit: number;
+  /** ISO date of the most recent market prices used. */
+  marketDataDate: string;
+  /** ISO date farm inputs were last confirmed in farm setup. */
+  farmInputsConfirmed: string;
+  /** True while every figure comes from the fictional demo farm. */
+  sampleData: boolean;
 }
 
 export interface Reminder {
@@ -174,6 +217,8 @@ export interface OnboardingSection {
   status: "confirmed" | "review" | "todo";
   agentMessage: string;
   documentsHint: string;
+  /** What Headwind assumes, and which results are affected, while this section is unconfirmed. */
+  ifMissing: string;
   fields: OnboardingField[];
 }
 
@@ -188,6 +233,8 @@ export interface WhatIfPreset {
   id: string;
   label: string;
   inputs: WhatIfInputs;
+  /** Plain-language summary of the inputs this preset changes. */
+  changes: string;
 }
 
 export interface WhatIfSlider {
@@ -196,6 +243,8 @@ export interface WhatIfSlider {
   min: number;
   max: number;
   step: number;
+  /** Unit shown beside the numeric input, e.g. "£/t", "%", "pts". */
+  unit: string;
   source: string;
 }
 
