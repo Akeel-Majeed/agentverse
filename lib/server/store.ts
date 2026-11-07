@@ -11,6 +11,7 @@ import * as demo from "../profile/fenland-ridge";
 import { makeSnapshot } from "../profile/risk-profile";
 import type {
   AssessmentMeta,
+  ChatTurn,
   BreakEven,
   Farm,
   MarketBaseline,
@@ -51,6 +52,9 @@ export interface Store {
   getSignals(since: string): Promise<Signal[]>;
   getPendingChanges(): Promise<PendingChange[]>;
   updatePendingChange(id: string, status: PendingChange["status"], proposedValue?: string): Promise<PendingChange | null>;
+  /** Start logging a chat turn. False if this inbound message was already taken (a webhook retry). */
+  claimChatTurn(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<boolean>;
+  finishChatTurn(inboundMessageId: string, result: Omit<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<void>;
 }
 
 /* ---------- In-memory demo store ---------- */
@@ -80,6 +84,7 @@ function createMockStore(): Store {
       },
     ] as Assessment[],
     pending: structuredClone(mock.pendingChanges),
+    chat: [] as ChatTurn[],
   };
 
   return {
@@ -119,6 +124,15 @@ function createMockStore(): Store {
       item.status = status;
       if (proposedValue !== undefined) item.proposedValue = proposedValue;
       return structuredClone(item);
+    },
+    claimChatTurn: async (turn) => {
+      if (state.chat.some((t) => t.inboundMessageId === turn.inboundMessageId)) return false;
+      state.chat.push({ ...turn, status: "answering" });
+      return true;
+    },
+    finishChatTurn: async (id, result) => {
+      const turn = state.chat.find((t) => t.inboundMessageId === id);
+      if (turn) Object.assign(turn, structuredClone(result));
     },
   };
 }
@@ -282,6 +296,32 @@ function createSupabaseStore(db: SupabaseClient): Store {
       const { data, error } = await db.from("pending_changes").update(patch).eq("farm_id", farm).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(`Supabase: update pending change: ${error.message}`);
       return data ? toPending(data) : null;
+    },
+    async claimChatTurn(turn) {
+      const { error } = await db.from("chat_turns").insert({
+        farm_id: farm,
+        inbound_message_id: turn.inboundMessageId,
+        conversation_id: turn.conversationId,
+        question: turn.question,
+      });
+      if (!error) return true;
+      if (error.code === "23505") return false; // unique violation: already answered or answering
+      throw new Error(`Supabase: log chat turn: ${error.message}`);
+    },
+    async finishChatTurn(id, result) {
+      const { error } = await db
+        .from("chat_turns")
+        .update({
+          status: result.status,
+          answer: result.answer ?? null,
+          tools: result.tools ?? [],
+          checker: result.checker ?? null,
+          model: result.model ?? null,
+          error: result.error ?? null,
+          answered_at: new Date().toISOString(),
+        })
+        .eq("inbound_message_id", id);
+      if (error) throw new Error(`Supabase: finish chat turn: ${error.message}`);
     },
   };
 }
