@@ -29,7 +29,11 @@ export function ApprovalProvider({ initial, children }: { initial: PendingChange
   const value = useMemo<ApprovalContextValue>(
     () => ({
       items,
-      approve: async (id, v) => update(await approveChange(id, v)),
+      approve: async (id, v) => {
+        const result = await approveChange(id, v).catch(() => ({ ok: false as const, error: "Couldn't save. Check your connection and try again." }));
+        if (!result.ok) throw new Error(result.error);
+        update(result.item);
+      },
       reject: async (id) => update(await rejectChange(id)),
     }),
     [items, update]
@@ -69,15 +73,19 @@ export function ApprovalQueueItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.currentValue);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const inputId = useId();
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
+    setError("");
     try {
       await fn();
+      setEditing(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save. Try again.");
     } finally {
       setBusy(false);
-      setEditing(false);
     }
   };
 
@@ -111,6 +119,7 @@ export function ApprovalQueueItem({
       </div>
 
       <div aria-live="polite">
+        {error ? <p className="mb-2 text-[12px] font-medium text-bad">{error}</p> : null}
         {resolved ? (
           <p className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink">
             {item.status === "approved" ? <Check className="h-3.5 w-3.5" aria-hidden /> : <X className="h-3.5 w-3.5" aria-hidden />}

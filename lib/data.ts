@@ -105,19 +105,25 @@ function confirmedField(key: string, value: ProfileFieldValue["value"], source: 
   return { key, value, source, confidence: "high", confirmedAt: now, validUntil: days ? addDays(now, days) : null };
 }
 
-/** Accept a proposed change and apply it to the profile. Pass `value` when the farmer edited the proposal. */
-export async function approveChange(id: string, value?: string): Promise<PendingChange | null> {
+/**
+ * Accept a proposed change and apply it to the profile. Pass `value` when the farmer edited the
+ * proposal. If the value can't be saved the change stays pending and the error says why.
+ */
+export async function approveChange(
+  id: string,
+  value?: string
+): Promise<{ ok: true; item: PendingChange | null } | { ok: false; error: string }> {
   const store = await getStore();
   const item = (await store.getPendingChanges()).find((p) => p.id === id);
-  if (!item) return null;
+  if (!item) return { ok: false, error: "Not saved: this change is no longer in the queue." };
   const def = item.fieldKey ? fieldDef(item.fieldKey) : undefined;
-  if (def) {
-    const parsed = parseValue(def, value ?? item.proposedValue);
-    if (parsed.ok) await store.saveProfileFields([confirmedField(def.key, parsed.value, APPROVED_SOURCE[item.source], new Date().toISOString())]);
-  }
+  if (!def) return { ok: false, error: "Not saved: this change isn't linked to a profile field. Reject it, or edit the field in your profile." };
+  const parsed = parseValue(def, value ?? item.proposedValue);
+  if (!parsed.ok) return { ok: false, error: `Not saved: ${parsed.error}` };
+  await store.saveProfileFields([confirmedField(def.key, parsed.value, APPROVED_SOURCE[item.source], new Date().toISOString())]);
   const updated = await store.updatePendingChange(id, "approved", value);
   refresh();
-  return updated;
+  return { ok: true, item: updated };
 }
 
 export async function rejectChange(id: string): Promise<PendingChange | null> {
