@@ -9,7 +9,6 @@ export default async function ProfilePage() {
   return (
     <PageShell>
       <PageHeader
-        label="Farm profile · Demo data"
         title={farm.name}
         subtitle="Everything Headwind knows about the farm, section by section. Upload documents and the agent fills in what it can; you confirm."
       />

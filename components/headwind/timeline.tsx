@@ -43,7 +43,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
     const d = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + i, 1));
     return {
       iso: d.toISOString().slice(0, 10),
-      label: d.toLocaleString("en-GB", { month: "short", timeZone: "UTC" }).toUpperCase(),
+      label: d.toLocaleString("en-GB", { month: "short", timeZone: "UTC" }),
       year: i === 0 || d.getUTCMonth() === 0 ? String(d.getUTCFullYear()).slice(2) : null,
     };
   });
@@ -58,7 +58,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
             {monthStarts.map((m) => (
               <span
                 key={m.iso}
-                className="absolute bottom-2 pl-1.5 font-mono text-[11px] tracking-[0.06em] text-sub"
+                className="absolute bottom-2 pl-1.5 text-[11px] text-sub"
                 style={{ left: `${x(m.iso)}%` }}
               >
                 {m.label}
@@ -85,7 +85,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
             return (
               <div key={lane} className="contents">
                 <div className="flex items-start border-b border-line py-4 pr-3">
-                  <h3 className="font-mono text-label uppercase text-ink">{lane}</h3>
+                  <h3 className="text-label text-ink">{lane}</h3>
                 </div>
                 <ul aria-label={`${lane} timeline`} className="relative border-b border-line" style={{ height }}>
                   {periods.placed.map(({ item, row }) => {
@@ -129,7 +129,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
                       >
                         <Diamond kind={item.kind} />
                         <span>
-                          <span className={cn("font-mono text-[11px] uppercase", isKey ? "text-brand" : "text-sub")}>
+                          <span className={cn("text-[11px]", isKey ? "text-brand" : "text-sub")}>
                             {shortDate(item.start)}
                           </span>{" "}
                           {item.label}
@@ -150,7 +150,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
           ))}
           <div className="absolute bottom-0 top-0 border-l-[1.5px] border-dashed border-ink/70" style={{ left: `${todayX}%` }} />
           <span
-            className="absolute top-0 -translate-x-1/2 rounded-md bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-white"
+            className="absolute top-0 -translate-x-1/2 rounded-md bg-ink px-1.5 py-0.5 text-[11px] font-medium text-white"
             style={{ left: `${todayX}%` }}
           >
             Today

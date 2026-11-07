@@ -110,12 +110,12 @@ export const risks: RiskResult[] = [
       "A minimum-price contract on half the 2027 crop keeps the upside and takes the score from 10 to 8 for about £7.5k.",
     ],
     sources: [
-      { label: "2026 wheat unsold: 1,028 t", origin: "GRAIN STORE SHEET · ONBOARDING", date: "12 Oct 2026" },
-      { label: "2027 wheat expected: 1,870 t (220 ha × 8.5 t/ha)", origin: "CROPPING PLAN · ONBOARDING", date: "12 Oct 2026" },
-      { label: "Feed wheat, delivered: £178/t", origin: "AHDB DELIVERED PRICES", date: "06 Nov 2026" },
-      { label: "Price volatility: £20/t standard deviation", origin: "AHDB 10-YR HISTORY · HEADWIND MODEL" },
-      { label: "Wheat break-even: £185/t", origin: "ACCOUNTS 2025 · UPLOAD", date: "14 Oct 2026" },
-      { label: "Minimum-price premium: ~£8/t", origin: "MERCHANT QUOTE · VIA MCP", date: "05 Nov 2026" },
+      { label: "2026 wheat unsold: 1,028 t", origin: "Grain store sheet · Onboarding", date: "12 Oct 2026" },
+      { label: "2027 wheat expected: 1,870 t (220 ha × 8.5 t/ha)", origin: "Cropping plan · Onboarding", date: "12 Oct 2026" },
+      { label: "Feed wheat, delivered: £178/t", origin: "AHDB Delivered prices", date: "06 Nov 2026" },
+      { label: "Price volatility: £20/t standard deviation", origin: "AHDB 10-YR History · Headwind model" },
+      { label: "Wheat break-even: £185/t", origin: "Accounts 2025 · Upload", date: "14 Oct 2026" },
+      { label: "Minimum-price premium: ~£8/t", origin: "Merchant quote · Via MCP", date: "05 Nov 2026" },
     ],
     model: {
       exposure: 2898,
@@ -174,10 +174,10 @@ export const risks: RiskResult[] = [
       "Yield-index insurance on the wheat area is the main lever; splitting barley drilling helps at the margin.",
     ],
     sources: [
-      { label: "Farmed area: 450 ha", origin: "RPA LAND PARCELS", date: "12 Oct 2026" },
-      { label: "Yield swing: £78/ha standard deviation", origin: "YIELD RECORDS 2021–25 · UPLOAD" },
-      { label: "Soil moisture: normal", origin: "MET OFFICE · LINCS", date: "06 Nov 2026" },
-      { label: "Index insurance quote: ~£4.2k/yr", origin: "BROKER QUOTE · VIA MCP", date: "02 Nov 2026" },
+      { label: "Farmed area: 450 ha", origin: "RPA Land parcels", date: "12 Oct 2026" },
+      { label: "Yield swing: £78/ha standard deviation", origin: "Yield records 2021–25 · Upload" },
+      { label: "Soil moisture: normal", origin: "Met office · Lincs", date: "06 Nov 2026" },
+      { label: "Index insurance quote: ~£4.2k/yr", origin: "Broker quote · Via MCP", date: "02 Nov 2026" },
     ],
     model: {
       exposure: 450,
@@ -227,10 +227,10 @@ export const risks: RiskResult[] = [
       "Buying half now removes half the exposure for roughly the interest on paying early.",
     ],
     sources: [
-      { label: "Spring N needed: 166 t AN", origin: "AGRONOMIST N PLAN · VIA MCP", date: "20 Oct 2026" },
-      { label: "Spring N bought: 0 t", origin: "FRESHNESS CHECK", date: "27 Sep 2026" },
-      { label: "AN price: £504/t", origin: "AHDB FERTILISER PRICES", date: "Oct 2026" },
-      { label: "Price volatility: £91/t standard deviation", origin: "AHDB 10-YR HISTORY · HEADWIND MODEL" },
+      { label: "Spring N needed: 166 t AN", origin: "Agronomist N plan · Via MCP", date: "20 Oct 2026" },
+      { label: "Spring N bought: 0 t", origin: "Freshness check", date: "27 Sep 2026" },
+      { label: "AN price: £504/t", origin: "AHDB Fertiliser prices", date: "Oct 2026" },
+      { label: "Price volatility: £91/t standard deviation", origin: "AHDB 10-YR History · Headwind model" },
     ],
     model: {
       exposure: 166,
@@ -279,8 +279,8 @@ export const risks: RiskResult[] = [
       "An application in the next window would protect roughly half the income at stake.",
     ],
     sources: [
-      { label: "SFI agreement: £40k/yr, ends 31 Mar 2027", origin: "RPA AGREEMENT PDF · UPLOAD", date: "12 Oct 2026" },
-      { label: "Next offer window: expected Jan–Mar 2027", origin: "DEFRA ANNOUNCEMENT · HEADWIND READ", date: "28 Oct 2026" },
+      { label: "SFI agreement: £40k/yr, ends 31 Mar 2027", origin: "RPA Agreement PDF · Upload", date: "12 Oct 2026" },
+      { label: "Next offer window: expected Jan–Mar 2027", origin: "DEFRA Announcement · Headwind read", date: "28 Oct 2026" },
     ],
     model: {
       exposure: 40,
@@ -330,10 +330,10 @@ export const risks: RiskResult[] = [
       "The bigger win is the margin: well-secured farms pay 1.3–1.8% over base, worth about £11k a year to you.",
     ],
     sources: [
-      { label: "Variable borrowing: £840k at base + 3.1%", origin: "BANK STATEMENT · UPLOAD", date: "12 Oct 2026" },
-      { label: "Loan renewal: 14 May 2027", origin: "BANK FACILITY LETTER · UPLOAD", date: "12 Oct 2026" },
-      { label: "Typical secured farm margin: 1.3–1.8%", origin: "LENDER SURVEY · HEADWIND READ", date: "Oct 2026" },
-      { label: "Bank Rate expectations", origin: "BANK OF ENGLAND · MARKET CURVE", date: "06 Nov 2026" },
+      { label: "Variable borrowing: £840k at base + 3.1%", origin: "Bank statement · Upload", date: "12 Oct 2026" },
+      { label: "Loan renewal: 14 May 2027", origin: "Bank facility letter · Upload", date: "12 Oct 2026" },
+      { label: "Typical secured farm margin: 1.3–1.8%", origin: "Lender survey · Headwind read", date: "Oct 2026" },
+      { label: "Bank Rate expectations", origin: "Bank of england · Market curve", date: "06 Nov 2026" },
     ],
     model: {
       exposure: 840,
@@ -392,9 +392,9 @@ export const profit: ProfitSummary = {
     { label: "change vs last week (wheat −£4/t, AN +£18/t)", value: "−£9k" },
   ],
   sources: [
-    { label: "Profit and loss 2023–2025", origin: "ACCOUNTS · UPLOAD", date: "14 Oct 2026" },
-    { label: "Feed wheat, delivered: £178/t", origin: "AHDB DELIVERED PRICES", date: "06 Nov 2026" },
-    { label: "AN price: £504/t", origin: "AHDB FERTILISER PRICES", date: "Oct 2026" },
+    { label: "Profit and loss 2023–2025", origin: "Accounts · Upload", date: "14 Oct 2026" },
+    { label: "Feed wheat, delivered: £178/t", origin: "AHDB Delivered prices", date: "06 Nov 2026" },
+    { label: "AN price: £504/t", origin: "AHDB Fertiliser prices", date: "Oct 2026" },
   ],
 };
 
@@ -518,10 +518,10 @@ export const onboarding: OnboardingSection[] = [
     agentMessage: "I found Fenland Ridge Farm Ltd on Companies House and matched 450 ha of land parcels from the RPA. Tenure came from our chat.",
     documentsHint: "RPA land parcel map, tenancy agreements",
     fields: [
-      { id: "fb-name", label: "Business name", value: "Fenland Ridge Farm Ltd", source: "COMPANIES HOUSE", confidence: "high" },
-      { id: "fb-location", label: "Location", value: "Near Sleaford, Lincolnshire", source: "ONBOARDING CHAT", confidence: "high" },
-      { id: "fb-area", label: "Farmed area", value: "450 ha", source: "RPA LAND PARCELS", confidence: "high" },
-      { id: "fb-tenure", label: "Tenure", value: "390 ha owned, 60 ha FBT", source: "ONBOARDING CHAT", confidence: "check" },
+      { id: "fb-name", label: "Business name", value: "Fenland Ridge Farm Ltd", source: "Companies house", confidence: "high" },
+      { id: "fb-location", label: "Location", value: "Near Sleaford, Lincolnshire", source: "Onboarding chat", confidence: "high" },
+      { id: "fb-area", label: "Farmed area", value: "450 ha", source: "RPA Land parcels", confidence: "high" },
+      { id: "fb-tenure", label: "Tenure", value: "390 ha owned, 60 ha FBT", source: "Onboarding chat", confidence: "check" },
     ],
   },
   {
@@ -531,9 +531,9 @@ export const onboarding: OnboardingSection[] = [
     agentMessage: "Areas are from your cropping plan; yields are your five-year averages. The rape yield came from your agronomist's adviser agent.",
     documentsHint: "Cropping plan, yield records, agronomist reports",
     fields: [
-      { id: "cp-wheat", label: "Winter wheat", value: "220 ha · 8.5 t/ha", source: "CROPPING PLAN UPLOAD", confidence: "high" },
-      { id: "cp-barley", label: "Spring barley", value: "130 ha · 6.0 t/ha", source: "YIELD RECORDS 2021–25", confidence: "high" },
-      { id: "cp-osr", label: "Oilseed rape", value: "100 ha · 3.4 t/ha", source: "ADVISER AGENT · VIA MCP", confidence: "check" },
+      { id: "cp-wheat", label: "Winter wheat", value: "220 ha · 8.5 t/ha", source: "Cropping plan upload", confidence: "high" },
+      { id: "cp-barley", label: "Spring barley", value: "130 ha · 6.0 t/ha", source: "Yield records 2021–25", confidence: "high" },
+      { id: "cp-osr", label: "Oilseed rape", value: "100 ha · 3.4 t/ha", source: "Adviser agent · Via MCP", confidence: "check" },
     ],
   },
   {
@@ -543,10 +543,10 @@ export const onboarding: OnboardingSection[] = [
     agentMessage: "I read your grain store sheet. Can you check the 2027 line? I couldn't find any forward contracts, so I've assumed nothing is sold yet.",
     documentsHint: "Grain store sheet, merchant contracts",
     fields: [
-      { id: "sp-2026", label: "2026 wheat unsold", value: "1,028 t", source: "GRAIN STORE SHEET", confidence: "high" },
-      { id: "sp-2027", label: "2027 wheat sold forward", value: "0 t", source: "ASSUMED · NO CONTRACTS FOUND", confidence: "check" },
-      { id: "sp-barley", label: "2026 barley unsold", value: "0 t", source: "GRAIN STORE SHEET", confidence: "high" },
-      { id: "sp-osr", label: "2027 OSR sold forward", value: "0 t", source: "ASSUMED · NO CONTRACTS FOUND", confidence: "check" },
+      { id: "sp-2026", label: "2026 wheat unsold", value: "1,028 t", source: "Grain store sheet", confidence: "high" },
+      { id: "sp-2027", label: "2027 wheat sold forward", value: "0 t", source: "Assumed · No contracts found", confidence: "check" },
+      { id: "sp-barley", label: "2026 barley unsold", value: "0 t", source: "Grain store sheet", confidence: "high" },
+      { id: "sp-osr", label: "2027 OSR sold forward", value: "0 t", source: "Assumed · No contracts found", confidence: "check" },
     ],
   },
   {
@@ -556,9 +556,9 @@ export const onboarding: OnboardingSection[] = [
     agentMessage: "Your agronomist's N plan says 166 t of AN for spring. Have you bought any yet? Upload a merchant invoice and I'll fill it in.",
     documentsHint: "Merchant invoices, agronomist N plan",
     fields: [
-      { id: "in-need", label: "Spring nitrogen needed", value: "166 t AN", source: "AGRONOMIST N PLAN · VIA MCP", confidence: "high" },
-      { id: "in-bought", label: "Spring nitrogen bought", value: "0 t", source: "FRESHNESS CHECK", confidence: "check" },
-      { id: "in-last", label: "AN price paid last season", value: "£640/t", source: "MERCHANT INVOICE 2025", confidence: "high" },
+      { id: "in-need", label: "Spring nitrogen needed", value: "166 t AN", source: "Agronomist N plan · Via MCP", confidence: "high" },
+      { id: "in-bought", label: "Spring nitrogen bought", value: "0 t", source: "Freshness check", confidence: "check" },
+      { id: "in-last", label: "AN price paid last season", value: "£640/t", source: "Merchant invoice 2025", confidence: "high" },
     ],
   },
   {
@@ -568,8 +568,8 @@ export const onboarding: OnboardingSection[] = [
     agentMessage: "I read your SFI agreement. The delinked payment is an estimate from last year's statement, so please check it.",
     documentsHint: "SFI agreement, RPA payment statements",
     fields: [
-      { id: "su-sfi", label: "SFI agreement", value: "£40k/yr · ends 31 Mar 2027", source: "RPA AGREEMENT PDF", confidence: "high" },
-      { id: "su-delinked", label: "Delinked payment", value: "£9.6k", source: "RPA STATEMENT 2025", confidence: "check" },
+      { id: "su-sfi", label: "SFI agreement", value: "£40k/yr · ends 31 Mar 2027", source: "RPA Agreement PDF", confidence: "high" },
+      { id: "su-delinked", label: "Delinked payment", value: "£9.6k", source: "RPA Statement 2025", confidence: "check" },
     ],
   },
   {
@@ -579,9 +579,9 @@ export const onboarding: OnboardingSection[] = [
     agentMessage: "Borrowing is from your bank statement. The overdraft limit came from the facility letter. Is £150k still right?",
     documentsHint: "Bank statements, facility letters",
     fields: [
-      { id: "fi-loan", label: "Variable loan", value: "£840k at base + 3.1%", source: "BANK STATEMENT", confidence: "high" },
-      { id: "fi-overdraft", label: "Overdraft limit", value: "£150k", source: "BANK FACILITY LETTER", confidence: "check" },
-      { id: "fi-renewal", label: "Renewal date", value: "14 May 2027", source: "BANK FACILITY LETTER", confidence: "high" },
+      { id: "fi-loan", label: "Variable loan", value: "£840k at base + 3.1%", source: "Bank statement", confidence: "high" },
+      { id: "fi-overdraft", label: "Overdraft limit", value: "£150k", source: "Bank facility letter", confidence: "check" },
+      { id: "fi-renewal", label: "Renewal date", value: "14 May 2027", source: "Bank facility letter", confidence: "high" },
     ],
   },
   {
@@ -591,9 +591,9 @@ export const onboarding: OnboardingSection[] = [
     agentMessage: "Typical profit is the average of your last three years, adjusted to today's prices. Check it matches how you think about a normal year.",
     documentsHint: "Accounts for the last three years",
     fields: [
-      { id: "pl-typical", label: "Typical profit", value: "£85k", source: "ACCOUNTS 2023–25 · AVERAGE", confidence: "check" },
-      { id: "pl-be", label: "Wheat break-even", value: "£185/t", source: "ACCOUNTS 2025", confidence: "high" },
-      { id: "pl-fixed", label: "Fixed costs", value: "£312k", source: "ACCOUNTS 2025", confidence: "high" },
+      { id: "pl-typical", label: "Typical profit", value: "£85k", source: "Accounts 2023–25 · Average", confidence: "check" },
+      { id: "pl-be", label: "Wheat break-even", value: "£185/t", source: "Accounts 2025", confidence: "high" },
+      { id: "pl-fixed", label: "Fixed costs", value: "£312k", source: "Accounts 2025", confidence: "high" },
     ],
   },
 ];
@@ -610,6 +610,6 @@ export const whatIfPresets: WhatIfPreset[] = [
 export const whatIfSliders: WhatIfSlider[] = [
   { key: "wheatPrice", label: "Wheat price", min: 130, max: 240, step: 1, source: "AHDB DELIVERED FEED WHEAT · £178/t · 06 NOV" },
   { key: "fertiliserPrice", label: "AN fertiliser price", min: 300, max: 1000, step: 1, source: "AHDB FERTILISER PRICES · £504/t · OCT" },
-  { key: "yieldPct", label: "Yield, all crops", min: 70, max: 115, step: 1, source: "YIELD RECORDS 2021–25 · 100% = 5-YR AVERAGE" },
-  { key: "rateChange", label: "Bank Rate change", min: -1, max: 2, step: 0.25, source: "BANK OF ENGLAND · YOU PAY BASE + 3.1%" },
+  { key: "yieldPct", label: "Yield, all crops", min: 70, max: 115, step: 1, source: "Yield records 2021–25 · 100% = 5-YR Average" },
+  { key: "rateChange", label: "Bank Rate change", min: -1, max: 2, step: 0.25, source: "Bank of england · You pay base + 3.1%" },
 ];

@@ -24,7 +24,7 @@ export function MoneyFigure({
           type="button"
           aria-label={`${detail.title}: ${detail.value}. Show working`}
           className={cn(
-            "rounded-sm font-mono tabular underline decoration-line-strong decoration-dotted underline-offset-[5px] transition-colors hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "rounded-sm tabular underline decoration-line-strong decoration-dotted underline-offset-[5px] transition-colors hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             className
           )}
         >
@@ -33,9 +33,8 @@ export function MoneyFigure({
       </SheetTrigger>
       <SheetContent side="right" className="flex flex-col gap-0 p-0">
         <SheetHeader className="space-y-2 border-b border-line px-6 pb-5 pt-6 text-left">
-          <SectionLabel>The working · Demo data</SectionLabel>
           <SheetTitle className="pr-6 text-[17px] font-semibold tracking-tight">{detail.title}</SheetTitle>
-          <p className="font-mono text-[34px] font-semibold leading-none tracking-tight tabular">{detail.value}</p>
+          <p className="text-[32px] font-semibold leading-none tracking-tight tabular">{detail.value}</p>
           <SheetDescription className="text-[13px] leading-relaxed text-sub">
             {detail.description ?? "How Headwind worked this figure out, and where each input came from."}
           </SheetDescription>

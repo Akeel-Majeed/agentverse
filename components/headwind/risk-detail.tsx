@@ -35,8 +35,7 @@ export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResul
   return (
     <div className="flex flex-col gap-9">
       <PageHeader
-        label={`Risk · ${risk.name} · ${dateLabel} · Demo data`}
-        leading={<ScoreRing score={score} size={104} name={risk.name} />}
+        leading={<ScoreRing score={score} size={96} name={risk.name} />}
         title={
           <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             {risk.name}
@@ -44,6 +43,7 @@ export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResul
           </span>
         }
         subtitle={risk.summary}
+        meta={`Assessed ${dateLabel}`}
       />
       <p role="status" aria-live="polite" className="sr-only">
         Score {score} out of 10. Bad-year hit {gbpK(sim.hitK)}. Farm profit in a bad year {gbpK(sim.badYearProfitK)}.
@@ -137,7 +137,7 @@ export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResul
 
         <aside aria-label="Reasoning and sources" className="flex min-w-0 flex-col gap-8">
           <Card label="Agent reasoning">
-            <CardHeader title="Agent reasoning" leading={<span aria-hidden className="h-2 w-2 rounded-full bg-brand" />} />
+            <CardHeader title="Agent reasoning" />
             <CardBody>
               <ul className="flex flex-col gap-3 text-[13.5px] leading-relaxed">
                 {risk.reasoning.map((line) => (

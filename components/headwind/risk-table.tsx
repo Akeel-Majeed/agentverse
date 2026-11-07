@@ -19,19 +19,19 @@ function mitigationStatus(risk: RiskResult): string {
 
 const TREND_CLASS = { good: "text-good", bad: "text-bad", neutral: "text-sub" } as const;
 
-const th = "h-10 font-mono text-label font-normal uppercase text-sub";
+const th = "h-10 text-label font-normal text-sub";
 
 export function RiskTable({ risks }: { risks: RiskResult[] }) {
   return (
     <Table className="min-w-[640px]">
       <TableHeader>
         <TableRow className="border-line hover:bg-transparent">
-          <TableHead className={cn(th, "w-[64px] pl-6")}>Score</TableHead>
+          <TableHead className={cn(th, "w-[64px] pl-5")}>Score</TableHead>
           <TableHead className={th}>Risk</TableHead>
           <TableHead className={cn(th, "text-right")}>Bad year</TableHead>
           <TableHead className={cn(th, "text-right")}>% of profit</TableHead>
           <TableHead className={cn(th, "text-right")}>7-day</TableHead>
-          <TableHead className={cn(th, "pr-6")}>Mitigation</TableHead>
+          <TableHead className={cn(th, "pr-5")}>Mitigation</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -39,7 +39,7 @@ export function RiskTable({ risks }: { risks: RiskResult[] }) {
           const tone = trendTone(risk.trend7d);
           return (
             <TableRow key={risk.id} className="border-line hover:bg-panel">
-              <TableCell className="py-3.5 pl-6">
+              <TableCell className="py-3.5 pl-5">
                 <ScoreChip score={risk.score} />
               </TableCell>
               <TableCell className="py-3.5">
@@ -54,12 +54,12 @@ export function RiskTable({ risks }: { risks: RiskResult[] }) {
               <TableCell className="py-3.5 text-right text-[13.5px] font-medium">
                 <MoneyFigure detail={riskBadYearDetail(risk)} />
               </TableCell>
-              <TableCell className="py-3.5 text-right font-mono text-[13px] tabular">{risk.pctOfProfit}%</TableCell>
-              <TableCell className={cn("py-3.5 text-right font-mono text-[13px] tabular", TREND_CLASS[tone])}>
+              <TableCell className="py-3.5 text-right text-[13px] tabular">{risk.pctOfProfit}%</TableCell>
+              <TableCell className={cn("py-3.5 text-right text-[13px] tabular", TREND_CLASS[tone])}>
                 {gbp(risk.trend7d, { sign: true })}
                 <span className="sr-only">{tone === "bad" ? " worse" : tone === "good" ? " better" : " no change"}</span>
               </TableCell>
-              <TableCell className="py-3.5 pr-6 font-mono text-[12px] text-sub">{mitigationStatus(risk)}</TableCell>
+              <TableCell className="py-3.5 pr-5 text-[12px] text-sub">{mitigationStatus(risk)}</TableCell>
             </TableRow>
           );
         })}

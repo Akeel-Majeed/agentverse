@@ -6,7 +6,7 @@ import type { RiskResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MoneyFigure } from "./money-figure";
 
-const th = "h-10 font-mono text-label font-normal uppercase text-sub";
+const th = "h-10 text-label font-normal text-sub";
 
 export function TradeoffTable({ risk }: { risk: RiskResult }) {
   const rows = tradeoffRows(risk.model);
@@ -17,18 +17,18 @@ export function TradeoffTable({ risk }: { risk: RiskResult }) {
         <Table className="min-w-[620px]">
           <TableHeader>
             <TableRow className="border-line hover:bg-transparent">
-              <TableHead className={cn(th, "pl-6")}>{model.tradeoff.actionLabel}</TableHead>
+              <TableHead className={cn(th, "pl-5")}>{model.tradeoff.actionLabel}</TableHead>
               <TableHead className={cn(th, "text-right")}>{model.exposureLabel}</TableHead>
               <TableHead className={cn(th, "text-right")}>Bad-year hit</TableHead>
               <TableHead className={cn(th, "text-right")}>Profit, bad year</TableHead>
               <TableHead className={cn(th, "text-right")}>Loss years</TableHead>
-              <TableHead className={cn(th, "pr-6 text-right")}>Upside given up</TableHead>
+              <TableHead className={cn(th, "pr-5 text-right")}>Upside given up</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.share} className="border-line font-mono text-[13px] tabular hover:bg-panel">
-                <TableCell className="py-3 pl-6 font-semibold">
+              <TableRow key={row.share} className="border-line text-[13px] tabular hover:bg-panel">
+                <TableCell className="py-3 pl-5 font-semibold">
                   {Math.round(row.share * 100)}%
                   {row.share === 0 ? <span className="ml-2 font-normal text-sub">today</span> : null}
                 </TableCell>
@@ -40,7 +40,7 @@ export function TradeoffTable({ risk }: { risk: RiskResult }) {
                   <MoneyFigure detail={tradeoffDetail(risk, row, "badYearProfitK")} />
                 </TableCell>
                 <TableCell className="py-3 text-right">{row.lossYears} in 20</TableCell>
-                <TableCell className="py-3 pr-6 text-right text-sub">
+                <TableCell className="py-3 pr-5 text-right text-sub">
                   <MoneyFigure detail={tradeoffDetail(risk, row, "upsideGivenUpK")} />
                 </TableCell>
               </TableRow>
@@ -48,7 +48,7 @@ export function TradeoffTable({ risk }: { risk: RiskResult }) {
           </TableBody>
         </Table>
       </div>
-      <p className="border-t border-line px-6 py-3 text-[12px] text-sub">{model.tradeoff.note}</p>
+      <p className="border-t border-line px-5 py-3 text-[12px] text-sub">{model.tradeoff.note}</p>
     </div>
   );
 }

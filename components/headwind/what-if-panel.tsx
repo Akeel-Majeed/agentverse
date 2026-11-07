@@ -41,7 +41,7 @@ function SliderField({
         <span id={labelId} className="text-[14px] font-medium">
           {slider.label}
         </span>
-        <span className="font-mono text-[15px] font-semibold tabular">
+        <span className="text-[15px] font-semibold tabular">
           {shown}
           {value !== baseline ? (
             <span className="ml-2 text-[12px] font-normal text-sub">today {formatValue(slider.key, baseline)}</span>
@@ -57,11 +57,11 @@ function SliderField({
         thumbLabelledBy={labelId}
         valueText={shown}
       />
-      <div className="flex justify-between font-mono text-[11px] text-sub">
+      <div className="flex justify-between text-[11px] text-sub">
         <span>{formatValue(slider.key, slider.min)}</span>
         <span>{formatValue(slider.key, slider.max)}</span>
       </div>
-      <p className="font-mono text-[10.5px] uppercase tracking-[0.07em] text-sub">{slider.source}</p>
+      <p className="text-[12px] text-sub">{slider.source}</p>
     </div>
   );
 }
@@ -115,28 +115,24 @@ export function WhatIfPanel({
         </Card>
 
         <div className="flex min-w-0 flex-col gap-8">
-          <section aria-label="What-if result" className="rounded-card border border-brand-border bg-brand-surface">
-            <div className="border-b border-brand-border px-6 py-4">
-              <h2 className="font-mono text-label font-medium uppercase text-brand-label">
-                Farm profit · {harvestYear} harvest year
-              </h2>
-            </div>
-            <div className="flex flex-col gap-4 px-6 py-5" aria-live="polite">
+          <Card label="What-if result">
+            <CardHeader title="Farm profit" description={`${harvestYear} harvest year`} />
+            <CardBody className="flex flex-col gap-4" aria-live="polite">
               <div className="flex flex-wrap items-end justify-between gap-3">
-                <p className={`font-mono text-[46px] font-semibold leading-none tracking-tight tabular ${result.profitK < 0 ? "text-bad" : "text-ink"}`}>
+                <p className={`text-[40px] font-semibold leading-none tracking-tight tabular ${result.profitK < 0 ? "text-bad" : "text-ink"}`}>
                   {gbpK(result.profitK)}
                 </p>
                 <p
-                  className={`font-mono text-[14px] font-medium tabular ${deltaRounded === 0 ? "text-sub" : deltaRounded > 0 ? "text-good" : "text-bad"}`}
+                  className={` text-[14px] font-medium tabular ${deltaRounded === 0 ? "text-sub" : deltaRounded > 0 ? "text-good" : "text-bad"}`}
                 >
                   {gbpK(result.deltaK, { sign: true })} vs today
                 </p>
               </div>
-              <p className="border-t border-brand-border pt-4 font-mono text-label font-medium uppercase text-brand-label">
-                Loss if wheat below {gbpPerT(result.lossPrice)}
+              <p className="border-t border-line pt-4 text-[13px] text-sub">
+                Loss if wheat falls below <span className="font-medium text-ink tabular">{gbpPerT(result.lossPrice)}</span>
               </p>
-            </div>
-          </section>
+            </CardBody>
+          </Card>
 
           <Card label="What moved your profit">
             <CardHeader title="What moved your profit" description="Change from today, by driver. Scale ±£150k." />

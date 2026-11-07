@@ -11,17 +11,17 @@ export default async function CalendarPage() {
   return (
     <PageShell>
       <PageHeader
-        label={`Calendar · Nov 2026 – Oct 2027 · Demo data`}
         title="The year ahead"
         subtitle={
           key
             ? `Selling windows, input purchases, finance and scheme deadlines in one view. Next key decision: ${longDate(key.start)}, ${key.label.toLowerCase()}.`
             : "Selling windows, input purchases, finance and scheme deadlines in one view."
         }
+        meta="November 2026 to October 2027"
       />
       <Card label="Timeline">
-        <CardHeader title="12-month timeline" action={<span className="font-mono text-[12px] text-sub">Today {longDate(meta.date)}</span>} />
-        <CardBody className="px-4 pb-6 pt-4 sm:px-6">
+        <CardHeader title="12-month timeline" action={<span className="text-[12.5px] text-sub">Today {longDate(meta.date)}</span>} />
+        <CardBody className="px-4 pb-5 pt-4 sm:px-5">
           <Timeline items={items} start="2026-11-01" today={meta.date} />
           <div className="mt-5">
             <TimelineLegend />
@@ -40,13 +40,13 @@ export default async function CalendarPage() {
           {reminders.map((r) => (
             <li key={r.id} className="flex flex-col gap-4 rounded-card border border-line bg-white p-5">
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 font-mono text-[11.5px] font-medium uppercase tracking-[0.06em] text-ink">
+                <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-ink">
                   <MessageCircle className="h-3.5 w-3.5 text-brand" aria-hidden />
                   {r.sendAt}
                 </span>
                 <SourceTag>{r.relatesTo}</SourceTag>
               </div>
-              <p className="rounded-2xl rounded-bl-md bg-brand px-4 py-3 text-[13.5px] leading-relaxed text-white">{r.message}</p>
+              <p className="rounded-xl rounded-bl-sm bg-brand px-4 py-3 text-[13.5px] leading-relaxed text-white">{r.message}</p>
             </li>
           ))}
         </ul>

@@ -39,9 +39,9 @@ export default async function OverviewPage() {
   return (
     <PageShell>
       <PageHeader
-        label={`Risk overview · ${longDate(meta.date)} · Demo data`}
         title={farm.name}
         subtitle={`${farm.hectares} ha arable, ${farm.location.toLowerCase()}. ${farm.crops.join(", ")}. Risks to profit for the ${meta.harvestYear} harvest year.`}
+        meta={`Assessed ${longDate(meta.date)}`}
         actions={
           <>
             <Button asChild variant="secondary">
@@ -72,7 +72,7 @@ export default async function OverviewPage() {
             <div className="overflow-x-auto">
               <RiskTable risks={risks} />
             </div>
-            <p className="border-t border-line px-6 py-3 text-[12px] text-sub">
+            <p className="border-t border-line px-5 py-3 text-[12.5px] text-sub">
               Bad years don&apos;t add up: risks rarely all peak in the same year.
             </p>
           </Card>
@@ -86,7 +86,7 @@ export default async function OverviewPage() {
               title="Needs your input"
               leading={<PendingCounter />}
               action={
-                <Link href="/profile#approvals" className="rounded-sm text-[13px] font-medium text-brand hover:underline">
+                <Link href="/profile#approvals" className="rounded-sm text-[13px] font-medium text-sub hover:text-ink hover:underline">
                   See all
                 </Link>
               }

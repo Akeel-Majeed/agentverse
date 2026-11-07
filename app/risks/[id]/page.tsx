@@ -18,8 +18,8 @@ export default async function RiskPage({ params }: { params: { id: string } }) {
 
   return (
     <PageShell>
-      <nav aria-label="Risks" className="-mb-3 overflow-x-auto">
-        <ul className="flex items-center gap-2">
+      <nav aria-label="Risks" className="-mb-2 overflow-x-auto border-b border-line">
+        <ul className="flex items-center gap-1">
           {risks.map((r) => {
             const current = r.id === risk.id;
             return (
@@ -28,11 +28,11 @@ export default async function RiskPage({ params }: { params: { id: string } }) {
                   href={`/risks/${r.id}`}
                   aria-current={current ? "page" : undefined}
                   className={cn(
-                    "flex h-10 items-center gap-2 whitespace-nowrap rounded-xl border pl-1.5 pr-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    current ? "border-ink bg-white text-ink" : "border-line text-sub hover:border-line-strong hover:text-ink"
+                    "-mb-px flex h-10 items-center gap-2 whitespace-nowrap border-b-2 px-2 text-[13.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    current ? "border-ink text-ink" : "border-transparent text-sub hover:text-ink"
                   )}
                 >
-                  <ScoreChip score={r.score} className="h-7 border-0 bg-panel" />
+                  <ScoreChip score={r.score} className="h-6 min-w-0 bg-transparent px-1" />
                   {r.name}
                 </Link>
               </li>

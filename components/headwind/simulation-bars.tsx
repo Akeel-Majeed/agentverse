@@ -30,7 +30,7 @@ export function SimulationBars({ bars, ghost, height = 260 }: { bars: number[]; 
           {grid.map((v) => (
             <span
               key={v}
-              className="absolute right-0 -translate-y-1/2 font-mono text-[11px] text-sub tabular"
+              className="absolute right-0 -translate-y-1/2 text-[11px] text-sub tabular"
               style={{ top: `${((hi - v) / span) * 100}%` }}
             >
               {gbpK(v)}
@@ -61,7 +61,7 @@ export function SimulationBars({ bars, ghost, height = 260 }: { bars: number[]; 
           </div>
         </div>
       </figure>
-      <div aria-hidden className="-mt-1 flex justify-between pl-[60px] font-mono text-[11px] uppercase tracking-[0.06em] text-sub">
+      <div aria-hidden className="-mt-1 flex justify-between pl-[60px] text-[11px] text-sub">
         <span>← Worst year</span>
         <span>Best year →</span>
       </div>

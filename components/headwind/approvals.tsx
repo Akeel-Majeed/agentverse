@@ -84,14 +84,14 @@ export function ApprovalQueueItem({
   return (
     <li className={cn("flex flex-col gap-2.5 py-4 first:pt-0 last:pb-0", resolved && "opacity-70")}>
       <div className="flex items-center justify-between gap-3">
-        <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.07em] text-sub">
+        <span className="text-[12px] font-medium text-sub">
           {SOURCE_LABELS[item.source]}
         </span>
-        {item.receivedAt ? <span className="font-mono text-[11px] text-sub">{item.receivedAt}</span> : null}
+        {item.receivedAt ? <span className="text-[12px] text-sub tabular">{item.receivedAt}</span> : null}
       </div>
       <div>
         <p className="text-[14px] font-semibold tracking-tight">{item.field}</p>
-        <p className="mt-1 font-mono text-[12.5px] tabular">
+        <p className="mt-1 text-[12.5px] tabular">
           {isFreshness ? (
             <span>
               On record: <span className="font-medium text-ink">{item.currentValue}</span>
@@ -109,7 +109,7 @@ export function ApprovalQueueItem({
 
       <div aria-live="polite">
         {resolved ? (
-          <p className="inline-flex items-center gap-1.5 font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-ink">
+          <p className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink">
             {item.status === "approved" ? <Check className="h-3.5 w-3.5" aria-hidden /> : <X className="h-3.5 w-3.5" aria-hidden />}
             {item.status === "rejected"
               ? "Rejected · kept as is"
@@ -131,7 +131,7 @@ export function ApprovalQueueItem({
               <label htmlFor={inputId} className="text-[12px] text-sub">
                 New value for {item.field.toLowerCase()}
               </label>
-              <Input id={inputId} value={draft} onChange={(e) => setDraft(e.target.value)} className="h-8 font-mono text-[13px]" autoFocus />
+              <Input id={inputId} value={draft} onChange={(e) => setDraft(e.target.value)} className="h-8 text-[13px]" autoFocus />
             </div>
             <Button type="submit" size="sm" disabled={busy}>
               Save
@@ -191,7 +191,7 @@ export function PendingCounter() {
   return (
     <span
       aria-label={`${count} waiting`}
-      className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-ink px-1.5 font-mono text-[11px] font-semibold text-white tabular"
+      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-hover px-1.5 text-[11.5px] font-semibold text-ink tabular"
     >
       {count}
     </span>

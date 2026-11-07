@@ -31,7 +31,7 @@ export function ImpactBars({ items }: { items: { id: string; label: string; valu
                 ) : null}
               </div>
               <span
-                className={`text-right font-mono text-[13px] font-semibold tabular ${
+                className={`text-right text-[13px] font-semibold tabular ${
                   rounded === 0 ? "text-sub" : positive ? "text-good" : "text-bad"
                 }`}
               >
@@ -48,7 +48,7 @@ export function ImpactBars({ items }: { items: { id: string; label: string; valu
           {TICKS.map((t) => (
             <span
               key={t}
-              className="absolute -translate-x-1/2 whitespace-nowrap font-mono text-[10.5px] text-sub tabular"
+              className="absolute -translate-x-1/2 whitespace-nowrap text-[10.5px] text-sub tabular"
               style={{ left: `${50 + (t / SCALE_K) * 50}%` }}
             >
               {gbpK(t, { sign: t > 0 })}

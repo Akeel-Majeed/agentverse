@@ -2,63 +2,90 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wind } from "lucide-react";
+import { CalendarDays, Gauge, LayoutGrid, SlidersHorizontal, Tractor } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoMark } from "./logo";
 
 const LINKS = [
-  { href: "/overview", label: "Overview", match: "/overview" },
-  { href: "/risks/wheat-price", label: "Risks", match: "/risks" },
-  { href: "/what-if", label: "What-if", match: "/what-if" },
-  { href: "/calendar", label: "Calendar", match: "/calendar" },
-  { href: "/profile", label: "Profile", match: "/profile" },
+  { href: "/overview", label: "Overview", match: "/overview", icon: LayoutGrid },
+  { href: "/risks/wheat-price", label: "Risks", match: "/risks", icon: Gauge },
+  { href: "/what-if", label: "What-if", match: "/what-if", icon: SlidersHorizontal },
+  { href: "/calendar", label: "Calendar", match: "/calendar", icon: CalendarDays },
+  { href: "/profile", label: "Profile", match: "/profile", icon: Tractor },
 ];
 
+const focus = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+/** Left sidebar on large screens, compact top bar below that. */
 export function TopNav({ farmName, updatedAt }: { farmName: string; updatedAt: string }) {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white">
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-6 gap-y-2 px-6 py-3 lg:px-10">
-        <Link
-          href="/overview"
-          className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Headwind home"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-brand text-white">
-            <Wind className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
-          </span>
-          <span className="text-[16px] font-bold tracking-tight">Headwind</span>
+    <>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[224px] flex-col border-r border-line bg-background px-3 py-4 lg:flex">
+        <Link href="/overview" className={cn("flex items-center gap-2.5 rounded-md px-2 py-1.5 text-ink", focus)} aria-label="Headwind home">
+          <LogoMark className="h-6 w-6" />
+          <span className="text-[15px] font-semibold tracking-tight">Headwind</span>
         </Link>
-        <nav aria-label="Main" className="order-3 w-full md:order-none md:w-auto">
-          <ul className="flex flex-wrap items-center gap-1">
-            {LINKS.map((link) => {
-              const active = pathname.startsWith(link.match);
+        <nav aria-label="Main" className="mt-6">
+          <ul className="flex flex-col gap-0.5">
+            {LINKS.map(({ href, label, match, icon: Icon }) => {
+              const active = pathname.startsWith(match);
               return (
-                <li key={link.href}>
+                <li key={href}>
                   <Link
-                    href={link.href}
+                    href={href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "inline-flex h-8 items-center rounded-lg px-3 text-[13.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      active ? "bg-hover text-ink" : "text-sub hover:text-ink"
+                      "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13.5px] font-medium transition-colors",
+                      focus,
+                      active ? "bg-hover text-ink" : "text-sub hover:bg-hover/70 hover:text-ink"
                     )}
                   >
-                    {link.label}
+                    <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
+                    {label}
                   </Link>
                 </li>
               );
             })}
           </ul>
         </nav>
-        <div className="ml-auto flex items-center gap-4">
-          <span className="hidden items-center gap-2 font-mono text-[11.5px] uppercase tracking-[0.06em] text-sub sm:inline-flex">
-            <span aria-hidden className="h-2 w-2 rounded-full bg-[#16A34A]" />
-            Live · Updated {updatedAt}
-          </span>
-          <span className="inline-flex h-8 items-center rounded-full border border-line-strong px-3 text-[13px] font-medium">
-            {farmName}
-          </span>
+        <div className="mt-auto border-t border-line px-2 pt-4 text-[12.5px] leading-relaxed">
+          <p className="font-medium text-ink">{farmName}</p>
+          <p className="text-sub">Demo data · updated {updatedAt}</p>
         </div>
-      </div>
-    </header>
+      </aside>
+
+      <header className="sticky top-0 z-40 border-b border-line bg-background/95 backdrop-blur-sm lg:hidden">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
+          <Link href="/overview" className={cn("flex items-center gap-2 rounded-md text-ink", focus)} aria-label="Headwind home">
+            <LogoMark className="h-6 w-6" />
+            <span className="text-[15px] font-semibold tracking-tight">Headwind</span>
+          </Link>
+          <span className="ml-auto text-[13px] font-medium text-ink">{farmName}</span>
+          <nav aria-label="Main" className="-mx-1 w-full overflow-x-auto">
+            <ul className="flex items-center gap-0.5">
+              {LINKS.map(({ href, label, match }) => {
+                const active = pathname.startsWith(match);
+                return (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "inline-flex h-8 items-center whitespace-nowrap rounded-md px-2.5 text-[13.5px] font-medium transition-colors",
+                        focus,
+                        active ? "bg-hover text-ink" : "text-sub hover:text-ink"
+                      )}
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </div>
+      </header>
+    </>
   );
 }

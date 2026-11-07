@@ -31,7 +31,7 @@ function Field({ field, value, onChange }: { field: OnboardingField; value: stri
         </label>
         <ConfidenceTag confidence={field.confidence} />
       </div>
-      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} className="h-10 font-mono text-[13.5px]" />
+      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} className="h-10 text-[13.5px]" />
       <div>
         <SourceTag>{field.source}</SourceTag>
       </div>
@@ -72,7 +72,7 @@ function DropZone({ hint }: { hint: string }) {
       {files.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-1.5" aria-live="polite">
           {files.map((name, i) => (
-            <li key={`${name}-${i}`} className="flex items-center gap-2 font-mono text-[12px]">
+            <li key={`${name}-${i}`} className="flex items-center gap-2 text-[12px]">
               <FileText className="h-3.5 w-3.5 text-sub" aria-hidden />
               {name}
               <span className="text-sub">· queued for reading (demo)</span>
@@ -128,7 +128,7 @@ export function OnboardingPanel({ sections: initial }: { sections: OnboardingSec
                   <span
                     aria-hidden
                     className={cn(
-                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-semibold",
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
                       s.status === "confirmed" || isCurrent ? "bg-ink text-white" : "border border-line-strong bg-white text-sub"
                     )}
                   >
@@ -153,8 +153,7 @@ export function OnboardingPanel({ sections: initial }: { sections: OnboardingSec
           action={current.status === "confirmed" ? <SourceTag>Confirmed</SourceTag> : null}
         />
         <CardBody className="flex flex-col gap-6">
-          <div className="flex gap-3 rounded-xl border border-line bg-panel p-4">
-            <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand" />
+          <div className="rounded-lg bg-panel p-4">
             <div>
               <SectionLabel>Headwind agent</SectionLabel>
               <p className="mt-1 text-[14px] leading-relaxed">{current.agentMessage}</p>

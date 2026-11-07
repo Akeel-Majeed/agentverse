@@ -8,9 +8,9 @@ export default async function WhatIfPage() {
   return (
     <PageShell>
       <PageHeader
-        label={`What-if · ${longDate(meta.date)} · Demo data`}
         title="What if things change?"
         subtitle={`Move prices, yield and interest rates to see what happens to farm profit for the ${meta.harvestYear} harvest year.`}
+        meta={`Starting from today, ${longDate(meta.date)}`}
       />
       <WhatIfPanel {...config} harvestYear={meta.harvestYear} />
     </PageShell>

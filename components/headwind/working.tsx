@@ -4,10 +4,10 @@ import { SourceTag } from "./card";
 
 export function WorkingPanel({ steps, className }: { steps: WorkingStep[]; className?: string }) {
   return (
-    <dl className={cn("divide-y divide-line font-mono text-[12px]", className)}>
+    <dl className={cn("divide-y divide-line text-[12px]", className)}>
       {steps.map((step) => (
         <div key={step.label} className="flex items-baseline justify-between gap-4 py-2 first:pt-0 last:pb-0">
-          <dt className="min-w-0 break-words text-sub">{step.label}</dt>
+          <dt className="min-w-0 break-words font-mono text-[11.5px] text-sub">{step.label}</dt>
           <dd className="shrink-0 text-right font-medium text-ink tabular">
             {step.value}
             {step.unit ? <span className="text-sub"> {step.unit}</span> : null}
@@ -26,7 +26,7 @@ export function SourcesList({ sources, className }: { sources: Source[]; classNa
           <span className="text-[13px] text-ink">{s.label}</span>
           <span className="flex flex-wrap items-center gap-2">
             <SourceTag>{s.origin}</SourceTag>
-            {s.date ? <span className="font-mono text-[11px] text-sub">{s.date}</span> : null}
+            {s.date ? <span className="text-[11px] text-sub">{s.date}</span> : null}
           </span>
         </li>
       ))}
