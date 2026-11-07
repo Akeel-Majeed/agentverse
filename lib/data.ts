@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import * as mock from "./mock";
 import { reassess } from "./profile/assess";
 import { FIELDS, SECTIONS, fieldDef, riskName, RISKS } from "./profile/catalogue";
-import { makeSnapshot, measureSignal, profileChanges } from "./profile/risk-profile";
+import { makeSnapshot, measureSignals, profileChanges } from "./profile/risk-profile";
 import { addDays, formatValue, parseValue } from "./profile/values";
 import { getStore, type Store } from "./server/store";
 import type {
@@ -236,7 +236,7 @@ function marketNow(snapshot: ProfileSnapshot, impacts: SignalImpact[]): MarketBa
 
 async function impactsSince(store: Store, snapshot: ProfileSnapshot): Promise<SignalImpact[]> {
   const signals = await store.getSignals(snapshot.takenAt);
-  return signals.map((s) => measureSignal(s, snapshot));
+  return measureSignals(signals, snapshot);
 }
 
 export async function getRiskProfile(): Promise<{

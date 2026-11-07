@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FIELDS, SECTIONS } from "@/lib/profile/catalogue";
 import { market, profileFields, signals, SNAPSHOT_AT } from "@/lib/profile/fenland-ridge";
-import { makeSnapshot, measureSignal, profileChanges } from "@/lib/profile/risk-profile";
+import { makeSnapshot, measureSignal, measureSignals, profileChanges } from "@/lib/profile/risk-profile";
 import { formatValue, parseValue } from "@/lib/profile/values";
 import { risks } from "@/lib/mock";
 
@@ -72,6 +72,30 @@ describe("measuring news against the snapshot", () => {
     expect(profileChanges(sold, snapshot)).toEqual([
       { key: "sales.wheat_2026_unsold_t", label: "2026 wheat unsold in store", before: "1,028 t", after: "828 t" },
     ]);
+  });
+});
+
+describe("several news items on the same figure", () => {
+  const wheat175 = { ...signal("sig-wheat-172"), id: "sig-wheat-175", value: 175, publishedAt: "2026-11-07T12:00:00Z" };
+  const news = [signal("sig-wheat-172"), signal("sig-an-522"), wheat175]; // newest first, as the store returns them
+
+  it("measures each against the figure before it, so they add up to latest vs snapshot", () => {
+    const impacts = measureSignals(news, snapshot);
+    expect(impacts.map((i) => i.signal.id)).toEqual(["sig-wheat-172", "sig-an-522", "sig-wheat-175"]);
+    expect(impacts.map((i) => i.delta)).toEqual([-8_694, -2_988, -8_694]);
+    const wheat = impacts.filter((i) => i.signal.metric === "wheat_feed_gbp_t").reduce((s, i) => s + i.delta!, 0);
+    expect(wheat).toBe(measureSignal(signal("sig-wheat-172"), snapshot).delta); // −£6/t × 2,898 t
+  });
+
+  it("alerts on the move since the snapshot, not just the latest step", () => {
+    const small = [
+      { ...wheat175, id: "w177", value: 177, publishedAt: "2026-11-07T12:00:00Z" },
+      { ...wheat175, id: "w176", value: 176, publishedAt: "2026-11-07T13:00:00Z" },
+    ];
+    const [first, second] = measureSignals(small, snapshot);
+    expect(first.delta).toBe(-2_898);
+    expect(second.delta).toBe(-2_898);
+    expect(second.alert).toBe(true); // −£2/t since the snapshot = −£5,796
   });
 });
 
