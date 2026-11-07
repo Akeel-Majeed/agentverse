@@ -95,6 +95,8 @@ export type PendingStatus = "pending" | "approved" | "rejected";
 
 export interface PendingChange {
   id: string;
+  /** Profile field this change applies to when approved. */
+  fieldKey?: string;
   field: string;
   currentValue: string;
   proposedValue: string;
@@ -161,11 +163,21 @@ export interface Reminder {
 export type Confidence = "high" | "check";
 
 export interface OnboardingField {
+  /** Profile field key, e.g. `crop.wheat.area_ha`. */
   id: string;
   label: string;
+  /** Display value, e.g. "220 ha"; empty when not recorded. */
   value: string;
   source: string;
   confidence: Confidence;
+  type?: FieldType;
+  unit?: string;
+  help?: string;
+  /** Risks this field feeds. */
+  risks?: { id: RiskId; name: string }[];
+  confirmedAt?: string | null;
+  /** True when past its valid-until date. */
+  stale?: boolean;
 }
 
 export interface OnboardingSection {
@@ -206,4 +218,133 @@ export interface FigureDetail {
   description?: string;
   working: WorkingStep[];
   sources: Source[];
+}
+
+/* ---------- Farm profile and risk profile ---------- */
+
+export type RiskId = "output_prices" | "input_prices" | "weather_yield" | "regulation" | "interest_rates";
+
+/** How a profile field is entered and shown. `money` is whole pounds. */
+export type FieldType = "number" | "money" | "text" | "date";
+
+export type ProfileValue = string | number | null;
+
+/** One fact about the farm, as stored in `profile_fields`. */
+export interface ProfileFieldValue {
+  key: string;
+  value: ProfileValue;
+  source: string;
+  confidence: Confidence;
+  /** ISO timestamp the farmer last confirmed it, or null if never. */
+  confirmedAt: string | null;
+  /** ISO date after which a freshness check asks again. */
+  validUntil: string | null;
+}
+
+/** Market figures news is compared against. Positive change = higher price or rate. */
+export type MetricId =
+  | "wheat_feed_gbp_t"
+  | "barley_feed_gbp_t"
+  | "osr_gbp_t"
+  | "an_gbp_t"
+  | "diesel_ppl"
+  | "bank_rate_pct"
+  | "yield_outlook_pct"
+  | "sfi_gap_months";
+
+export interface MarketFigure {
+  value: number;
+  unit: string;
+  label: string;
+  source: string;
+  date: string;
+}
+
+export type MarketBaseline = Partial<Record<MetricId, MarketFigure>>;
+
+/** £ change in profit for a +1 unit move in a market metric. */
+export interface Sensitivity {
+  metric: MetricId;
+  label: string;
+  perUnit: number;
+  unit: string;
+}
+
+/** What the farm has at stake for one risk, worked out in code from a profile snapshot. */
+export interface RiskExposure {
+  riskId: RiskId;
+  /** £ at stake (value unsold, inputs unbought, debt, income, revenue). */
+  total: number;
+  summary: string;
+  working: WorkingStep[];
+  sensitivities: Sensitivity[];
+  fieldKeys: string[];
+}
+
+/** A frozen copy of the profile and the market on the day the risk profile was made. */
+export interface ProfileSnapshot {
+  id: string;
+  version: number;
+  takenAt: string;
+  reason: string;
+  fields: Record<string, ProfileValue>;
+  market: MarketBaseline;
+  exposures: RiskExposure[];
+}
+
+export type SignalKind = "market" | "policy" | "weather" | "news";
+
+/** A piece of news, a price move or a policy item, tagged with the risk it touches. */
+export interface Signal {
+  id: string;
+  riskId: RiskId;
+  kind: SignalKind;
+  title: string;
+  summary: string;
+  source: string;
+  url?: string;
+  publishedAt: string;
+  /** Measured figure the news reports, if any. */
+  metric?: MetricId | null;
+  value?: number | null;
+}
+
+/** A signal measured against a snapshot. `delta` is the £ change in expected profit; null if not measurable. */
+export interface SignalImpact {
+  signal: Signal;
+  snapshotVersion: number;
+  delta: number | null;
+  working: WorkingStep[];
+  alert: boolean;
+}
+
+export interface ProfileChange {
+  key: string;
+  label: string;
+  before: string;
+  after: string;
+}
+
+export interface ProfileStatus {
+  snapshot: { version: number; takenAt: string };
+  changes: ProfileChange[];
+}
+
+/** One row of the risk profile: the snapshot's exposure plus the latest assessment and news since. */
+export interface RiskProfileRow {
+  riskId: RiskId;
+  name: string;
+  score: number;
+  badYear: number;
+  exposure: RiskExposure;
+  newsDelta: number;
+  newsCount: number;
+}
+
+/** Everything the risk page shows about where a risk's figures come from. */
+export interface RiskInputs {
+  fields: { key: string; label: string; value: string; sectionId: string; sectionTitle: string }[];
+  exposure: RiskExposure | null;
+  snapshot: { version: number; takenAt: string };
+  impacts: SignalImpact[];
 }

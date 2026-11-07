@@ -441,9 +441,10 @@ export const breakEvens: BreakEven[] = [
 export const pendingChanges: PendingChange[] = [
   {
     id: "pc-nitrogen",
+    fieldKey: "inputs.n_bought_t",
     field: "Spring nitrogen bought",
-    currentValue: "0 of 166 t",
-    proposedValue: "0 of 166 t",
+    currentValue: "0 t",
+    proposedValue: "0 t",
     source: "freshness",
     reason: "Last confirmed 41 days ago. AN is up £18/t since, so this changes your fertiliser score.",
     status: "pending",
@@ -451,6 +452,7 @@ export const pendingChanges: PendingChange[] = [
   },
   {
     id: "pc-osr-yield",
+    fieldKey: "crop.osr.yield_t_ha",
     field: "Oilseed rape yield estimate",
     currentValue: "3.4 t/ha",
     proposedValue: "3.1 t/ha",
@@ -461,7 +463,8 @@ export const pendingChanges: PendingChange[] = [
   },
   {
     id: "pc-wheat-sold",
-    field: "2026 wheat unsold",
+    fieldKey: "sales.wheat_2026_unsold_t",
+    field: "2026 wheat unsold in store",
     currentValue: "1,028 t",
     proposedValue: "828 t",
     source: "imessage",
@@ -471,6 +474,7 @@ export const pendingChanges: PendingChange[] = [
   },
   {
     id: "pc-lender",
+    fieldKey: "fin.lender",
     field: "Secured lender",
     currentValue: "Not recorded",
     proposedValue: "Lloyds Bank plc",
@@ -481,8 +485,9 @@ export const pendingChanges: PendingChange[] = [
   },
   {
     id: "pc-overdraft",
+    fieldKey: "fin.overdraft_limit",
     field: "Overdraft limit",
-    currentValue: "Not set",
+    currentValue: "Not recorded",
     proposedValue: "£150k",
     source: "onboarding",
     reason: "Read from the bank facility letter you uploaded.",
