@@ -11,6 +11,7 @@ import * as demo from "../profile/fenland-ridge";
 import { makeSnapshot } from "../profile/risk-profile";
 import type {
   AssessmentMeta,
+  ChatMemory,
   ChatTurn,
   BreakEven,
   Farm,
@@ -55,6 +56,9 @@ export interface Store {
   /** Start logging a chat turn. False if this inbound message was already taken (a webhook retry). */
   claimChatTurn(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<boolean>;
   finishChatTurn(inboundMessageId: string, result: Omit<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<void>;
+  /** The chat agent's running notes on one conversation, or null if there are none yet. */
+  getChatMemory(conversationId: string): Promise<ChatMemory | null>;
+  saveChatMemory(memory: ChatMemory): Promise<void>;
 }
 
 /* ---------- In-memory demo store ---------- */
@@ -85,6 +89,7 @@ function createMockStore(): Store {
     ] as Assessment[],
     pending: structuredClone(mock.pendingChanges),
     chat: [] as ChatTurn[],
+    memory: new Map<string, ChatMemory>(),
   };
 
   return {
@@ -133,6 +138,10 @@ function createMockStore(): Store {
     finishChatTurn: async (id, result) => {
       const turn = state.chat.find((t) => t.inboundMessageId === id);
       if (turn) Object.assign(turn, structuredClone(result));
+    },
+    getChatMemory: async (conversationId) => structuredClone(state.memory.get(conversationId) ?? null),
+    saveChatMemory: async (memory) => {
+      state.memory.set(memory.conversationId, structuredClone(memory));
     },
   };
 }
@@ -322,6 +331,26 @@ function createSupabaseStore(db: SupabaseClient): Store {
         })
         .eq("inbound_message_id", id);
       if (error) throw new Error(`Supabase: finish chat turn: ${error.message}`);
+    },
+    async getChatMemory(conversationId) {
+      const { data, error } = await db
+        .from("chat_memory")
+        .select("*")
+        .eq("farm_id", farm)
+        .eq("conversation_id", conversationId)
+        .maybeSingle();
+      if (error) throw new Error(`Supabase: chat memory: ${error.message}`);
+      return data ? { conversationId: data.conversation_id, notes: data.notes, turns: data.turns, updatedAt: data.updated_at } : null;
+    },
+    async saveChatMemory(memory) {
+      const { error } = await db.from("chat_memory").upsert({
+        farm_id: farm,
+        conversation_id: memory.conversationId,
+        notes: memory.notes,
+        turns: memory.turns,
+        updated_at: memory.updatedAt,
+      });
+      if (error) throw new Error(`Supabase: save chat memory: ${error.message}`);
     },
   };
 }

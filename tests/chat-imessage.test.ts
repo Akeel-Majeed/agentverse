@@ -40,6 +40,7 @@ const answer: ChatResult = {
 function deps(over: Partial<IMessageDeps> = {}) {
   const sent: { text: string; key: string }[] = [];
   const logs: unknown[] = [];
+  const order: string[] = [];
   const claimed = new Set<string>();
   const d: IMessageDeps = {
     claim: async (t) => (claimed.has(t.inboundMessageId) ? false : (claimed.add(t.inboundMessageId), true)),
@@ -49,11 +50,13 @@ function deps(over: Partial<IMessageDeps> = {}) {
       { direction: "outbound", content: "Hi, I'm the farm's risk assistant.", createdAt: new Date("2026-11-07T19:00:00Z") },
       { direction: "inbound", content: "hello", createdAt: new Date("2026-11-07T18:59:00Z") },
     ],
-    send: async (_c, text, key) => void sent.push({ text, key }),
+    send: async (_c, text, key) => void (order.push("send"), sent.push({ text, key })),
+    recall: vi.fn(async () => ({ conversationId: "conv_1", notes: "- 6 Nov: asked about fixing the loan", turns: 3, updatedAt: "2026-11-06T09:00:00Z" })),
     answer: vi.fn(async () => answer),
+    remember: vi.fn(async () => void order.push("remember")),
     ...over,
   };
-  return { d, sent, logs };
+  return { d, sent, logs, order };
 }
 
 describe("iMessage handler", () => {
@@ -64,13 +67,39 @@ describe("iMessage handler", () => {
 
   it("answers an inbound message with the history and logs the turn", async () => {
     expect(await handleIMessage(payload(), t.d)).toBe("answered");
-    expect(t.d.answer).toHaveBeenCalledWith([
-      { role: "user", content: "hello" },
-      { role: "assistant", content: "Hi, I'm the farm's risk assistant." },
-      { role: "user", content: "What's my biggest risk?" },
-    ]);
+    expect(t.d.answer).toHaveBeenCalledWith(
+      [
+        { role: "user", content: "hello" },
+        { role: "assistant", content: "Hi, I'm the farm's risk assistant." },
+        { role: "user", content: "What's my biggest risk?" },
+      ],
+      expect.stringContaining("6 Nov: asked about fixing the loan")
+    );
     expect(t.sent).toEqual([{ text: answer.text, key: "reply-msg_in_1-0" }]);
     expect(t.logs[0]).toMatchObject({ status: "answered", model: "claude-sonnet-5-5", tools: [{ name: "get_risk_profile", ms: 3 }] });
+  });
+
+  it("updates the memory with the exchange after the reply is sent", async () => {
+    await handleIMessage(payload(), t.d);
+    expect(t.order).toEqual(["send", "remember"]);
+    expect(t.d.remember).toHaveBeenCalledWith("conv_1", expect.objectContaining({ turns: 3 }), {
+      question: "What's my biggest risk?",
+      answer: answer.text,
+      at: "2026-11-07T20:00:00Z",
+    });
+  });
+
+  it("answers without memory if it can't be read, and still answers if it can't be saved", async () => {
+    const x = deps({ recall: async () => Promise.reject(new Error("no table")), remember: async () => Promise.reject(new Error("no table")) });
+    expect(await handleIMessage(payload(), x.d)).toBe("answered");
+    expect(x.d.answer).toHaveBeenCalledWith(expect.any(Array), expect.stringContaining("no notes on earlier ones"));
+    expect(x.sent).toHaveLength(1);
+  });
+
+  it("doesn't remember a failed turn", async () => {
+    const x = deps({ answer: async () => Promise.reject(new Error("boom")) });
+    await handleIMessage(payload(), x.d);
+    expect(x.d.remember).not.toHaveBeenCalled();
   });
 
   it("answers a webhook retry only once", async () => {

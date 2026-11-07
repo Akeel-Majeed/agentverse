@@ -367,3 +367,12 @@ export interface ChatTurn {
   model?: string;
   error?: string;
 }
+
+/** The chat agent's running notes on one iMessage conversation, as stored in `chat_memory`. */
+export interface ChatMemory {
+  conversationId: string;
+  notes: string;
+  /** Answered messages folded into the notes so far. */
+  turns: number;
+  updatedAt: string;
+}
