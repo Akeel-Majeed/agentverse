@@ -35,6 +35,12 @@
   html {
     scroll-padding-top: 5rem;
   }
+  /* App pages on desktop have a left sidebar instead of a sticky header. */
+  @media (min-width: 1024px) {
+    html:has([data-app-content]) {
+      scroll-padding-top: 1.5rem;
+    }
+  }
   main:focus {
     outline: none;
   }

@@ -275,7 +275,7 @@ export function WhatIfPanel({
       <div
         aria-hidden={!stripVisible}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 border-t border-brand-border bg-brand-surface px-4 py-2.5 transition-transform sm:px-6 lg:px-10",
+          "fixed inset-x-0 bottom-0 z-30 lg:left-60 border-t border-brand-border bg-brand-surface px-4 py-2.5 transition-transform sm:px-6 lg:px-10",
           stripVisible ? "translate-y-0" : "pointer-events-none translate-y-full"
         )}
       >
