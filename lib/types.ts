@@ -354,3 +354,16 @@ export interface RiskInputs {
 export type SaveSectionResult =
   | { ok: true; section: OnboardingSection; status: ProfileStatus }
   | { ok: false; errors: Record<string, string> };
+
+/** One question answered by the chat agent, as logged in `chat_turns`. */
+export interface ChatTurn {
+  inboundMessageId: string;
+  conversationId: string;
+  question: string;
+  status: "answering" | "answered" | "failed";
+  answer?: string;
+  tools?: { name: string; input: unknown; ms: number }[];
+  checker?: { flagged: string[]; untraced: string[]; rewritten: boolean };
+  model?: string;
+  error?: string;
+}

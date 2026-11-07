@@ -30,3 +30,22 @@ Routes: `/overview`, `/risks/[id]`, `/what-if`, `/calendar`, `/profile`.
 - `lib/mock.ts`: demo assessment, imported only by the data layer and the seed script.
 - `lib/score.ts`: 1–10 score from bad-year hit as a % of typical profit.
 - `lib/sim.ts`: client-side demo maths for the risk pages and the what-if.
+
+### iMessage assistant (Inkbox)
+
+A chat agent that answers the farmer's questions about the risk profile, exposures, mitigations, news, profit and deadlines over iMessage.
+
+- `lib/agents/chat/tools.ts`: read-only tools over the data layer and simulation code. Every figure is computed by code; there is no write tool.
+- `lib/agents/chat/agent.ts`: Anthropic SDK tool runner (model from `ANTHROPIC_MODEL`).
+- `lib/agents/checker.ts`: every figure in a reply must appear in a tool result or the farmer's message, or the agent rewrites the reply.
+- `app/api/inkbox/webhook/route.ts`: verifies the Inkbox signature, then answers in the same conversation. Every turn is logged in `chat_turns` (run `supabase/migrations/0002_chat_log.sql`).
+
+Environment (server-only): `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), `INKBOX_API_KEY`, `INKBOX_AGENT_HANDLE` (default `fenland-ridge-risk`), `INKBOX_WEBHOOK_SECRET`.
+
+```bash
+bun run ask "What's my biggest risk?"   # ask from the terminal, no iMessage needed
+bun run ask --eval                      # run the question set in tests/chat-questions.json
+bun run inkbox:setup https://your-app.vercel.app
+```
+
+`inkbox:setup` creates the agent identity with iMessage on, subscribes the webhook, prints the signing key for `INKBOX_WEBHOOK_SECRET` and the number to text with its `connect @handle` command.
