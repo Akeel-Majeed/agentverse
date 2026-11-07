@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FIELDS, SECTIONS } from "@/lib/profile/catalogue";
-import { market, profileFields, signals, SNAPSHOT_AT } from "@/lib/profile/fenland-ridge";
+import { market, profileFields, signals, SNAPSHOT_AT, weekMoves } from "@/lib/profile/fenland-ridge";
 import { makeSnapshot, measureSignal, measureSignals, profileChanges } from "@/lib/profile/risk-profile";
 import { formatValue, parseValue } from "@/lib/profile/values";
 import { risks } from "@/lib/mock";
@@ -131,7 +131,7 @@ describe("updating the risk profile", () => {
     const { profit } = await import("@/lib/mock");
     const sold = profileFields.map((f) => (f.key === "sales.wheat_2026_unsold_t" ? { ...f, value: 828 } : f));
     const v2 = makeSnapshot({ id: "s2", version: 2, takenAt: SNAPSHOT_AT, reason: "sold 200 t", fields: sold, market });
-    const next = reassess(risks, profit, v2.exposures, 450, 85_000);
+    const next = reassess(risks, profit, v2.exposures, 450, 85_000, weekMoves);
     const before = (id: string) => risks.find((r) => r.id === id)!;
     const after = (id: string) => next.risks.find((r) => r.id === id)!;
     expect(after("output_prices").model.exposure).toBe(757);
@@ -140,5 +140,19 @@ describe("updating the risk profile", () => {
     for (const id of ["input_prices", "weather_yield", "regulation", "interest_rates"]) {
       expect(after(id).badYear).toBe(before(id).badYear);
     }
+  });
+
+  it("works out the week's change on what is unsold now, not the old tonnage", async () => {
+    const { reassess } = await import("@/lib/profile/assess");
+    const { profit } = await import("@/lib/mock");
+    const sold = profileFields.map((f) => (f.key === "sales.wheat_2026_unsold_t" ? { ...f, value: 828 } : f));
+    const v2 = makeSnapshot({ id: "s2", version: 2, takenAt: SNAPSHOT_AT, reason: "sold 200 t", fields: sold, market });
+    const same = reassess(risks, profit, snapshot.exposures, 450, 85_000, weekMoves).profit;
+    expect(same.deltaWeek).toBe(profit.deltaWeek); // −£4/t × 2,898 t − £18/t × 166 t = −£14.6k
+    const next = reassess(risks, profit, v2.exposures, 450, 85_000, weekMoves).profit;
+    expect(next.deltaWeek).toBe(-14_000); // −£4/t × 2,698 t − £18/t × 166 t = −£13.8k
+    const label = next.working!.at(-1)!.label;
+    expect(label).toContain("2,698 t");
+    expect(label).not.toContain("2,898");
   });
 });

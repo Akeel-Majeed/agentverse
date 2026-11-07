@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 import * as mock from "./mock";
 import { reassess } from "./profile/assess";
+import { weekMoves } from "./profile/fenland-ridge";
 import { FIELDS, SECTIONS, fieldDef, riskName, RISKS } from "./profile/catalogue";
 import { makeSnapshot, measureSignals, profileChanges } from "./profile/risk-profile";
 import { addDays, formatValue, parseValue } from "./profile/values";
@@ -294,7 +295,7 @@ export async function getRiskInputs(riskId: string): Promise<RiskInputs> {
 async function assess(store: Store, snapshot: ProfileSnapshot, assessment: Assessment, now: Date): Promise<AssessmentMeta> {
   const typicalProfit = Number(snapshot.fields["pnl.typical_profit"] ?? assessment.meta.typicalProfit) || assessment.meta.typicalProfit;
   const hectares = Number(snapshot.fields["land.area_ha"] ?? 0);
-  const { risks, profit } = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit);
+  const { risks, profit } = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit, weekMoves);
   const meta: AssessmentMeta = { ...assessment.meta, date: today(), updatedAt: LONDON_TIME.format(now), typicalProfit };
   await store.insertAssessment(
     { snapshotId: snapshot.id, meta, profit, breakEvens: assessment.breakEvens, topMitigationIds: assessment.topMitigationIds, risks },
