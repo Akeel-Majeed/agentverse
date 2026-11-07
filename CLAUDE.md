@@ -65,3 +65,9 @@ ANTHROPIC_MODEL=claude-sonnet-5-5
 5. iMessage chat agent + alerts (Inkbox)
 6. MCP server
 7. Data fetchers + cron jobs
+
+## Judging criteria
+
+This is a judged hackathon entry. Before proposing or building a feature, say which rubric criterion it moves; if it moves none, flag it and skip it. Full brief, rubric and submission rules:
+
+@docs/hackathon/BRIEF.md
