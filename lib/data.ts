@@ -255,6 +255,7 @@ export async function getRiskProfile(): Promise<{
         exposure,
         newsDelta: mine.reduce((s, i) => s + (i.delta ?? 0), 0),
         newsCount: mine.length,
+        newsMeasured: mine.filter((i) => i.delta !== null).length,
       },
     ];
   });

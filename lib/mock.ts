@@ -428,7 +428,7 @@ export const pendingChanges: PendingChange[] = [
     currentValue: "0 t",
     proposedValue: "0 t",
     source: "freshness",
-    reason: "Last confirmed 41 days ago. AN is up £18/t since, so this changes your fertiliser score.",
+    reason: "Last confirmed 41 days ago. AN is up £18/t since, so this changes your input-price risk.",
     status: "pending",
     receivedAt: "Today 06:00",
   },

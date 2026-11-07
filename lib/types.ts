@@ -339,6 +339,8 @@ export interface RiskProfileRow {
   exposure: RiskExposure;
   newsDelta: number;
   newsCount: number;
+  /** News items with a £ figure. */
+  newsMeasured: number;
 }
 
 /** Everything the risk page shows about where a risk's figures come from. */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { simDetail } from "@/lib/figures";
 import { amount, gbpK } from "@/lib/format";
@@ -17,7 +17,18 @@ import { SimulationBars } from "./simulation-bars";
 import { TradeoffTable } from "./tradeoff-table";
 import { Disclaimer, SourcesList, WorkingPanel } from "./working";
 
-export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResult; typicalProfit: number; dateLabel: string }) {
+export function RiskDetail({
+  risk,
+  typicalProfit,
+  dateLabel,
+  profile,
+}: {
+  risk: RiskResult;
+  typicalProfit: number;
+  dateLabel: string;
+  /** Where the figures come from in the farm profile, shown before the working. */
+  profile?: ReactNode;
+}) {
   const [activeIds, setActiveIds] = useState<string[]>([]);
   const active = useMemo(() => risk.mitigations.filter((m) => activeIds.includes(m.id)), [risk, activeIds]);
 
@@ -126,6 +137,8 @@ export function RiskDetail({ risk, typicalProfit, dateLabel }: { risk: RiskResul
           </MitigationList>
         </CardBody>
       </Card>
+
+      {profile}
 
       <Card label="How this was worked out">
         <CardHeader

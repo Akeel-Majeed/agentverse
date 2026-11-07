@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useId, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +18,13 @@ interface ApprovalContextValue {
 const ApprovalContext = createContext<ApprovalContextValue | null>(null);
 
 export function ApprovalProvider({ initial, children }: { initial: PendingChange[]; children: ReactNode }) {
+  const router = useRouter();
   const [items, setItems] = useState(initial);
 
   const update = useCallback((next: PendingChange | null) => {
     if (next) setItems((prev) => prev.map((p) => (p.id === next.id ? next : p)));
-  }, []);
+    router.refresh();
+  }, [router]);
 
   const value = useMemo<ApprovalContextValue>(
     () => ({
@@ -117,7 +120,7 @@ export function ApprovalQueueItem({
                 ? changed
                   ? `Updated to ${item.proposedValue}`
                   : "Confirmed still unbought"
-                : "Approved · model updated"}
+                : "Approved · saved to your profile"}
           </p>
         ) : editing ? (
           <form

@@ -286,6 +286,7 @@ function createSupabaseStore(db: SupabaseClient): Store {
 let supabaseStore: Store | undefined;
 let mockStore: Store | undefined;
 let retryAt = 0;
+let checking: Promise<Store | undefined> | undefined;
 
 /**
  * Supabase if configured and reachable, otherwise the demo store. If the tables are missing
@@ -297,11 +298,19 @@ export async function getStore(): Promise<Store> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
   if (url && key && Date.now() >= retryAt) {
-    const db = createClient(url.replace(/\/rest\/v1\/?$/, ""), key, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { error } = await db.from("latest_assessment").select("id").eq("farm_id", FARM_ID).limit(1).single();
-    if (!error) return (supabaseStore = createSupabaseStore(db));
-    retryAt = Date.now() + 60_000;
-    console.warn(`[data] Supabase is configured but not ready (${error.message}). Using demo data. Run supabase/migrations/*.sql, then supabase/seed.sql.`);
+    // One check at a time, however many reads a page makes at once.
+    checking ??= (async () => {
+      const db = createClient(url.replace(/\/rest\/v1\/?$/, ""), key, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { error } = await db.from("latest_assessment").select("id").eq("farm_id", FARM_ID).limit(1).single();
+      if (!error) return (supabaseStore = createSupabaseStore(db));
+      retryAt = Date.now() + 60_000;
+      console.warn(`[data] Supabase is configured but not ready (${error.message}). Using demo data. Run supabase/migrations/*.sql, then supabase/seed.sql.`);
+      return undefined;
+    })().finally(() => {
+      checking = undefined;
+    });
+    const found = await checking;
+    if (found) return found;
   }
   return (mockStore ??= createMockStore());
 }
