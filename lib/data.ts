@@ -228,12 +228,6 @@ export async function saveSection(sectionId: string, values: Record<string, stri
   };
 }
 
-/** Kept for callers that confirm without editing. */
-export async function confirmSection(id: string): Promise<OnboardingSection | null> {
-  const result = await saveSection(id, {});
-  return result.ok ? result.section : null;
-}
-
 /* ---------- Risk profile ---------- */
 
 /** The snapshot's market with any measured news since applied, so a new snapshot starts from today's figures. */
