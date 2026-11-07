@@ -1,9 +1,11 @@
 /**
- * Fictional demo data for Fenland Ridge Farm Ltd. Only lib/data.ts may import this file;
- * swap those functions for API calls when the backend is ready.
+ * Fictional demo data for Fenland Ridge Farm Ltd: the fallback when Supabase isn't configured,
+ * and the source of supabase/seed.sql. Only the data layer (lib/data.ts, lib/server/) and the
+ * seed script import this file.
  */
 import { scoreFromBadYear } from "./score";
-import { normalCdf, riskWorking, simulateExposure, Z95 } from "./sim";
+import { profitSummary } from "./profile/assess";
+import { riskWorking, simulateExposure, Z95 } from "./sim";
 import type {
   AssessmentMeta,
   BreakEven,
@@ -11,7 +13,6 @@ import type {
   ExposureModel,
   Farm,
   Mitigation,
-  OnboardingSection,
   PendingChange,
   ProfitSummary,
   Reminder,
@@ -28,7 +29,6 @@ const OUTPUT_UNIT_SD = 114;
 const OUTPUT_SD_K = (OUTPUT_VALUE_K * OUTPUT_UNIT_SD) / 1000;
 const OTHER_SD_K = 55;
 const FARM_SD_K = Math.sqrt(OUTPUT_SD_K ** 2 + OTHER_SD_K ** 2);
-const FARM_LOSS_CHANCE = normalCdf(-MEAN_K / FARM_SD_K);
 
 export const farm: Farm = {
   id: "fenland-ridge",
@@ -398,39 +398,21 @@ export const risks: RiskResult[] = [
 
 export const topMitigationIds = ["wheat-minprice-half-2027", "fert-buy-half", "rates-compare-margin"];
 
-const roundK = (k: number) => Math.round(k) * 1000;
-const PROFIT_BAD_K = MEAN_K - Z95 * FARM_SD_K;
-const PROFIT_GOOD_K = MEAN_K + Z95 * FARM_SD_K;
 /** Wheat −£4/t on 2,898 t, AN +£18/t on 166 t. */
 const DELTA_WEEK_K = -(2898 * 4 + 166 * 18) / 1000;
-const signedK = (k: number) => `${k < 0 ? "−" : ""}£${Math.abs(Math.round(k))}k`;
 
-export const profit: ProfitSummary = {
-  expected: TYPICAL_PROFIT,
-  badYear: roundK(PROFIT_BAD_K),
-  goodYear: roundK(PROFIT_GOOD_K),
-  lossChance: Math.round(FARM_LOSS_CHANCE * 100) / 100,
-  lossYearsOf20: Math.round(FARM_LOSS_CHANCE * 20),
-  deltaWeek: roundK(DELTA_WEEK_K),
-  working: [
-    { label: "expected_profit (3-yr average, price-adjusted)", value: signedK(MEAN_K) },
-    { label: "output_prices_sd = £793k unsold × 11.4%", value: signedK(OUTPUT_SD_K) },
-    { label: "other_risks_sd", value: signedK(OTHER_SD_K) },
-    { label: "farm_sd = √(output_prices_sd² + other_risks_sd²)", value: signedK(FARM_SD_K) },
-    { label: "bad_year = expected − 1.65 × farm_sd", value: signedK(PROFIT_BAD_K) },
-    { label: "good_year = expected + 1.65 × farm_sd", value: signedK(PROFIT_GOOD_K) },
-    {
-      label: "loss_chance = Φ(−expected ÷ farm_sd)",
-      value: `${Math.round(FARM_LOSS_CHANCE * 100)}% (${Math.round(FARM_LOSS_CHANCE * 20)} in 20)`,
-    },
-    { label: "change vs last week (wheat −£4/t on 2,898 t, AN +£18/t on 166 t)", value: signedK(DELTA_WEEK_K) },
-  ],
+export const profit: ProfitSummary = profitSummary({
+  meanK: MEAN_K,
+  output: risks.find((r) => r.id === "output_prices")!.model,
+  otherSdK: OTHER_SD_K,
+  deltaWeekK: DELTA_WEEK_K,
+  deltaWeekLabel: "change vs last week (wheat −£4/t on 2,898 t, AN +£18/t on 166 t)",
   sources: [
     { label: "Profit and loss 2023–2025", origin: "Accounts · Upload", date: "14 Oct 2026" },
     { label: "Feed wheat, delivered: £178/t", origin: "AHDB delivered prices", date: "06 Nov 2026" },
     { label: "AN price: £504/t", origin: "AHDB fertiliser prices", date: "Oct 2026" },
   ],
-};
+});
 
 export const breakEvens: BreakEven[] = [
   { crop: "Wheat", price: 178, breakEven: 185, unit: "t" },
@@ -546,94 +528,6 @@ export const reminders: Reminder[] = [
     sendAt: "Mon 12 Apr · 07:00",
     message: "Loan renewal is 14 May. Well-secured farms pay 1.3–1.8% over base; you pay 3.1%. Worth ~£11k a year.",
     relatesTo: "Finance",
-  },
-];
-
-export const onboarding: OnboardingSection[] = [
-  {
-    id: "farm-basics",
-    title: "Farm basics",
-    status: "confirmed",
-    agentMessage: "I found Fenland Ridge Farm Ltd on Companies House and matched 450 ha of land parcels from the RPA. Tenure came from our chat.",
-    documentsHint: "RPA land parcel map, tenancy agreements",
-    fields: [
-      { id: "fb-name", label: "Business name", value: "Fenland Ridge Farm Ltd", source: "Companies House", confidence: "high" },
-      { id: "fb-location", label: "Location", value: "Near Sleaford, Lincolnshire", source: "Onboarding chat", confidence: "high" },
-      { id: "fb-area", label: "Farmed area", value: "450 ha", source: "RPA land parcels", confidence: "high" },
-      { id: "fb-tenure", label: "Tenure", value: "390 ha owned, 60 ha FBT", source: "Onboarding chat", confidence: "check" },
-    ],
-  },
-  {
-    id: "cropping",
-    title: "Cropping plan",
-    status: "confirmed",
-    agentMessage: "Areas are from your cropping plan; yields are your five-year averages. The rape yield came from your agronomist's adviser agent.",
-    documentsHint: "Cropping plan, yield records, agronomist reports",
-    fields: [
-      { id: "cp-wheat", label: "Winter wheat", value: "220 ha · 8.5 t/ha", source: "Cropping plan upload", confidence: "high" },
-      { id: "cp-barley", label: "Spring barley", value: "130 ha · 6.0 t/ha", source: "Yield records 2021–25", confidence: "high" },
-      { id: "cp-osr", label: "Oilseed rape", value: "100 ha · 3.4 t/ha", source: "Adviser agent · via MCP", confidence: "check" },
-    ],
-  },
-  {
-    id: "sales",
-    title: "Sales position",
-    status: "review",
-    agentMessage: "I read your grain store sheet. Can you check the 2027 line? I couldn't find any forward contracts, so I've assumed nothing is sold yet.",
-    documentsHint: "Grain store sheet, merchant contracts",
-    fields: [
-      { id: "sp-2026", label: "2026 wheat unsold", value: "1,028 t", source: "Grain store sheet", confidence: "high" },
-      { id: "sp-2027", label: "2027 wheat sold forward", value: "0 t", source: "Assumed · No contracts found", confidence: "check" },
-      { id: "sp-barley", label: "2026 barley unsold", value: "0 t", source: "Grain store sheet", confidence: "high" },
-      { id: "sp-osr", label: "2027 OSR sold forward", value: "0 t", source: "Assumed · No contracts found", confidence: "check" },
-    ],
-  },
-  {
-    id: "inputs",
-    title: "Inputs",
-    status: "todo",
-    agentMessage: "Your agronomist's N plan says 166 t of AN for spring. Have you bought any yet? Upload a merchant invoice and I'll fill it in.",
-    documentsHint: "Merchant invoices, agronomist N plan",
-    fields: [
-      { id: "in-need", label: "Spring nitrogen needed", value: "166 t AN", source: "Agronomist N plan · via MCP", confidence: "high" },
-      { id: "in-bought", label: "Spring nitrogen bought", value: "0 t", source: "Freshness check", confidence: "check" },
-      { id: "in-last", label: "AN price paid last season", value: "£640/t", source: "Merchant invoice 2025", confidence: "high" },
-    ],
-  },
-  {
-    id: "support",
-    title: "Support payments",
-    status: "todo",
-    agentMessage: "I read your SFI agreement. The delinked payment is an estimate from last year's statement, so please check it.",
-    documentsHint: "SFI agreement, RPA payment statements",
-    fields: [
-      { id: "su-sfi", label: "SFI agreement", value: "£40k/yr · ends 31 Mar 2027", source: "RPA agreement PDF", confidence: "high" },
-      { id: "su-delinked", label: "Delinked payment", value: "£9.6k", source: "RPA statement 2025", confidence: "check" },
-    ],
-  },
-  {
-    id: "finance",
-    title: "Finance",
-    status: "todo",
-    agentMessage: "Borrowing is from your bank statement. The overdraft limit came from the facility letter. Is £150k still right?",
-    documentsHint: "Bank statements, facility letters",
-    fields: [
-      { id: "fi-loan", label: "Variable loan", value: "£840k at base + 3.1%", source: "Bank statement", confidence: "high" },
-      { id: "fi-overdraft", label: "Overdraft limit", value: "£150k", source: "Bank facility letter", confidence: "check" },
-      { id: "fi-renewal", label: "Renewal date", value: "14 May 2027", source: "Bank facility letter", confidence: "high" },
-    ],
-  },
-  {
-    id: "pnl",
-    title: "Profit and loss",
-    status: "todo",
-    agentMessage: "Typical profit is the average of your last three years, adjusted to today's prices. Check it matches how you think about a normal year.",
-    documentsHint: "Accounts for the last three years",
-    fields: [
-      { id: "pl-typical", label: "Typical profit", value: "£85k", source: "Accounts 2023–25 · Average", confidence: "check" },
-      { id: "pl-be", label: "Wheat break-even", value: "£185/t", source: "Accounts 2025", confidence: "high" },
-      { id: "pl-fixed", label: "Fixed costs", value: "£312k", source: "Accounts 2025", confidence: "high" },
-    ],
   },
 ];
 

@@ -100,3 +100,21 @@ describe("entering values", () => {
     expect(formatValue(def("schemes.sfi_end"), "2027-03-31")).toBe("31 Mar 2027");
   });
 });
+
+describe("updating the risk profile", () => {
+  it("shrinks output-price risk when wheat is sold, and leaves the rest alone", async () => {
+    const { reassess } = await import("@/lib/profile/assess");
+    const { profit } = await import("@/lib/mock");
+    const sold = profileFields.map((f) => (f.key === "sales.wheat_2026_unsold_t" ? { ...f, value: 828 } : f));
+    const v2 = makeSnapshot({ id: "s2", version: 2, takenAt: SNAPSHOT_AT, reason: "sold 200 t", fields: sold, market });
+    const next = reassess(risks, profit, v2.exposures, 450, 85_000);
+    const before = (id: string) => risks.find((r) => r.id === id)!;
+    const after = (id: string) => next.risks.find((r) => r.id === id)!;
+    expect(after("output_prices").model.exposure).toBe(757);
+    expect(after("output_prices").badYear).toBeLessThan(before("output_prices").badYear);
+    expect(next.profit.badYear).toBeGreaterThan(profit.badYear);
+    for (const id of ["input_prices", "weather_yield", "regulation", "interest_rates"]) {
+      expect(after(id).badYear).toBe(before(id).badYear);
+    }
+  });
+});

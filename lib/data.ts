@@ -1,18 +1,38 @@
+"use server";
 /**
- * The only module components import data from. Every function is async so the mock
- * implementations can be replaced with API calls without touching callers.
+ * The only module components import data from. These are server functions: pages call them
+ * directly, client components call them as server actions, so Supabase and the secret key stay
+ * on the server. Reads come from Supabase when it is configured and seeded, otherwise from the
+ * demo data (see lib/server/store.ts).
  */
+import { revalidatePath } from "next/cache";
 import * as mock from "./mock";
+import { reassess } from "./profile/assess";
+import { FIELDS, SECTIONS, fieldDef, riskName, RISKS } from "./profile/catalogue";
+import { makeSnapshot, measureSignal, profileChanges } from "./profile/risk-profile";
+import { addDays, formatValue, parseValue } from "./profile/values";
+import { getStore, type Store } from "./server/store";
 import type {
   AssessmentMeta,
   BreakEven,
   CalendarItem,
   Farm,
+  MarketBaseline,
+  OnboardingField,
   OnboardingSection,
   PendingChange,
+  PendingSource,
+  ProfileFieldValue,
+  ProfileSnapshot,
+  ProfileStatus,
   ProfitSummary,
   Reminder,
+  RiskId,
+  RiskInputs,
+  RiskProfileRow,
   RiskResult,
+  SaveSectionResult,
+  SignalImpact,
   TopMitigation,
   WhatIfInputs,
   WhatIfPreset,
@@ -20,72 +40,283 @@ import type {
 } from "./types";
 
 const clone = <T>(value: T): T => structuredClone(value);
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let pending: PendingChange[] = clone(mock.pendingChanges);
+const LONDON_DATE = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" });
+const LONDON_TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+const today = () => LONDON_DATE.format(new Date());
+
+const refresh = () => revalidatePath("/", "layout");
+
+/* ---------- Farm and assessment ---------- */
 
 export async function getFarm(): Promise<Farm> {
-  return clone(mock.farm);
+  return (await getStore()).getFarm();
 }
 
 export async function getAssessmentMeta(): Promise<AssessmentMeta> {
-  return clone(mock.meta);
+  return (await (await getStore()).getAssessment()).meta;
 }
 
 export async function getRisks(): Promise<RiskResult[]> {
-  return clone(mock.risks).sort((a, b) => b.score - a.score || b.badYear - a.badYear);
+  const { risks } = await (await getStore()).getAssessment();
+  return risks.sort((a, b) => b.score - a.score || b.badYear - a.badYear);
 }
 
 export async function getRisk(id: string): Promise<RiskResult | null> {
-  const risk = mock.risks.find((r) => r.id === id);
-  return risk ? clone(risk) : null;
+  const { risks } = await (await getStore()).getAssessment();
+  return risks.find((r) => r.id === id) ?? null;
 }
 
 export async function getTopMitigations(): Promise<TopMitigation[]> {
-  return mock.topMitigationIds.flatMap((id, i) => {
-    const risk = mock.risks.find((r) => r.mitigations.some((m) => m.id === id));
+  const { risks, topMitigationIds } = await (await getStore()).getAssessment();
+  return topMitigationIds.flatMap((id, i) => {
+    const risk = risks.find((r) => r.mitigations.some((m) => m.id === id));
     const mitigation = risk?.mitigations.find((m) => m.id === id);
     if (!risk || !mitigation) return [];
-    return [{ rank: i + 1, riskName: risk.name, scoreBefore: risk.score, mitigation: clone(mitigation) }];
+    return [{ rank: i + 1, riskName: risk.name, scoreBefore: risk.score, mitigation }];
   });
 }
 
 export async function getProfitSummary(): Promise<ProfitSummary> {
-  return clone(mock.profit);
+  return (await (await getStore()).getAssessment()).profit;
 }
 
 export async function getBreakEvens(): Promise<BreakEven[]> {
-  return clone(mock.breakEvens);
+  return (await (await getStore()).getAssessment()).breakEvens;
 }
+
+/* ---------- Approval queue ---------- */
+
+const APPROVED_SOURCE: Record<PendingSource, string> = {
+  onboarding: "Document read · approved by you",
+  freshness: "Freshness check · confirmed by you",
+  imessage: "iMessage reply · approved by you",
+  mcp: "Adviser agent · approved by you",
+  companies_house: "Companies House · approved by you",
+};
 
 export async function getPendingChanges(): Promise<PendingChange[]> {
-  return clone(pending);
+  return (await getStore()).getPendingChanges();
 }
 
-function setStatus(id: string, status: PendingChange["status"], value?: string): PendingChange | null {
-  const item = pending.find((p) => p.id === id);
-  if (!item) return null;
-  item.status = status;
-  if (value !== undefined) item.proposedValue = value;
-  pending = [...pending];
-  return clone(item);
+/** The farmer's confirmed value for one field, ready to save. */
+function confirmedField(key: string, value: ProfileFieldValue["value"], source: string, now: string): ProfileFieldValue {
+  const days = fieldDef(key)?.validDays;
+  return { key, value, source, confidence: "high", confirmedAt: now, validUntil: days ? addDays(now, days) : null };
 }
 
-/** Accept a proposed change. Pass `value` when the farmer edited the proposal. */
+/** Accept a proposed change and apply it to the profile. Pass `value` when the farmer edited the proposal. */
 export async function approveChange(id: string, value?: string): Promise<PendingChange | null> {
-  await delay(150);
-  return setStatus(id, "approved", value);
+  const store = await getStore();
+  const item = (await store.getPendingChanges()).find((p) => p.id === id);
+  if (!item) return null;
+  const def = item.fieldKey ? fieldDef(item.fieldKey) : undefined;
+  if (def) {
+    const parsed = parseValue(def, value ?? item.proposedValue);
+    if (parsed.ok) await store.saveProfileFields([confirmedField(def.key, parsed.value, APPROVED_SOURCE[item.source], new Date().toISOString())]);
+  }
+  const updated = await store.updatePendingChange(id, "approved", value);
+  refresh();
+  return updated;
 }
 
 export async function rejectChange(id: string): Promise<PendingChange | null> {
-  await delay(150);
-  return setStatus(id, "rejected");
+  const updated = await (await getStore()).updatePendingChange(id, "rejected");
+  refresh();
+  return updated;
+}
+
+/* ---------- Farm profile ---------- */
+
+function buildSections(fields: ProfileFieldValue[], confirmations: Record<string, string>): OnboardingSection[] {
+  const byKey = new Map(fields.map((f) => [f.key, f]));
+  const now = today();
+  return SECTIONS.map((sec) => {
+    const sectionFields: OnboardingField[] = FIELDS.filter((d) => d.section === sec.id).map((def) => {
+      const f = byKey.get(def.key);
+      return {
+        id: def.key,
+        label: def.label,
+        value: formatValue(def, f?.value ?? null),
+        source: f?.source ?? "Not recorded",
+        confidence: f?.confidence ?? "check",
+        type: def.type,
+        unit: def.unit,
+        help: def.help,
+        risks: def.risks.map((id) => ({ id, name: riskName(id) })),
+        confirmedAt: f?.confirmedAt ?? null,
+        stale: Boolean(f?.validUntil && f.validUntil < now),
+      };
+    });
+    return {
+      id: sec.id,
+      title: sec.title,
+      agentMessage: sec.agentMessage,
+      documentsHint: sec.documentsHint,
+      status: confirmations[sec.id] ? "confirmed" : sectionFields.some((f) => f.confidence === "check") ? "review" : "todo",
+      fields: sectionFields,
+    };
+  });
+}
+
+export async function getOnboarding(): Promise<OnboardingSection[]> {
+  const store = await getStore();
+  const [fields, confirmations] = await Promise.all([store.getProfileFields(), store.getSectionConfirmations()]);
+  return buildSections(fields, confirmations);
+}
+
+async function profileStatus(store: Store, fields?: ProfileFieldValue[]): Promise<ProfileStatus> {
+  const [current, snapshot] = await Promise.all([fields ?? store.getProfileFields(), store.getSnapshot()]);
+  return { snapshot: { version: snapshot.version, takenAt: snapshot.takenAt }, changes: profileChanges(current, snapshot) };
+}
+
+export async function getProfileStatus(): Promise<ProfileStatus> {
+  return profileStatus(await getStore());
+}
+
+/**
+ * Save and confirm one section. Every field in it becomes confirmed by the farmer; fields whose
+ * value changed are marked as entered by them. Nothing is saved if any value doesn't parse.
+ */
+export async function saveSection(sectionId: string, values: Record<string, string>): Promise<SaveSectionResult> {
+  const store = await getStore();
+  const fields = await store.getProfileFields();
+  const byKey = new Map(fields.map((f) => [f.key, f]));
+  const now = new Date().toISOString();
+  const errors: Record<string, string> = {};
+  const updates: ProfileFieldValue[] = [];
+
+  for (const def of FIELDS.filter((d) => d.section === sectionId)) {
+    const current = byKey.get(def.key);
+    const input = values[def.key] ?? formatValue(def, current?.value ?? null);
+    const parsed = parseValue(def, input);
+    if (!parsed.ok) {
+      errors[def.key] = parsed.error;
+      continue;
+    }
+    const changed = String(parsed.value ?? "") !== String(current?.value ?? "");
+    updates.push(confirmedField(def.key, parsed.value, changed || !current ? "Entered by you" : current.source, now));
+  }
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+
+  await store.saveProfileFields(updates);
+  await store.confirmSection(sectionId, now);
+  const [after, confirmations] = await Promise.all([store.getProfileFields(), store.getSectionConfirmations()]);
+  refresh();
+  return {
+    ok: true,
+    section: buildSections(after, confirmations).find((s) => s.id === sectionId)!,
+    status: await profileStatus(store, after),
+  };
+}
+
+/** Kept for callers that confirm without editing. */
+export async function confirmSection(id: string): Promise<OnboardingSection | null> {
+  const result = await saveSection(id, {});
+  return result.ok ? result.section : null;
+}
+
+/* ---------- Risk profile ---------- */
+
+/** The snapshot's market with any measured news since applied, so a new snapshot starts from today's figures. */
+function marketNow(snapshot: ProfileSnapshot, impacts: SignalImpact[]): MarketBaseline {
+  const market = clone(snapshot.market);
+  for (const { signal } of [...impacts].reverse()) {
+    if (!signal.metric || signal.value == null || !market[signal.metric]) continue;
+    market[signal.metric] = { ...market[signal.metric]!, value: signal.value, source: signal.source, date: signal.publishedAt.slice(0, 10) };
+  }
+  return market;
+}
+
+async function impactsSince(store: Store, snapshot: ProfileSnapshot): Promise<SignalImpact[]> {
+  const signals = await store.getSignals(snapshot.takenAt);
+  return signals.map((s) => measureSignal(s, snapshot));
+}
+
+export async function getRiskProfile(): Promise<{
+  snapshot: { version: number; takenAt: string; reason: string };
+  rows: RiskProfileRow[];
+  impacts: SignalImpact[];
+}> {
+  const store = await getStore();
+  const [snapshot, assessment] = await Promise.all([store.getSnapshot(), store.getAssessment()]);
+  const impacts = await impactsSince(store, snapshot);
+  const rows = RISKS.flatMap(({ id, name }): RiskProfileRow[] => {
+    const exposure = snapshot.exposures.find((e) => e.riskId === id);
+    const risk = assessment.risks.find((r) => r.id === id);
+    if (!exposure) return [];
+    const mine = impacts.filter((i) => i.signal.riskId === id);
+    return [
+      {
+        riskId: id,
+        name: risk?.name ?? name,
+        score: risk?.score ?? 0,
+        badYear: risk?.badYear ?? 0,
+        exposure,
+        newsDelta: mine.reduce((s, i) => s + (i.delta ?? 0), 0),
+        newsCount: mine.length,
+      },
+    ];
+  });
+  return { snapshot: { version: snapshot.version, takenAt: snapshot.takenAt, reason: snapshot.reason }, rows, impacts };
+}
+
+export async function getRiskInputs(riskId: string): Promise<RiskInputs> {
+  const store = await getStore();
+  const [fields, snapshot] = await Promise.all([store.getProfileFields(), store.getSnapshot()]);
+  const byKey = new Map(fields.map((f) => [f.key, f]));
+  const impacts = (await impactsSince(store, snapshot)).filter((i) => i.signal.riskId === riskId);
+  return {
+    fields: FIELDS.filter((d) => d.risks.includes(riskId as RiskId)).map((def) => ({
+      key: def.key,
+      label: def.label,
+      value: formatValue(def, byKey.get(def.key)?.value ?? null) || "Not recorded",
+      sectionId: def.section,
+      sectionTitle: SECTIONS.find((s) => s.id === def.section)?.title ?? def.section,
+    })),
+    exposure: snapshot.exposures.find((e) => e.riskId === riskId) ?? null,
+    snapshot: { version: snapshot.version, takenAt: snapshot.takenAt },
+    impacts,
+  };
+}
+
+/**
+ * Freeze the profile into a new snapshot, at today's market figures, and store a new
+ * assessment built from it. Until the engine exists, exposures and the figures that follow
+ * from them are recomputed; agent-written text is carried over.
+ */
+export async function updateRiskProfile(reason = "Profile updated"): Promise<{ version: number; takenAt: string; meta: AssessmentMeta }> {
+  const store = await getStore();
+  const [fields, previous, assessment] = await Promise.all([store.getProfileFields(), store.getSnapshot(), store.getAssessment()]);
+  const now = new Date();
+  const takenAt = now.toISOString();
+  const snapshot = makeSnapshot({
+    id: crypto.randomUUID(),
+    version: previous.version + 1,
+    takenAt,
+    reason,
+    fields,
+    market: marketNow(previous, await impactsSince(store, previous)),
+  });
+  await store.insertSnapshot(snapshot);
+
+  const typicalProfit = Number(snapshot.fields["pnl.typical_profit"] ?? assessment.meta.typicalProfit) || assessment.meta.typicalProfit;
+  const hectares = Number(snapshot.fields["land.area_ha"] ?? 0);
+  const { risks, profit } = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit);
+  const meta: AssessmentMeta = { ...assessment.meta, date: today(), updatedAt: LONDON_TIME.format(now), typicalProfit };
+  await store.insertAssessment(
+    { snapshotId: snapshot.id, meta, profit, breakEvens: assessment.breakEvens, topMitigationIds: assessment.topMitigationIds, risks },
+    takenAt
+  );
+  refresh();
+  return { version: snapshot.version, takenAt, meta };
 }
 
 export async function rerunAssessment(): Promise<AssessmentMeta> {
-  await delay(1200);
-  return clone(mock.meta);
+  return (await updateRiskProfile("Re-run from the overview")).meta;
 }
+
+/* ---------- Not in the database yet: calendar, reminders, what-if ---------- */
 
 export async function getCalendar(): Promise<CalendarItem[]> {
   return clone(mock.calendar);
@@ -93,16 +324,6 @@ export async function getCalendar(): Promise<CalendarItem[]> {
 
 export async function getReminders(): Promise<Reminder[]> {
   return clone(mock.reminders);
-}
-
-export async function getOnboarding(): Promise<OnboardingSection[]> {
-  return clone(mock.onboarding);
-}
-
-export async function confirmSection(id: string): Promise<OnboardingSection | null> {
-  await delay(150);
-  const section = mock.onboarding.find((s) => s.id === id);
-  return section ? { ...clone(section), status: "confirmed" } : null;
 }
 
 export async function getWhatIfConfig(): Promise<{

@@ -16,6 +16,9 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+/** Pages read the latest profile and assessment on every request. */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Headwind · Farm risk agent",
   description: "AI risk agent for UK arable farms. Demo data.",

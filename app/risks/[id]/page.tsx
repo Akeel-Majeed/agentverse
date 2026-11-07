@@ -7,11 +7,6 @@ import { getAssessmentMeta, getRisk, getRisks } from "@/lib/data";
 import { longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export async function generateStaticParams() {
-  const risks = await getRisks();
-  return risks.map((r) => ({ id: r.id }));
-}
-
 export default async function RiskPage({ params }: { params: { id: string } }) {
   const [risk, risks, meta] = await Promise.all([getRisk(params.id), getRisks(), getAssessmentMeta()]);
   if (!risk) notFound();

@@ -348,3 +348,7 @@ export interface RiskInputs {
   snapshot: { version: number; takenAt: string };
   impacts: SignalImpact[];
 }
+
+export type SaveSectionResult =
+  | { ok: true; section: OnboardingSection; status: ProfileStatus }
+  | { ok: false; errors: Record<string, string> };
