@@ -29,7 +29,7 @@ Server actions + API routes (Vercel)
 Supabase (Postgres + Storage), server-side access only
 ```
 
-**Five risks** (module ids): `wheat_price`, `fertiliser`, `weather_yield`, `rates`, `schemes`.
+**Five risks** (module ids): `output_prices` (wheat, barley, rape), `input_prices` (fertiliser, diesel, sprays, energy), `weather_yield`, `regulation` (support schemes, NVZ and pesticide rules), `interest_rates`.
 
 **Data model** (Supabase, all tables keyed by `farm_id`): `farms`, `profile_fields` (one row per field with value, source, confidence, last confirmed, valid until), `documents`, `pending_changes` (approval queue), `market_data` (cached prices, rates, odds), `policy_items`, `assessments` (one row per engine run: `summary` + `risks` JSON matching `lib/types.ts`), `mitigations` (status: suggested / planned / done / dismissed), `calendar_items`, `alerts`. View `latest_assessment`.
 

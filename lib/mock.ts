@@ -3,7 +3,7 @@
  * swap those functions for API calls when the backend is ready.
  */
 import { scoreFromBadYear } from "./score";
-import { riskWorking, simulateExposure, Z95 } from "./sim";
+import { normalCdf, riskWorking, simulateExposure, Z95 } from "./sim";
 import type {
   AssessmentMeta,
   BreakEven,
@@ -22,9 +22,13 @@ import type {
 
 export const TYPICAL_PROFIT = 85_000;
 const MEAN_K = 85;
-const WHEAT_SD_K = (2898 * 20) / 1000;
+/** Output prices: value of unsold crop at today's prices, £k, and its price swing per £k. */
+const OUTPUT_VALUE_K = 793;
+const OUTPUT_UNIT_SD = 114;
+const OUTPUT_SD_K = (OUTPUT_VALUE_K * OUTPUT_UNIT_SD) / 1000;
 const OTHER_SD_K = 55;
-const FARM_SD_K = Math.sqrt(WHEAT_SD_K ** 2 + OTHER_SD_K ** 2);
+const FARM_SD_K = Math.sqrt(OUTPUT_SD_K ** 2 + OTHER_SD_K ** 2);
+const FARM_LOSS_CHANCE = normalCdf(-MEAN_K / FARM_SD_K);
 
 export const farm: Farm = {
   id: "fenland-ridge",
@@ -75,94 +79,102 @@ function mitigations(riskId: string, badYear: number, m: ExposureModel, items: M
   });
 }
 
-interface RiskInput extends Omit<RiskResult, "mitigations" | "working" | "pctOfProfit" | "score" | "model"> {
+interface RiskInput extends Omit<RiskResult, "mitigations" | "working" | "pctOfProfit" | "score" | "model" | "badYear"> {
   model: ModelInput;
   mitigations: MitigationInput[];
 }
 
 function risk(input: RiskInput): RiskResult {
   const m = model(input.model);
-  const pct = (input.badYear / TYPICAL_PROFIT) * 100;
+  const badYear = Math.round((m.exposure * m.unitSd * Z95) / 1000) * 1000;
   return {
     ...input,
+    badYear,
     model: m,
-    score: scoreFromBadYear(input.badYear, TYPICAL_PROFIT),
-    pctOfProfit: Math.round(pct),
+    score: scoreFromBadYear(badYear, TYPICAL_PROFIT),
+    pctOfProfit: Math.round((badYear / TYPICAL_PROFIT) * 100),
     working: riskWorking(m, simulateExposure(m, m.exposure, m.meanK)),
-    mitigations: mitigations(input.id, input.badYear, m, input.mitigations),
+    mitigations: mitigations(input.id, badYear, m, input.mitigations),
   };
 }
 
 export const risks: RiskResult[] = [
   risk({
-    id: "wheat-price",
-    name: "Wheat price",
-    badYear: 96_000,
-    expected: 12_000,
-    trend7d: 11_000,
-    driver: "1,028 t of 2026 unsold, 2027 crop unsold",
+    id: "output_prices",
+    name: "Output prices",
+    expected: 14_000,
+    trend7d: -2_000,
+    driver: "£793k of wheat, barley and rape unsold",
     summary:
-      "Most of your downside sits in unsold wheat: one bad price year would wipe out more than a typical year's profit.",
+      "Almost none of your crop is sold: one bad price year for grain and rape would take more than a typical year's profit.",
     reasoning: [
-      "You hold 1,028 t of 2026 wheat in store and none of the expected 1,870 t 2027 crop is sold, so 2,898 t move with the market.",
-      "Delivered feed wheat is £178/t, £7 under your £185/t break-even. A 1-in-20 bad year takes another £33/t off.",
-      "The bad-year hit rose £11k this week because the price fell £4/t while tonnes stayed the same.",
-      "A minimum-price contract on half the 2027 crop keeps the upside and takes the score from 10 to 8 for about £7.5k.",
+      "Unsold crop is worth £793k at today's prices: 1,028 t of 2026 wheat in store, and the whole 2027 crop of wheat, spring barley and oilseed rape.",
+      "Wheat, barley and rape prices swing about 11–12% a year and tend to move together, so they are treated as one exposure. A 1-in-20 bad year takes 18.8% off, about £149k.",
+      "Delivered feed wheat is £178/t, £7 under your £185/t break-even, so wheat is the part to act on first.",
+      "Wheat fell £4/t this week. That cut the value at stake by £12k and the bad-year hit by about £2k; the fall itself shows up in expected profit.",
+      "A minimum-price contract on half the 2027 wheat keeps the upside on that half and costs about £7.5k.",
     ],
     sources: [
       { label: "2026 wheat unsold: 1,028 t", origin: "Grain store sheet · Onboarding", date: "12 Oct 2026" },
-      { label: "2027 wheat expected: 1,870 t (220 ha × 8.5 t/ha)", origin: "Cropping plan · Onboarding", date: "12 Oct 2026" },
-      { label: "Feed wheat, delivered: £178/t", origin: "AHDB delivered prices", date: "06 Nov 2026" },
-      { label: "Price volatility: £20/t standard deviation", origin: "AHDB 10-yr history · Headwind model" },
+      { label: "2027 crop: wheat 1,870 t, barley 780 t, rape 340 t", origin: "Cropping plan · Onboarding", date: "12 Oct 2026" },
+      { label: "Feed wheat £178/t, feed barley £158/t, rape £452/t", origin: "AHDB delivered prices", date: "06 Nov 2026" },
+      { label: "Price swing: wheat 11.2%, barley 11.4%, rape 12.2% standard deviation", origin: "AHDB 10-yr history · Model" },
       { label: "Wheat break-even: £185/t", origin: "Accounts 2025 · Upload", date: "14 Oct 2026" },
       { label: "Minimum-price premium: ~£8/t", origin: "Merchant quote · via MCP", date: "05 Nov 2026" },
     ],
     model: {
-      exposure: 2898,
-      unit: "t",
-      unitSd: 20,
+      exposure: OUTPUT_VALUE_K,
+      unit: "£k",
+      unitSd: OUTPUT_UNIT_SD,
       otherSdK: OTHER_SD_K,
-      exposureLabel: "Tonnes exposed",
-      keys: { exposure: "tonnes_exposed", sd: "price_sd", shock: "bad_price_fall" },
+      exposureLabel: "Crop value unsold",
+      keys: { exposure: "crop_value_unsold", sd: "price_sd", shock: "bad_price_fall" },
       shockLabel: "Bad-year price fall",
       tradeoff: {
-        title: "How much to sell forward",
+        title: "How much of the 2027 crop to sell forward",
         actionLabel: "2027 crop sold forward",
-        hedgeable: 1870,
-        note: "Share of the expected 1,870 t 2027 crop. Before any options above.",
+        hedgeable: 610,
+        note: "Share of the £610k 2027 crop (wheat, barley and rape at today's prices). Before any options above.",
       },
     },
     mitigations: [
       {
         id: "wheat-minprice-half-2027",
         title: "Minimum-price contract on half the 2027 wheat",
-        description: "Sets a floor under 935 t while keeping any price rise. Premium about £8/t.",
+        description: "Sets a floor under 935 t (£166k at today's price) while keeping any price rise. Premium about £8/t.",
         cost: "Premium ~£7.5k",
         status: "suggested",
-        effect: { tonnesRemoved: 935, meanCost: 7.5 },
+        effect: { unitsRemoved: 166, meanCost: 7.5 },
       },
       {
         id: "wheat-sell-2026",
-        title: "Sell 20% more of the 2026 crop",
-        description: "Move 374 t from store at today's £178/t before the 20 Nov movement date.",
+        title: "Sell 20% more of the 2026 wheat in store",
+        description: "Move 374 t (£67k) from store at today's £178/t before the 20 Nov movement date.",
         cost: "No premium · locks in £178/t",
         status: "suggested",
-        effect: { tonnesRemoved: 374 },
+        effect: { unitsRemoved: 67 },
+      },
+      {
+        id: "osr-forward-third",
+        title: "Sell a third of the 2027 rape forward",
+        description: "113 t (£51k) at today's £452/t before the merchant's offer expires on 15 Jan.",
+        cost: "No premium · gives up upside on 113 t",
+        status: "suggested",
+        effect: { unitsRemoved: 51 },
       },
       {
         id: "wheat-forward-30",
-        title: "Sell 30% of the 2027 crop forward",
-        description: "Fixed-price contract on 561 t for harvest 2027 delivery.",
+        title: "Sell 30% of the 2027 wheat forward",
+        description: "Fixed-price contract on 561 t (£100k) for harvest 2027 delivery.",
         cost: "No premium · gives up upside on 561 t",
         status: "suggested",
-        effect: { tonnesRemoved: 561 },
+        effect: { unitsRemoved: 100 },
       },
     ],
   }),
   risk({
-    id: "weather-yield",
+    id: "weather_yield",
     name: "Weather and yield",
-    badYear: 58_000,
     expected: 9_000,
     trend7d: 0,
     driver: "Dry spring or wet harvest, all crops",
@@ -213,74 +225,87 @@ export const risks: RiskResult[] = [
     ],
   }),
   risk({
-    id: "fertiliser-price",
-    name: "Fertiliser price",
-    badYear: 25_000,
-    expected: 3_000,
-    trend7d: 3_000,
-    driver: "166 t spring nitrogen unbought",
-    summary: "Spring nitrogen is still unbought, so a price spike before February lands straight on margin.",
+    id: "input_prices",
+    name: "Input prices",
+    expected: 4_000,
+    trend7d: 1_000,
+    driver: "166 t nitrogen, 60% of diesel and half of sprays unbought",
+    summary: "£121k of spring inputs is still unbought, most of it nitrogen, so a price spike before spring lands straight on margin.",
     reasoning: [
-      "Your agronomist's plan needs 166 t of ammonium nitrate for spring; none is bought yet.",
-      "AN is £504/t today. In a 1-in-20 year it rises about £150/t before you buy.",
-      "The hit rose £3k this week as gas prices firmed.",
-      "Buying half now removes half the exposure for roughly the interest on paying early.",
+      "Your agronomist's plan needs 166 t of ammonium nitrate for spring (£84k at £504/t); none is bought yet.",
+      "22,800 L of the year's 38,000 L of diesel (£16k) and half the £43k spray budget (£22k) are also unbought.",
+      "Nitrogen swings most, about 18% a year; diesel about 15% and sprays about 6%. A 1-in-20 year adds about £31k to the bill.",
+      "The hit rose £1k this week as AN went up £18/t with gas prices.",
+      "Buying half the nitrogen now removes a third of the exposure for roughly the interest on paying early.",
     ],
     sources: [
       { label: "Spring N needed: 166 t AN", origin: "Agronomist N plan · via MCP", date: "20 Oct 2026" },
       { label: "Spring N bought: 0 t", origin: "Freshness check", date: "27 Sep 2026" },
-      { label: "AN price: £504/t", origin: "AHDB fertiliser prices", date: "Oct 2026" },
-      { label: "Price volatility: £91/t standard deviation", origin: "AHDB 10-yr history · Headwind model" },
+      { label: "Diesel: 38,000 L a year, 40% bought", origin: "Fuel invoices 2025 · Onboarding", date: "12 Oct 2026" },
+      { label: "Sprays: £96/ha budget, 50% bought", origin: "Agronomist plan · via MCP", date: "20 Oct 2026" },
+      { label: "AN £504/t, red diesel 68p/L", origin: "AHDB input prices", date: "Oct 2026" },
+      { label: "Price swing: AN 18%, diesel 15%, sprays 6% standard deviation", origin: "AHDB 10-yr history · Model" },
     ],
     model: {
-      exposure: 166,
-      unit: "t",
-      unitSd: 91,
-      exposureLabel: "Tonnes unbought",
-      keys: { exposure: "tonnes_unbought", sd: "price_sd", shock: "bad_price_rise" },
+      exposure: 121,
+      unit: "£k",
+      unitSd: 155,
+      exposureLabel: "Inputs unbought",
+      keys: { exposure: "inputs_unbought", sd: "price_sd", shock: "bad_price_rise" },
       shockLabel: "Bad-year price rise",
       tradeoff: {
-        title: "How much nitrogen to buy now",
-        actionLabel: "Spring N bought now",
-        hedgeable: 166,
-        note: "Share of the 166 t spring requirement. Buying early ties up cash until spring.",
+        title: "How much of the spring inputs to buy now",
+        actionLabel: "Inputs bought now",
+        hedgeable: 121,
+        note: "Share of the £121k of nitrogen, diesel and sprays still to buy. Buying early ties up cash until spring.",
       },
     },
     mitigations: [
       {
         id: "fert-buy-half",
         title: "Buy half of spring nitrogen now",
-        description: "83 t at today's £504/t, delivered in January.",
+        description: "83 t at today's £504/t (£42k), delivered in January.",
         cost: "~£0.6k interest on paying early",
         status: "suggested",
-        effect: { tonnesRemoved: 83, meanCost: 0.6 },
+        effect: { unitsRemoved: 42, meanCost: 0.6 },
       },
       {
         id: "fert-fixed-pod",
-        title: "Fixed price, pay on delivery for the rest",
-        description: "Ask the merchant to fix the other 83 t now and invoice in March.",
+        title: "Fixed price, pay on delivery for the rest of the nitrogen",
+        description: "Ask the merchant to fix the other 83 t (£42k) now and invoice in March.",
         cost: "~£11/t above spot",
         status: "suggested",
-        effect: { tonnesRemoved: 83, meanCost: 0.9 },
+        effect: { unitsRemoved: 42, meanCost: 0.9 },
+      },
+      {
+        id: "diesel-fix",
+        title: "Fix the price on the rest of the year's diesel",
+        description: "22,800 L (£16k) at about 69p/L, delivered as needed.",
+        cost: "~1p/L above spot",
+        status: "suggested",
+        effect: { unitsRemoved: 16, meanCost: 0.2 },
       },
     ],
   }),
   risk({
-    id: "scheme-payments",
-    name: "Scheme payments",
-    badYear: 20_000,
+    id: "regulation",
+    name: "Regulation",
     expected: 4_000,
     trend7d: 0,
-    driver: "Agreement ends March 2027",
+    driver: "SFI agreement ends March 2027",
     summary: "Your SFI agreement ends in March 2027 and nothing is lined up yet to replace the £40k a year.",
     reasoning: [
-      "Support payments bring in about £40k a year; the current agreement ends on 31 March 2027.",
+      "Scheme payments bring in about £40k a year; the current SFI agreement ends on 31 March 2027.",
       "If the next offer is delayed or smaller, about half of that could be missing in the 2027 harvest year.",
+      "The delinked payment (£9.6k this year) is already phasing out, so it is in expected profit rather than counted as a risk.",
+      "Rule changes without a £ figure yet, such as the glyphosate review and NVZ closed periods, are tracked as news against your profile.",
       "An application in the next window would protect roughly half the income at stake.",
     ],
     sources: [
       { label: "SFI agreement: £40k/yr, ends 31 Mar 2027", origin: "RPA agreement PDF · Upload", date: "12 Oct 2026" },
-      { label: "Next offer window: expected Jan–Mar 2027", origin: "DEFRA announcement · Headwind read", date: "28 Oct 2026" },
+      { label: "Next offer window: expected Jan–Mar 2027", origin: "DEFRA announcement · Agent read", date: "28 Oct 2026" },
+      { label: "Delinked payment 2026: £9.6k, ends after 2027", origin: "RPA statement · Upload", date: "12 Oct 2026" },
+      { label: "Glyphosate approval review: decision due Dec 2026", origin: "HSE · Agent read", date: "01 Nov 2026" },
     ],
     model: {
       exposure: 40,
@@ -316,9 +341,8 @@ export const risks: RiskResult[] = [
     ],
   }),
   risk({
-    id: "interest-rates",
+    id: "interest_rates",
     name: "Interest rates",
-    badYear: 11_000,
     expected: 2_000,
     trend7d: -1_000,
     driver: "£840k variable at base + 3.1%",
@@ -332,7 +356,7 @@ export const risks: RiskResult[] = [
     sources: [
       { label: "Variable borrowing: £840k at base + 3.1%", origin: "Bank statement · Upload", date: "12 Oct 2026" },
       { label: "Loan renewal: 14 May 2027", origin: "Bank facility letter · Upload", date: "12 Oct 2026" },
-      { label: "Typical secured farm margin: 1.3–1.8%", origin: "Lender survey · Headwind read", date: "Oct 2026" },
+      { label: "Typical secured farm margin: 1.3–1.8%", origin: "Lender survey · Agent read", date: "Oct 2026" },
       { label: "Bank Rate expectations", origin: "Bank of England · Market curve", date: "06 Nov 2026" },
     ],
     model: {
@@ -374,22 +398,32 @@ export const risks: RiskResult[] = [
 
 export const topMitigationIds = ["wheat-minprice-half-2027", "fert-buy-half", "rates-compare-margin"];
 
+const roundK = (k: number) => Math.round(k) * 1000;
+const PROFIT_BAD_K = MEAN_K - Z95 * FARM_SD_K;
+const PROFIT_GOOD_K = MEAN_K + Z95 * FARM_SD_K;
+/** Wheat −£4/t on 2,898 t, AN +£18/t on 166 t. */
+const DELTA_WEEK_K = -(2898 * 4 + 166 * 18) / 1000;
+const signedK = (k: number) => `${k < 0 ? "−" : ""}£${Math.abs(Math.round(k))}k`;
+
 export const profit: ProfitSummary = {
-  expected: 85_000,
-  badYear: -47_000,
-  goodYear: 217_000,
-  lossChance: 0.14,
-  lossYearsOf20: 3,
-  deltaWeek: -9_000,
+  expected: TYPICAL_PROFIT,
+  badYear: roundK(PROFIT_BAD_K),
+  goodYear: roundK(PROFIT_GOOD_K),
+  lossChance: Math.round(FARM_LOSS_CHANCE * 100) / 100,
+  lossYearsOf20: Math.round(FARM_LOSS_CHANCE * 20),
+  deltaWeek: roundK(DELTA_WEEK_K),
   working: [
-    { label: "expected_profit (3-yr average, price-adjusted)", value: "£85k" },
-    { label: "wheat_sd = 2,898 t × £20/t", value: `£${Math.round(WHEAT_SD_K)}k` },
-    { label: "other_risks_sd", value: `£${OTHER_SD_K}k` },
-    { label: "farm_sd = √(wheat_sd² + other_risks_sd²)", value: `£${Math.round(FARM_SD_K)}k` },
-    { label: "bad_year = expected − 1.65 × farm_sd", value: "−£47k" },
-    { label: "good_year = expected + 1.65 × farm_sd", value: "£217k" },
-    { label: "loss_chance = Φ(−expected ÷ farm_sd)", value: "14% (3 in 20)" },
-    { label: "change vs last week (wheat −£4/t, AN +£18/t)", value: "−£9k" },
+    { label: "expected_profit (3-yr average, price-adjusted)", value: signedK(MEAN_K) },
+    { label: "output_prices_sd = £793k unsold × 11.4%", value: signedK(OUTPUT_SD_K) },
+    { label: "other_risks_sd", value: signedK(OTHER_SD_K) },
+    { label: "farm_sd = √(output_prices_sd² + other_risks_sd²)", value: signedK(FARM_SD_K) },
+    { label: "bad_year = expected − 1.65 × farm_sd", value: signedK(PROFIT_BAD_K) },
+    { label: "good_year = expected + 1.65 × farm_sd", value: signedK(PROFIT_GOOD_K) },
+    {
+      label: "loss_chance = Φ(−expected ÷ farm_sd)",
+      value: `${Math.round(FARM_LOSS_CHANCE * 100)}% (${Math.round(FARM_LOSS_CHANCE * 20)} in 20)`,
+    },
+    { label: "change vs last week (wheat −£4/t on 2,898 t, AN +£18/t on 166 t)", value: signedK(DELTA_WEEK_K) },
   ],
   sources: [
     { label: "Profit and loss 2023–2025", origin: "Accounts · Upload", date: "14 Oct 2026" },
@@ -493,7 +527,7 @@ export const reminders: Reminder[] = [
   {
     id: "rem-nitrogen",
     sendAt: "Tue 1 Dec · 07:00",
-    message: "Spring N buying window opens. AN is £504/t. Buying half now takes your fertiliser score from 4 to 2.",
+    message: "Spring N buying window opens. AN is £504/t. Buying half now takes about a third off your input-price risk.",
     relatesTo: "Inputs",
   },
   {
