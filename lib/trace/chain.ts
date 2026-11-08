@@ -12,7 +12,9 @@ export function canonical(value: unknown): string {
 }
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
-export const nextHash = (prev: string, body: string) => sha256(prev + body);
+/** Each hash covers the previous hash and the event's seq, type, actor and body, so none can be rewritten unseen. */
+export const nextHash = (prev: string, e: Pick<TraceEvent, "seq" | "type" | "actor" | "body">) =>
+  sha256(prev + canonical({ seq: e.seq, type: e.type, actor: e.actor, body: e.body }));
 
 export interface EventSink {
   insertEvent(e: TraceEvent): Promise<void>;
@@ -37,9 +39,10 @@ export class TraceWriter {
   append(type: string, actor: Actor, payload: unknown): Promise<TraceEvent> {
     const next = this.queue.then(async () => {
       const body = canonical(payload);
+      const seq = ++this.seq;
       const e: TraceEvent = {
-        runId: this.runId, seq: ++this.seq, type, actor, body,
-        prevHash: this.prev, hash: nextHash(this.prev, body), createdAt: new Date().toISOString(),
+        runId: this.runId, seq, type, actor, body,
+        prevHash: this.prev, hash: nextHash(this.prev, { seq, type, actor, body }), createdAt: new Date().toISOString(),
       };
       await this.sink.insertEvent(e);
       this.prev = e.hash;
@@ -58,7 +61,7 @@ export class TraceWriter {
 export function verifyChain(events: TraceEvent[]): { ok: boolean; head: string; brokenAt?: number } {
   let prev = GENESIS;
   for (const e of [...events].sort((a, b) => a.seq - b.seq)) {
-    if (e.prevHash !== prev || e.hash !== nextHash(prev, e.body)) return { ok: false, head: prev, brokenAt: e.seq };
+    if (e.prevHash !== prev || e.hash !== nextHash(prev, e)) return { ok: false, head: prev, brokenAt: e.seq };
     prev = e.hash;
   }
   return { ok: true, head: prev };

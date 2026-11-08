@@ -21,7 +21,7 @@ import { addDays, formatValue, parseValue } from "./profile/values";
 import { jevFromEnv } from "./screen/screen";
 import { createSupabaseAgentStore, getAgentStore, type AgentStore } from "./server/agent-store";
 import { getStore, type Assessment, type Store } from "./server/store";
-import { canonical, GENESIS, nextHash, verifyChain } from "./trace/chain";
+import { GENESIS, TraceWriter, verifyChain } from "./trace/chain";
 import type { Actor, AgentRun, Controls, Observation, TraceEvent } from "./trace/types";
 import type {
   AssessmentMeta,
@@ -406,12 +406,10 @@ async function controlStore(): Promise<AgentStore> {
   return getAgentStore();
 }
 
-// ponytail: one-off append to an existing run's chain; Task 10's TraceWriter.resume can replace it.
+/** One event on an existing run's chain, continuing from its last stored event. */
 async function appendEvent(store: AgentStore, runId: string, type: string, actor: Actor, payload: unknown): Promise<void> {
   const last = (await store.getEvents(runId)).at(-1);
-  const prevHash = last?.hash ?? GENESIS;
-  const body = canonical(payload);
-  await store.insertEvent({ runId, seq: (last?.seq ?? 0) + 1, type, actor, body, prevHash, hash: nextHash(prevHash, body), createdAt: new Date().toISOString() });
+  await TraceWriter.resume(runId, store, last?.seq ?? 0, last?.hash ?? GENESIS).append(type, actor, payload);
 }
 
 /** The farmer's kill switch. Logged on the latest run's trace as a human event. */

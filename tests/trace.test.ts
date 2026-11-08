@@ -31,6 +31,19 @@ describe("trace", () => {
     events[0].body = '{"x":999}';
     expect(verifyChain(events)).toMatchObject({ ok: false, brokenAt: 1 });
   });
+  it("detects an edited type, actor or seq", async () => {
+    const store = createMemoryAgentStore();
+    const run = await store.createRun({ farmId: "f", trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+    const w = new TraceWriter(run.id, store);
+    await w.append("judge.output", "gemini", { x: 1 });
+    await w.append("b", "code", { x: 2 });
+    const original = await store.getEvents(run.id);
+    for (const edit of [{ type: "checker.result" }, { actor: "human" as const }, { seq: 7 }]) {
+      const events = structuredClone(original);
+      Object.assign(events[1], edit);
+      expect(verifyChain(events).ok).toBe(false);
+    }
+  });
   it("controls default to not paused and can be paused", async () => {
     const store = createMemoryAgentStore();
     expect((await store.getControls()).paused).toBe(false);

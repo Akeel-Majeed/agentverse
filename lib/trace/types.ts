@@ -60,7 +60,7 @@ export interface TraceEvent {
   seq: number;
   type: string;
   actor: Actor;
-  /** Canonical JSON text. The hash covers exactly this string. */
+  /** Canonical JSON text. The hash covers prevHash plus canonical({ seq, type, actor, body }) (lib/trace/chain.ts). */
   body: string;
   prevHash: string;
   hash: string;
