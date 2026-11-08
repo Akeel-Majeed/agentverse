@@ -107,44 +107,79 @@ export function tradeoffRows(model: ExposureModel, shares = [0, 0.25, 0.5, 0.75]
   });
 }
 
-/* ---------- What-if (all values £k) ---------- */
+/* ---------- What-if (all values £k unless named) ---------- */
 
-const WHEAT_T = 1870;
-const BASE_WHEAT = 178;
-const OTHER_CROPS_K = 277;
-const BASE_AN = 504;
-const AN_T = 166;
-const VARIABLE_DEBT_K = 840;
-const BASE_PROFIT_K = 85;
+/**
+ * What the what-if starts from, read from the risk profile snapshot (lib/data.ts: whatIfBase), so
+ * it moves with the farm profile like every other page.
+ */
+export interface WhatIfBase {
+  /** Expected profit in a typical year, £k. */
+  profitK: number;
+  /** Feed wheat and AN prices in the snapshot, £/t. */
+  wheatPrice: number;
+  anPrice: number;
+  /** 2026 wheat in store, unsold, t (exposed to price, not to next year's yield). */
+  wheatStoreT: number;
+  /** 2027 wheat crop at expected yield, t, and how much of it is already sold forward. */
+  wheatCropT: number;
+  wheatForwardT: number;
+  /** 2027 barley and rape revenue at snapshot prices, £k (moves with yield). */
+  otherCropsK: number;
+  /** Nitrogen still to buy, t of AN. */
+  anUnboughtT: number;
+  /** Variable-rate borrowing, £k. */
+  variableDebtK: number;
+}
 
 export interface WhatIfResult {
   profitK: number;
   deltaK: number;
-  /** Wheat price (£/t) below which the farm makes a loss. */
-  lossPrice: number;
+  /** Wheat price (£/t) below which the farm makes a loss; null if wheat price doesn't move profit. */
+  lossPrice: number | null;
+  /** Wheat exposed to the price in this scenario, t. */
+  wheatExposedT: number;
   impacts: { id: "price" | "yield" | "fertiliser" | "rates"; label: string; valueK: number }[];
+  working: WorkingStep[];
 }
 
-export function whatIf(i: WhatIfInputs): WhatIfResult {
+export function whatIf(i: WhatIfInputs, b: WhatIfBase): WhatIfResult {
   const y = i.yieldPct / 100;
-  const dWheat = (WHEAT_T * y * i.wheatPrice - WHEAT_T * BASE_WHEAT) / 1000;
-  const dOther = OTHER_CROPS_K * (y - 1);
-  const dFert = (-AN_T * (i.fertiliserPrice - BASE_AN)) / 1000;
-  const dRates = (-VARIABLE_DEBT_K * i.rateChange) / 100;
-  const priceEffect = (WHEAT_T * y * (i.wheatPrice - BASE_WHEAT)) / 1000;
-  const yieldEffect = (WHEAT_T * (y - 1) * BASE_WHEAT) / 1000 + dOther;
-  const profitK = BASE_PROFIT_K + dWheat + dOther + dFert + dRates;
-  const lossPrice =
-    -(BASE_PROFIT_K - (WHEAT_T * BASE_WHEAT) / 1000 + dOther + dFert + dRates) / ((WHEAT_T / 1000) * y);
+  const crop27 = b.wheatCropT * y;
+  const exposedT = b.wheatStoreT + Math.max(0, crop27 - b.wheatForwardT);
+  const exposedTodayT = b.wheatStoreT + Math.max(0, b.wheatCropT - b.wheatForwardT);
+  const priceEffect = (exposedT * (i.wheatPrice - b.wheatPrice)) / 1000;
+  // Fewer tonnes to sell at today's price, plus barley and rape moving with the same yield.
+  const yieldEffect = ((exposedT - exposedTodayT) * b.wheatPrice) / 1000 + b.otherCropsK * (y - 1);
+  const dFert = (-b.anUnboughtT * (i.fertiliserPrice - b.anPrice)) / 1000;
+  const dRates = (-b.variableDebtK * i.rateChange) / 100;
+  const deltaK = priceEffect + yieldEffect + dFert + dRates;
+  const profitK = b.profitK + deltaK;
+  const lossPrice = exposedT > 0 ? b.wheatPrice - ((b.profitK + yieldEffect + dFert + dRates) * 1000) / exposedT : null;
+  const t = (x: number) => `${num(Math.round(x))} t`;
   return {
     profitK,
-    deltaK: profitK - BASE_PROFIT_K,
+    deltaK,
     lossPrice,
+    wheatExposedT: exposedT,
     impacts: [
       { id: "price", label: "Wheat price", valueK: priceEffect },
       { id: "yield", label: "Yield", valueK: yieldEffect },
       { id: "fertiliser", label: "Fertiliser", valueK: dFert },
       { id: "rates", label: "Interest rates", valueK: dRates },
+    ],
+    working: [
+      { label: "expected_profit (typical year)", value: gbpK(b.profitK) },
+      { label: `wheat_exposed = in store ${t(b.wheatStoreT)} + max(0, 2027 crop ${t(b.wheatCropT)} × ${i.yieldPct}% − sold forward ${t(b.wheatForwardT)})`, value: t(exposedT) },
+      { label: `wheat_price_effect = wheat_exposed × (£${num(i.wheatPrice)} − £${num(b.wheatPrice)})/t`, value: gbpK(priceEffect, { sign: true }) },
+      { label: `yield_effect = Δ wheat tonnes × £${num(b.wheatPrice)}/t + barley and rape ${gbpK(b.otherCropsK)} × (${i.yieldPct}% − 100%)`, value: gbpK(yieldEffect, { sign: true }) },
+      { label: `fertiliser_effect = −${t(b.anUnboughtT)} AN unbought × (£${num(i.fertiliserPrice)} − £${num(b.anPrice)})/t`, value: gbpK(dFert, { sign: true }) },
+      { label: `rates_effect = −${gbpK(b.variableDebtK)} variable debt × ${num(i.rateChange, 2)} pts`, value: gbpK(dRates, { sign: true }) },
+      { label: "farm_profit = expected_profit + all effects", value: gbpK(profitK) },
+      {
+        label: "loss_if_wheat_below = wheat_price − (profit before wheat price effect ÷ wheat_exposed)",
+        value: lossPrice === null ? "no wheat exposed" : `£${num(Math.round(lossPrice))}/t`,
+      },
     ],
   };
 }

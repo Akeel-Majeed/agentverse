@@ -43,7 +43,8 @@ describe("chat agent tools", () => {
     expect(today.change_vs_today).toBe("£0");
     const slump = await call("what_if", { wheat_price: 160 });
     expect(slump.scenario.wheat_price).toBe("£160/t");
-    expect(slump.change_vs_today).toBe("−£34k");
+    expect(slump.change_vs_today).toBe("−£52k"); // −£18/t on 2,898 t: 2026 in store plus the 2027 crop
+    expect(slump.wheat_exposed_to_price).toBe("2,898 t");
   });
 
   it("lists the top three mitigations", async () => {

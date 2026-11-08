@@ -18,6 +18,7 @@ import { describeProblems, problemFor, profileProblems } from "./profile/checks"
 import { makeSnapshot, measureSignals, profileChanges, valuesOf } from "./profile/risk-profile";
 import { addDays, formatValue, parseValue } from "./profile/values";
 import { getStore, type Assessment, type Store } from "./server/store";
+import type { WhatIfBase } from "./sim";
 import type {
   AssessmentMeta,
   BreakEven,
@@ -386,12 +387,46 @@ export async function getReminders(): Promise<Reminder[]> {
   return structuredClone(mock.reminders);
 }
 
+/** The what-if's starting point, from the risk profile snapshot: the same tonnes, prices and debt as every other page. */
+function whatIfBase(snapshot: ProfileSnapshot, typicalProfit: number): WhatIfBase {
+  const v = snapshot.fields;
+  const n = (key: string) => {
+    const x = Number(v[key] ?? 0);
+    return Number.isFinite(x) ? x : 0;
+  };
+  const price = (id: keyof MarketBaseline) => snapshot.market[id]?.value ?? 0;
+  const crop = (id: string) => n(`crop.${id}.area_ha`) * n(`crop.${id}.yield_t_ha`);
+  const variable = /variable|tracker|base|sonia/i.test(String(v["fin.loan_rate_type"] ?? ""));
+  return {
+    profitK: typicalProfit / 1000,
+    wheatPrice: price("wheat_feed_gbp_t"),
+    anPrice: price("an_gbp_t"),
+    wheatStoreT: n("sales.wheat_2026_unsold_t"),
+    wheatCropT: crop("wheat"),
+    wheatForwardT: n("sales.wheat_2027_forward_t"),
+    otherCropsK: (crop("barley") * price("barley_feed_gbp_t") + crop("osr") * price("osr_gbp_t")) / 1000,
+    anUnboughtT: Math.max(0, n("inputs.n_need_t") - n("inputs.n_bought_t")),
+    variableDebtK: variable ? n("fin.loan") / 1000 : 0,
+  };
+}
+
 export async function getWhatIfConfig(): Promise<{
+  base: WhatIfBase;
   baseline: WhatIfInputs;
   presets: WhatIfPreset[];
   sliders: WhatIfSlider[];
 }> {
-  return structuredClone({ baseline: mock.whatIfBaseline, presets: mock.whatIfPresets, sliders: mock.whatIfSliders });
+  const [snapshot, { meta }] = await Promise.all([loadSnapshot(), loadAssessment()]);
+  const base = whatIfBase(snapshot, meta.typicalProfit);
+  const baseline: WhatIfInputs = { ...mock.whatIfBaseline, wheatPrice: base.wheatPrice, fertiliserPrice: base.anPrice };
+  // Presets change one thing; everything else starts from the snapshot's prices.
+  const presets = mock.whatIfPresets.map((p) => ({
+    ...p,
+    inputs: Object.fromEntries(
+      (Object.keys(baseline) as (keyof WhatIfInputs)[]).map((k) => [k, p.inputs[k] === mock.whatIfBaseline[k] ? baseline[k] : p.inputs[k]])
+    ) as unknown as WhatIfInputs,
+  }));
+  return structuredClone({ base, baseline, presets, sliders: mock.whatIfSliders });
 }
 
 /* ---------- Onboarding ---------- */

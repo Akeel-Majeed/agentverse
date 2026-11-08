@@ -223,14 +223,14 @@ export function createTools(calls: ToolCall[]) {
         rate_change: z.number().min(-5).max(10).optional(),
       }),
       run: async (input) => {
-        const { baseline } = await getWhatIfConfig();
+        const { baseline, base } = await getWhatIfConfig();
         const inputs = {
           wheatPrice: input.wheat_price ?? baseline.wheatPrice,
           fertiliserPrice: input.fertiliser_price ?? baseline.fertiliserPrice,
           yieldPct: input.yield_pct ?? baseline.yieldPct,
           rateChange: input.rate_change ?? baseline.rateChange,
         };
-        const result = whatIf(inputs);
+        const result = whatIf(inputs, base);
         return {
           scenario: {
             wheat_price: gbpPerT(inputs.wheatPrice),
@@ -244,7 +244,9 @@ export function createTools(calls: ToolCall[]) {
           },
           farm_profit: gbpK(result.profitK),
           change_vs_today: gbpK(result.deltaK, { sign: true }),
-          loss_if_wheat_below: gbpPerT(result.lossPrice),
+          loss_if_wheat_below: result.lossPrice === null ? "wheat price doesn't move profit: none exposed" : gbpPerT(result.lossPrice),
+          wheat_exposed_to_price: `${Math.round(result.wheatExposedT).toLocaleString("en-GB")} t`,
+          working: result.working,
           by_driver: result.impacts.map((i) => ({ driver: i.label, effect: gbpK(i.valueK, { sign: true }) })),
         };
       },
