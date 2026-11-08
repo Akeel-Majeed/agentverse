@@ -125,7 +125,8 @@ do $$ begin
 end $$;
 grant usage on schema public to risk_agent;
 grant select on all tables in schema public to risk_agent;
-grant insert on agent_events, observations, pending_changes to risk_agent;
+grant insert on agent_runs, agent_events, observations, pending_changes to risk_agent;
+-- agent_controls stays read-only for risk_agent: the agent can never un-pause its own kill switch.
 grant update on agent_runs, assessments to risk_agent;
 revoke insert, update, delete, truncate on profile_fields from risk_agent;
 
