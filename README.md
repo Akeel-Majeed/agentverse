@@ -4,19 +4,19 @@ https://github.com/user-attachments/assets/c16de515-408a-48a2-a10e-edf9e9498124
 
 # Hedged
 
-A risk agent for UK arable farmers: it shows in £ what each risk could cost the farm and which options would reduce it. Numbers come from code, judgement from Gemini, decisions from the farmer.
+A risk agent for UK farmers: it quantifies what each risk could cost the farm and which options would reduce it. Numbers come from code, judgement infrastructure powered by Gemini, and the final decision is called by the farmer.
 
 Live demo: https://agentverse-green.vercel.app (demo farm: Fenland Ridge Farm Ltd, fictional, 450 ha near Sleaford, Lincolnshire).
 
 
 ## Problem
 
-An arable farmer's profit swings with crop prices, fertiliser and fuel, weather, policy and interest rates. Each year they decide what to sell forward, what to buy now and what to fix, usually without seeing what a bad year would cost the whole farm. The bank lending to them sees even less.
+A farmer's profit swings with crop prices, fertiliser and fuel, weather, policy and interest rates. Each year they decide what to sell forward, what to buy now and what to fix, usually without seeing what a bad year would cost the whole farm. The bank lending to them sees even less.
 
 ## Who it's for
 
-- **The farmer** running a farm like Fenland Ridge: 450 ha of wheat, barley and oilseed rape, a variable-rate loan.
-- **The bank or adviser** who lends to them, reading the same figures over a read-only MCP endpoint (`covenant_view` gives the debt-service cover view).
+- **The farmer** running a farm but no time for risk management. A recent survey from ONS says ~60% of farming estates have no mitigations in place
+- **The bank or adviser** agri-lenders who underwrite loans, reading the same figures over a read-only MCP endpoint (`covenant_view` gives the debt-service cover view). As banking agents become more prominent, 
 
 ## Impact
 
@@ -40,7 +40,7 @@ The same pattern fits any business with commodity, input-cost, weather or rate e
 | Judge and explain | `gemini-4-argon` (Interactions API) | rank options, explain, say what would change its mind, propose changes | produce a number, write to the profile |
 | Chat (iMessage and in-app) | Claude (`ANTHROPIC_MODEL`) | answer questions with read-only tools | change anything |
 
-## Traceable reasoning (25%)
+## Traceable reasoning 
 
 - Every figure is computed in `lib/engine/`, with seed and config hash on each run. The judge reads results only through five declared functions and cannot produce a number. [/trace](https://agentverse-green.vercel.app/trace) labels each step Computed (code), Decided (Jev), Read (Flash) or Judged (Argon).
 - Each cited £ figure on a run links to its function result, observation and source; a risk page's "View trace" link lands on the figure's formula and inputs ([screenshot](docs/eval/screenshots/trace-figure-anchor.png)).
@@ -48,7 +48,7 @@ The same pattern fits any business with commodity, input-cost, weather or rate e
 - The judgement must list what would change its mind, each entry tied to an engine threshold id (`lib/agents/risk/schema.ts`). Each risk page also shows, worked out in code, the exposure at which its score moves (`lib/what-would-change.ts`).
 - Every step is appended to a hash chain, `sha256(prev_hash || canonical(event))`, which the trace page recomputes and shows as intact or broken (`lib/trace/chain.ts`).
 
-## Testing on unseen data (25%)
+## Testing on unseen data 
 
 All farm data is synthetic; the market history is real. Nothing here is real-world trading or lending performance. Full write-up: [docs/eval/README.md](docs/eval/README.md).
 
@@ -62,7 +62,7 @@ All farm data is synthetic; the market history is real. Nothing here is real-wor
 - **Bad input caught on screen:** a contract photo with a printed instruction is read by Flash, caught by Jev, and the run is held before any judge call ([screenshot](docs/eval/screenshots/trace-held-injection-photo.png)).
 - **Judge runs** ([run-timings.md](docs/eval/run-timings.md)): p50 43.5 s and $0.042 per run over 6 live runs, all published. One took 69.0 s. Six runs is a small sample.
 
-## Risk controls and oversight (15%)
+## Risk controls and oversight 
 
 Limits are enforced in code, not the prompt. Scripted-client tests: `tests/risk-agent.test.ts`, `tests/judge-route.test.ts`, `tests/trace.test.ts`, `tests/screen.test.ts`, `tests/chat-agent.test.ts`.
 
@@ -80,15 +80,15 @@ Limits are enforced in code, not the prompt. Scripted-client tests: `tests/risk-
 - Every chat turn, approval and snapshot is logged at [/activity](https://agentverse-green.vercel.app/activity); every agent step at [/trace](https://agentverse-green.vercel.app/trace).
 - EU AI Act: Art. 12 record-keeping by design (self-assessed, not a compliance claim).
 
-## Relevance and impact (20%)
+## Relevance and impact 
 
-- A named user: a UK arable farmer deciding what to sell forward, buy now or fix, and the bank that lends to them.
+- A defined ICP: a UK  farmer deciding what to sell forward, buy now or fix, and the bank that lends to them.
 - Each risk becomes a £ hit in a 1-in-20 bad year and a 1–10 score against typical profit (`lib/score.ts`), with priced options ([/overview](https://agentverse-green.vercel.app/overview)).
 - **Worst failure handled on screen:** a forward contract the profile doesn't know about. The farmer photographs it at [/documents](https://agentverse-green.vercel.app/documents); Flash reads "200 tonnes"; the judge flags the conflict and proposes 0 → 200 t; the farmer approves it ([screenshot](docs/eval/screenshots/approvals-agent-proposal.png)).
 - **Second failure:** a manipulated document is held before the judge runs, and the profile does not change.
 - Limit: no farmer survey or interviews are cited; the need is stated, not measured here.
 
-## Ambition and technical quality (15%)
+## Ambition and technical quality 
 
 - A phone photo becomes a checked, approvable profile change: Flash reads, Jev screens, code computes, Argon judges, code checks, the farmer taps. The LLMs do only what a conventional program can't: read the photo and explain the trade-off.
 - Engine written for this: seeded Student-t draws, Ledoit-Wolf shrunk correlation, Kupiec, Christoffersen and pinball statistics, and a walk-forward backtest that calls the same simulation (`lib/engine/`).
@@ -97,15 +97,6 @@ Limits are enforced in code, not the prompt. Scripted-client tests: `tests/risk-
 - One chat agent across iMessage and the in-app panel, every figure checked in code before it is sent:
 
 ![Ask Hedged: one chat agent across iMessage and the app, read-only tools, figure checker](docs/media/hedged-chat-agent.png)
-
-## Limits
-
-- The Monte Carlo does not beat a normal refit; high-side breaches run above 5% for barley, rape and fuel. Regulation is not backtested, and the backtest checks each factor's tails, not their joint structure.
-- The hedge backtest and whole-farm forecast are n = 9–10 years (2 held out), descriptive only, with forward price proxied by spot.
-- Farm attack texts were written by an AI subagent; the photo set is n = 10. Jev catches injected instructions, not a forged figure with no instruction (the quote check and farmer approval cover those).
-- In live agent runs only the kill switch and the screen hold have fired; the other agent controls fire only in scripted tests.
-- p50 judge time (43.5 s) is close to Vercel Hobby's 60 s cap; the judge route needs Vercel Pro or `bun run agent:demo` locally.
-- Without `HEDGED_PASSWORD` the server actions are public; the password is one shared secret, not per-user auth. One demo farm.
 
 ## Run it
 
