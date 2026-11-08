@@ -8,13 +8,33 @@ import { Input } from "@/components/ui/input";
 import { addDemoDocument, addDocument, addDocumentFile } from "@/lib/data";
 import { Card, CardBody, CardHeader, SectionLabel } from "./card";
 
-const DEMOS = [
-  { name: "fertiliser-contract.txt", label: "Sample fertiliser contract (text)" },
-  { name: "merchant-email-injection.txt", label: "Suspicious merchant email (text)" },
-  { name: "forward-contract.png", label: "Forward contract (photo)", thumb: "/demo/forward-contract.png" },
-  { name: "forward-contract.pdf", label: "Forward contract (PDF)" },
-  { name: "injection-contract.png", label: "Contract with printed instruction (photo)", thumb: "/demo/injection-contract.png" },
-] as const;
+type Demo = { name: Parameters<typeof addDemoDocument>[0]; label: string; thumb?: string };
+
+const DEMO_GROUPS: { title: string; docs: Demo[] }[] = [
+  {
+    title: "Financial documents (synthetic)",
+    docs: [
+      { name: "facility-letter.pdf", label: "Bank facility letter (PDF)" },
+      { name: "annual-accounts.pdf", label: "Annual accounts 2026 (PDF)" },
+      { name: "ct-computation.pdf", label: "Corporation tax computation (PDF)" },
+      { name: "vat-return.pdf", label: "VAT return Q10/26 (PDF)" },
+      { name: "scheme-remittance.pdf", label: "Scheme payment statement (PDF)" },
+      { name: "fertiliser-invoice.pdf", label: "Fertiliser invoice (PDF)" },
+      { name: "fertiliser-invoice-photo.png", label: "Fertiliser invoice (photo)", thumb: "/demo/fertiliser-invoice-photo.png" },
+      { name: "fertiliser-contract.txt", label: "Fertiliser contract (text)" },
+      { name: "forward-contract.png", label: "Forward contract (photo)", thumb: "/demo/forward-contract.png" },
+      { name: "forward-contract.pdf", label: "Forward contract (PDF)" },
+    ],
+  },
+  {
+    title: "Attack examples",
+    docs: [
+      { name: "merchant-email-injection.txt", label: "Suspicious merchant email (text)" },
+      { name: "injection-contract.png", label: "Contract with printed instruction (photo)", thumb: "/demo/injection-contract.png" },
+    ],
+  },
+];
+const DEMOS = DEMO_GROUPS.flatMap((g) => g.docs);
 
 /** Paste text, upload or photograph a document, or load a demo one. Each opens its run's trace. */
 export function DocumentForm() {
@@ -91,18 +111,23 @@ export function DocumentForm() {
 
         <div className="flex flex-col gap-2">
           <SectionLabel as="h3">Demo documents</SectionLabel>
-          <div className="flex flex-wrap gap-2">
-            {DEMOS.map((d) => (
-              <Button key={d.name} variant="secondary" size="sm" disabled={pending} onClick={() => run(() => addDemoDocument(d.name))}>
-                {d.label}
-              </Button>
-            ))}
-          </div>
+          {DEMO_GROUPS.map((g) => (
+            <div key={g.title} className="flex flex-col gap-1.5">
+              <p className="text-[12px] text-sub">{g.title}</p>
+              <div className="flex flex-wrap gap-2">
+                {g.docs.map((d) => (
+                  <Button key={d.name} variant="secondary" size="sm" disabled={pending} onClick={() => run(() => addDemoDocument(d.name))}>
+                    {d.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
           <div className="flex gap-3">
-            {DEMOS.filter((d) => "thumb" in d).map((d) => (
+            {DEMOS.filter((d) => d.thumb).map((d) => (
               <figure key={d.name} className="flex flex-col gap-1">
                 {/* eslint-disable-next-line @next/next/no-img-element -- static demo thumbnail */}
-                <img src={"thumb" in d ? d.thumb : ""} alt={d.label} width={96} height={133} className="rounded-md border border-line" />
+                <img src={d.thumb} alt={d.label} width={96} height={133} className="rounded-md border border-line" />
                 <figcaption className="max-w-[96px] text-[11px] leading-tight text-sub">{d.label}</figcaption>
               </figure>
             ))}

@@ -637,6 +637,14 @@ const DEMO_DOCUMENTS = {
   "forward-contract.png": "image/png",
   "forward-contract.pdf": "application/pdf",
   "injection-contract.png": "image/png",
+  // Synthetic financial documents for the fictional farm (see data/demo/README.md).
+  "facility-letter.pdf": "application/pdf",
+  "annual-accounts.pdf": "application/pdf",
+  "ct-computation.pdf": "application/pdf",
+  "vat-return.pdf": "application/pdf",
+  "scheme-remittance.pdf": "application/pdf",
+  "fertiliser-invoice.pdf": "application/pdf",
+  "fertiliser-invoice-photo.png": "image/png",
 } as const;
 
 /** One of the demo files in data/demo (fixed names only, never a path from the client). */
