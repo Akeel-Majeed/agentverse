@@ -74,6 +74,21 @@ describe("in-app assistant", () => {
     expect(d.answer).toHaveBeenCalledTimes(12);
   });
 
+  it("caps questions per minute across server instances, from the shared log", async () => {
+    const now = Date.parse("2026-11-08T10:00:00Z");
+    const recentTurns: ChatTurn[] = Array.from({ length: 12 }, (_, i) => ({
+      inboundMessageId: `web-${i}`,
+      conversationId: "web",
+      question: `q${i}`,
+      channel: "web",
+      createdAt: new Date(now - 30_000).toISOString(),
+      status: "answered",
+    }));
+    const { d } = deps({ turns: async () => recentTurns, now: () => now });
+    await expect(askFromWeb("one more", d)).rejects.toBeInstanceOf(AssistantRateLimitError);
+    expect(d.answer).not.toHaveBeenCalled();
+  });
+
   it("logs a failed turn and passes on a missing key", async () => {
     const { d, log } = deps({ answer: async () => Promise.reject(new ChatUnavailableError()) });
     await expect(askFromWeb("hi", d)).rejects.toBeInstanceOf(ChatUnavailableError);

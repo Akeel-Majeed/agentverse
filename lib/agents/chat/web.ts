@@ -44,10 +44,21 @@ export function resetRateLimit() {
   recent.length = 0;
 }
 
+/**
+ * The same cap, counted from the shared chat log, so it holds across server instances (on Vercel
+ * each instance has its own memory). If the log can't be read, the in-memory count still applies.
+ */
+async function checkSharedLimit(deps: WebDeps, now: number) {
+  const logged = await deps.turns(RATE_LIMIT).catch(() => [] as ChatTurn[]);
+  const lastMinute = logged.filter((t) => t.channel === "web" && t.createdAt && now - Date.parse(t.createdAt) < 60_000);
+  if (lastMinute.length >= RATE_LIMIT) throw new AssistantRateLimitError("Too many questions in a minute. Try again shortly.");
+}
+
 export async function askFromWeb(raw: string, deps: WebDeps): Promise<ChatTurn> {
   const question = raw.trim();
   const now = deps.now?.() ?? Date.now();
   checkLimits(question, now);
+  await checkSharedLimit(deps, now);
 
   const id = `web-${deps.id?.() ?? crypto.randomUUID()}`;
   const createdAt = new Date(now).toISOString();
