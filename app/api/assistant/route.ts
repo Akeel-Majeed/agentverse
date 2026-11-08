@@ -1,7 +1,9 @@
 /**
  * In-app assistant. GET: the shared conversation (iMessage and app). POST { question }: ask.
  */
+import { waitUntil } from "@vercel/functions";
 import { ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
+import { nextMemory } from "@/lib/agents/chat/memory";
 import { AssistantInputError, AssistantRateLimitError, askFromWeb } from "@/lib/agents/chat/web";
 import { getStore } from "@/lib/server/store";
 
@@ -33,7 +35,15 @@ export async function POST(req: Request) {
       claim: (t) => store.claimChatTurn(t),
       finish: (id, r) => store.finishChatTurn(id, r),
       turns: (n) => store.listChatTurns(n),
-      answer: (messages) => runChatAgent(messages),
+      recall: () => store.getChatMemory(),
+      answer: (messages, context) => runChatAgent(messages, { context }),
+      // After the response: updating the notes is another model call the farmer shouldn't wait for.
+      remember: async (previous, exchange) =>
+        waitUntil(
+          nextMemory(previous, exchange)
+            .then((m) => store.saveChatMemory(m))
+            .catch((err) => console.warn("[assistant] couldn't update the memory", err))
+        ),
     });
     return Response.json({ turn });
   } catch (err) {

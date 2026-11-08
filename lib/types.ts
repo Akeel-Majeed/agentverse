@@ -373,6 +373,14 @@ export interface ChatTurn {
   error?: string;
 }
 
+/** The chat agent's running notes on the farm's conversation (iMessage and app), as stored in `chat_memory`. */
+export interface ChatMemory {
+  notes: string;
+  /** Answered messages folded into the notes so far. */
+  turns: number;
+  updatedAt: string;
+}
+
 /** What the onboarding's optional iMessage step can show. No secrets. */
 export type IMessageSetup =
   | { available: true; number: string; connectCommand: string; replies: boolean }

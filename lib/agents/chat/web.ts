@@ -2,15 +2,16 @@
  * The in-app assistant: the same agent, tools and figure checker as iMessage, logged to the same
  * chat_turns table so either channel continues the other's conversation.
  */
-import type { ChatTurn } from "../../types";
+import type { ChatMemory, ChatTurn } from "../../types";
 import { ChatUnavailableError, type ChatResult } from "./agent";
 import { turnsToHistory } from "./history";
-import { historyToMessages } from "./imessage";
+import { HISTORY_LIMIT, historyToMessages } from "./imessage";
+import { memoryBlock, type Exchange } from "./memory";
 import type Anthropic from "@anthropic-ai/sdk";
 
 export const MAX_QUESTION = 500;
 const RATE_LIMIT = 12; // questions per minute, per server instance
-const HISTORY_TURNS = 16;
+const HISTORY_TURNS = HISTORY_LIMIT / 2;
 
 export class AssistantInputError extends Error {}
 export class AssistantRateLimitError extends Error {}
@@ -19,7 +20,11 @@ export interface WebDeps {
   claim(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question" | "channel">): Promise<boolean>;
   finish(inboundMessageId: string, result: Omit<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<void>;
   turns(limit: number): Promise<ChatTurn[]>;
-  answer(messages: Anthropic.Beta.BetaMessageParam[]): Promise<ChatResult>;
+  /** Running notes on the farm's conversation (shared with iMessage), or null if none yet. */
+  recall(): Promise<ChatMemory | null>;
+  answer(messages: Anthropic.Beta.BetaMessageParam[], context: string): Promise<ChatResult>;
+  /** Fold an answered exchange into the notes. Should not hold up the reply. */
+  remember(previous: ChatMemory | null, exchange: Exchange): Promise<void>;
   now?: () => number;
   id?: () => string;
 }
@@ -64,7 +69,11 @@ export async function askFromWeb(raw: string, deps: WebDeps): Promise<ChatTurn> 
       ...turnsToHistory(past),
       { direction: "inbound", content: question, createdAt: new Date(now + 1_000_000) },
     ]);
-    const result = await deps.answer(messages);
+    const memory = await deps.recall().catch((err) => {
+      console.warn("[assistant] couldn't read the memory; answering without it", err);
+      return null;
+    });
+    const result = await deps.answer(messages, memoryBlock(memory));
     const done: ChatTurn = {
       inboundMessageId: id,
       conversationId: "web",
@@ -78,6 +87,9 @@ export async function askFromWeb(raw: string, deps: WebDeps): Promise<ChatTurn> 
       model: result.model,
     };
     await finish({ status: done.status, answer: done.answer, tools: done.tools, checker: done.checker, model: done.model });
+    await deps
+      .remember(memory, { question, answer: result.text, at: createdAt })
+      .catch((err) => console.warn("[assistant] couldn't update the memory", err));
     return done;
   } catch (err) {
     await finish({ status: "failed", error: err instanceof ChatUnavailableError ? "No Anthropic API key" : err instanceof Error ? err.message : String(err) });

@@ -36,3 +36,15 @@ describe("choosing a store", () => {
     expect((await getStore()).kind).toBe("supabase");
   });
 });
+
+describe("chat memory in the demo store", () => {
+  it("saves and reads the farm's notes", async () => {
+    delete process.env.SUPABASE_SECRET_KEY;
+    const { getStore } = await import("@/lib/server/store");
+    const store = await getStore();
+    expect(await store.getChatMemory()).toBeNull();
+    const memory = { notes: "- asked about rates", turns: 1, updatedAt: "2026-11-07T20:00:00Z" };
+    await store.saveChatMemory(memory);
+    expect(await store.getChatMemory()).toEqual(memory);
+  });
+});

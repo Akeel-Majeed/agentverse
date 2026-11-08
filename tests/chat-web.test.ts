@@ -26,7 +26,9 @@ function deps(over: Partial<WebDeps> = {}) {
     claim: async (t) => (log.claimed.push(t), true),
     finish: async (_id, r) => void log.finished.push(r),
     turns: async () => earlier,
+    recall: async () => ({ notes: "- 7 Nov: asked about rates by text", turns: 2, updatedAt: "2026-11-07T20:00:00Z" }),
     answer: vi.fn(async () => result),
+    remember: vi.fn(async () => undefined),
     now: () => Date.parse("2026-11-08T10:00:00Z"),
     id: () => "abc",
     ...over,
@@ -40,11 +42,19 @@ describe("in-app assistant", () => {
   it("answers with the shared history from iMessage, then logs the turn as web", async () => {
     const { d, log } = deps();
     const turn = await askFromWeb("  And what about rates?  ", d);
-    expect(d.answer).toHaveBeenCalledWith([
-      { role: "user", content: "What's my biggest risk?" },
-      { role: "assistant", content: "Output prices, 10/10." },
-      { role: "user", content: "And what about rates?" },
-    ]);
+    expect(d.answer).toHaveBeenCalledWith(
+      [
+        { role: "user", content: "What's my biggest risk?" },
+        { role: "assistant", content: "Output prices, 10/10." },
+        { role: "user", content: "And what about rates?" },
+      ],
+      expect.stringContaining("asked about rates by text")
+    );
+    expect(d.remember).toHaveBeenCalledWith(expect.objectContaining({ turns: 2 }), {
+      question: "And what about rates?",
+      answer: result.text,
+      at: "2026-11-08T10:00:00.000Z",
+    });
     expect(turn).toMatchObject({ inboundMessageId: "web-abc", channel: "web", status: "answered", answer: result.text });
     expect(log.claimed[0]).toMatchObject({ channel: "web", conversationId: "web", question: "And what about rates?" });
     expect(log.finished[0]).toMatchObject({ status: "answered", tools: [{ name: "get_risk", ms: 4 }] });

@@ -11,6 +11,7 @@ import * as demo from "../profile/fenland-ridge";
 import { makeSnapshot } from "../profile/risk-profile";
 import type {
   AssessmentMeta,
+  ChatMemory,
   ChatTurn,
   BreakEven,
   Farm,
@@ -57,6 +58,9 @@ export interface Store {
   /** The most recent chat turns from every channel, oldest first. */
   listChatTurns(limit: number): Promise<ChatTurn[]>;
   finishChatTurn(inboundMessageId: string, result: Omit<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<void>;
+  /** The chat agent's running notes on the farm's conversation, or null if there are none yet. */
+  getChatMemory(): Promise<ChatMemory | null>;
+  saveChatMemory(memory: ChatMemory): Promise<void>;
 }
 
 /* ---------- In-memory demo store ---------- */
@@ -87,6 +91,7 @@ function createMockStore(): Store {
     ] as Assessment[],
     pending: structuredClone(mock.pendingChanges),
     chat: [] as ChatTurn[],
+    memory: null as ChatMemory | null,
   };
 
   return {
@@ -136,6 +141,10 @@ function createMockStore(): Store {
     finishChatTurn: async (id, result) => {
       const turn = state.chat.find((t) => t.inboundMessageId === id);
       if (turn) Object.assign(turn, structuredClone(result));
+    },
+    getChatMemory: async () => structuredClone(state.memory),
+    saveChatMemory: async (memory) => {
+      state.memory = structuredClone(memory);
     },
   };
 }
@@ -354,6 +363,20 @@ function createSupabaseStore(db: SupabaseClient): Store {
         })
         .eq("inbound_message_id", id);
       if (error) throw new Error(`Supabase: finish chat turn: ${error.message}`);
+    },
+    async getChatMemory() {
+      const { data, error } = await db.from("chat_memory").select("*").eq("farm_id", farm).maybeSingle();
+      if (error) throw new Error(`Supabase: chat memory: ${error.message}`);
+      return data ? { notes: data.notes, turns: data.turns, updatedAt: data.updated_at } : null;
+    },
+    async saveChatMemory(memory) {
+      const { error } = await db.from("chat_memory").upsert({
+        farm_id: farm,
+        notes: memory.notes,
+        turns: memory.turns,
+        updated_at: memory.updatedAt,
+      });
+      if (error) throw new Error(`Supabase: save chat memory: ${error.message}`);
     },
   };
 }

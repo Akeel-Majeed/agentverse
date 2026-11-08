@@ -67,6 +67,17 @@ describe("chat agent", () => {
     expect(lastMessages.at(-1)?.content).toContain("£9k");
   });
 
+  it("sends the conversation context after the cached rules", async () => {
+    const { client, requests } = fakeClient([{ stop_reason: "end_turn", content: [{ type: "text", text: "Morning! Ask me about risks, profit or deadlines.", citations: null } as never] }]);
+    const out = await runChatAgent(ask("Morning"), { client, context: "Today is 7 Nov 2026. Notes: - asked about rates" });
+    expect(out.calls).toEqual([]);
+    const system = requests[0].system as { text: string; cache_control?: unknown }[];
+    expect(system).toHaveLength(2);
+    expect(system[0].cache_control).toBeDefined();
+    expect(system[0].text).toMatch(/Don't volunteer risks, figures/);
+    expect(system[1]).toEqual({ type: "text", text: "Today is 7 Nov 2026. Notes: - asked about rates" });
+  });
+
   it("answers a refusal with a fixed message", async () => {
     const { client } = fakeClient([{ stop_reason: "refusal", content: [] }]);
     const out = await runChatAgent(ask("..."), client);
