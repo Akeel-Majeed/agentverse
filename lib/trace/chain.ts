@@ -26,6 +26,14 @@ export class TraceWriter {
 
   constructor(readonly runId: string, private sink: EventSink) {}
 
+  /** Continue a run's chain from its last stored event. */
+  static resume(runId: string, sink: EventSink, lastSeq: number, lastHash: string): TraceWriter {
+    const w = new TraceWriter(runId, sink);
+    w.seq = lastSeq;
+    w.prev = lastHash;
+    return w;
+  }
+
   append(type: string, actor: Actor, payload: unknown): Promise<TraceEvent> {
     const next = this.queue.then(async () => {
       const body = canonical(payload);
