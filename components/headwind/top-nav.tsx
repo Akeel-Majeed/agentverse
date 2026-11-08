@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { CalendarDays, FileText, FlaskConical, Gauge, LayoutGrid, MessageSquareText, PanelLeftClose, PanelLeftOpen, ScrollText, SlidersHorizontal, Tractor } from "lucide-react";
+import { CalendarDays, FileText, FlaskConical, Gauge, LayoutGrid, MessageSquareText, PanelLeftClose, PanelLeftOpen, ScrollText, SlidersHorizontal, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "./logo";
 import { NAV_COOKIE } from "./nav-state";
@@ -13,7 +13,6 @@ const LINKS = [
   { href: "/risks", label: "Risks", match: "/risks", icon: Gauge },
   { href: "/what-if", label: "What-if", match: "/what-if", icon: SlidersHorizontal },
   { href: "/calendar", label: "Calendar", match: "/calendar", icon: CalendarDays },
-  { href: "/profile", label: "Profile", match: "/profile", icon: Tractor },
   { href: "/activity", label: "Activity", match: "/activity", icon: MessageSquareText },
   { href: "/documents", label: "Documents", match: "/documents", icon: FileText },
   { href: "/trace", label: "Agent runs", match: "/trace", icon: ScrollText },
@@ -29,6 +28,7 @@ const focus = "focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 export function TopNav({ farmName, updatedAt, initialCollapsed = false }: { farmName: string; updatedAt: string; initialCollapsed?: boolean }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const profileActive = pathname.startsWith("/profile");
 
   const toggle = () => {
     const next = !collapsed;
@@ -100,15 +100,34 @@ export function TopNav({ farmName, updatedAt, initialCollapsed = false }: { farm
             </>
           )}
         </button>
-        <div
-          className={cn("mt-3 border-t border-line pt-4 text-[13px] leading-relaxed", collapsed ? "flex justify-center" : "px-3")}
-          title={collapsed ? `${farmName} · demo data · updated ${updatedAt}` : undefined}
-        >
-          <p className="flex items-center gap-2 whitespace-nowrap font-medium text-ink">
-            <span aria-hidden className="h-2 w-2 shrink-0 rounded-[2px] bg-farmers" />
-            <span className={cn(collapsed && "sr-only")}>{farmName}</span>
-          </p>
-          <p className={cn("text-sub", collapsed && "sr-only")}>Demo data · updated {updatedAt}</p>
+        {/* The farm's profile lives at the bottom, like an account in most apps. */}
+        <div className="mt-3 border-t border-line pt-3">
+          <Link
+            href="/profile"
+            aria-current={profileActive ? "page" : undefined}
+            aria-label={collapsed ? `Profile: ${farmName}` : undefined}
+            title={collapsed ? `${farmName} · profile · demo data, updated ${updatedAt}` : `Demo data, updated ${updatedAt}`}
+            className={cn(
+              "flex items-center gap-3 rounded-2xl p-1.5 transition-colors",
+              collapsed ? "justify-center" : "pr-2",
+              profileActive ? "bg-hover" : "hover:bg-hover/70",
+              focus
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
+                profileActive ? "border-ink bg-ink text-paper" : "border-line-strong bg-card text-ink"
+              )}
+            >
+              <UserRound className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </span>
+            <span className={cn("min-w-0 text-[13px] leading-snug", collapsed && "sr-only")}>
+              <span className="block truncate font-medium text-ink">{farmName}</span>
+              <span className="block truncate text-sub">Profile · demo data</span>
+            </span>
+          </Link>
         </div>
       </aside>
 
@@ -117,7 +136,23 @@ export function TopNav({ farmName, updatedAt, initialCollapsed = false }: { farm
           <Link href="/overview" className={cn("flex items-center gap-2 rounded-md text-ink", focus)} aria-label="Hedged home">
             <Wordmark className="text-[17px]" />
           </Link>
-          <span className="ml-auto text-[13px] font-medium text-ink">{farmName}</span>
+          <Link
+            href="/profile"
+            aria-current={profileActive ? "page" : undefined}
+            aria-label={`Profile: ${farmName}`}
+            className={cn("ml-auto flex items-center gap-2 rounded-full text-[13px] font-medium text-ink", focus)}
+          >
+            <span className="max-w-[45vw] truncate">{farmName}</span>
+            <span
+              aria-hidden
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-full border",
+                profileActive ? "border-ink bg-ink text-paper" : "border-line-strong bg-card text-ink"
+              )}
+            >
+              <UserRound className="h-4 w-4" strokeWidth={1.75} />
+            </span>
+          </Link>
           <nav aria-label="Main" className="-mx-1 w-full overflow-x-auto">
             <ul className="flex items-center gap-0.5">
               {LINKS.map(({ href, label, match }) => {

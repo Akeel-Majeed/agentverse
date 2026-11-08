@@ -182,6 +182,13 @@ export function TraceTimeline({ events, observations, judgeModel }: { events: Tr
         ) : (
           <span className="text-good">All {b.figures.length} figures in the explanation match a function result</span>
         );
+      case "decision.farmer":
+        return (
+          <span>
+            Farmer chose {b.choice === "discuss" ? "to discuss" : "not now for"} <Mono>{b.optionId}</Mono>
+            {b.choice === "discuss" ? " with their merchant" : ""} · nothing bought, sold or changed
+          </span>
+        );
       case "run.numbers_published":
       case "run.end":
         return <span><StatusBadge status={b.status} />{b.head ? <> · head <Mono>{short(b.head)}</Mono></> : null}</span>;

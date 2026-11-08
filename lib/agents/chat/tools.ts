@@ -1,7 +1,8 @@
 /**
  * Read-only tools for the chat agent. Each one wraps code that already computes the figure
- * (lib/data.ts, lib/sim.ts), so every number the agent quotes comes from code. There is no
- * write tool: the agent cannot change the profile, approve changes or move money.
+ * (lib/data.ts, lib/sim.ts, the Monte Carlo engine's stored result), so every number the agent
+ * quotes comes from code. There is no write tool: the agent cannot change the profile, approve
+ * changes or move money.
  */
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import {
   getAssessmentMeta,
   getBreakEvens,
   getCalendar,
+  getDocuments,
   getLossLimit,
   getOnboarding,
   getPendingChanges,
@@ -18,8 +20,12 @@ import {
   getRiskProfile,
   getRisks,
   getTopMitigations,
+  getTrace,
   getWhatIfConfig,
 } from "../../data";
+import backtest from "../../../docs/eval/backtest.json";
+import screenEval from "../../../docs/eval/screen-eval.json";
+import { documentsView, engineResult, evaluationView, judgementView, simulationView, type BacktestFile, type ScreenFile } from "./engine-views";
 import { amount, gbp, gbpK, gbpPerT } from "../../format";
 import { riskName } from "../../profile/catalogue";
 import { bandFor } from "../../score";
@@ -164,6 +170,14 @@ export function createTools(calls: ToolCall[]) {
             hedgeable_note: r.model.tradeoff.note,
           },
           mitigation_ids: r.mitigations.map((m) => m.id),
+          monte_carlo: r.simulation
+            ? {
+                one_in_20_hit: r.simulation.p5HitDisplay,
+                score: `${r.simulation.score}/10`,
+                simulated_years: r.simulation.paths.toLocaleString("en-GB"),
+                note: "From the 10,000-path simulation; the bad_year_hit above is the simpler hand-checkable model. get_simulation has the full result.",
+              }
+            : null,
         };
       },
     }),
@@ -350,5 +364,50 @@ export function createTools(calls: ToolCall[]) {
           .filter((p) => p.status === "pending")
           .map((p) => ({ field: p.field, current: p.currentValue, proposed: p.proposedValue, reason: p.reason, received: p.receivedAt })),
     }),
+    tool({
+      name: "get_simulation",
+      description:
+        "The Monte Carlo engine's latest result (10,000 simulated years): profit mean, median, 1-in-20 bad and good years, average of the worst 5% of years, chance of a loss; each risk's simulated 1-in-20 hit and score; what each option changes; the chance the loan covenant (DSCR) breaks and its main driver; break-even thresholds; and how volatile each input is. Use for 'how bad could it get', percentiles, the covenant, or anything about the simulation.",
+      inputSchema: z.object({}),
+      run: async () => {
+        const trace = await assessmentTrace();
+        const sim = trace && engineResult(trace.events);
+        if (!trace || !sim) return { available: false, reason: "No simulation run yet. It runs when the farmer updates the risk profile or re-runs the assessment." };
+        return simulationView(sim, trace.run, trace.verify.ok);
+      },
+    }),
+    tool({
+      name: "get_analyst_judgement",
+      description:
+        "What the risk analyst agent concluded on its latest run: options ranked with reasons and the figures each cites, risk explanations, what would change its mind, conflicts between documents and the profile, whether it held for a human, which controls fired, and whether the run's record is intact. Use for 'what does the analyst recommend', 'why was it held', or anything about agent runs.",
+      inputSchema: z.object({}),
+      run: async () => {
+        const trace = await assessmentTrace();
+        if (!trace) return { available: false, reason: "No analyst run yet." };
+        return judgementView(trace.run, trace.events, trace.verify.ok);
+      },
+    }),
+    tool({
+      name: "get_evaluation",
+      description:
+        "How well the model has been tested: the price backtest on held-out data against two benchmarks (how often real prices fell below the forecast 1-in-20 low), the whole-farm backtest, and the document screen's catch and false-alarm rates. Use for 'how reliable is this', 'has it been tested', accuracy or misses.",
+      inputSchema: z.object({}),
+      run: async () => evaluationView(backtest as unknown as BacktestFile, screenEval as unknown as ScreenFile),
+    }),
+    tool({
+      name: "get_documents",
+      description: "Documents the farmer added (invoices, contracts, letters): what was read from each with the exact words it came from, and whether the injection screen let it through.",
+      inputSchema: z.object({}),
+      run: async () => {
+        const docs = documentsView(await getDocuments());
+        return docs.length ? docs : { documents: [], note: "No documents added yet." };
+      },
+    }),
   ];
+}
+
+/** The run the latest assessment points to (or the latest run), with its record verified now. */
+async function assessmentTrace() {
+  const { runId } = await getAssessmentMeta();
+  return getTrace(runId ?? undefined);
 }

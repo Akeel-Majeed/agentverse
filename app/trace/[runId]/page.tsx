@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import { Card, CardBody } from "@/components/headwind/card";
+import { HedgeDecisionCard } from "@/components/headwind/hedge-decision";
 import { JudgeButton } from "@/components/headwind/judge-button";
 import { KillSwitch } from "@/components/headwind/kill-switch";
 import { PageHeader, PageShell } from "@/components/headwind/page-header";
+import { ToolFlow } from "@/components/headwind/tool-flow";
 import { jevP, modelName, StatusBadge, TraceTimeline } from "@/components/headwind/trace-timeline";
 import { getControls, getTrace } from "@/lib/data";
+import { hedgeDecision } from "@/lib/trace/decision";
 import type { AgentRun, TraceEvent } from "@/lib/trace/types";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +42,7 @@ export default async function TraceRunPage({ params }: { params: { runId: string
   const [trace, controls] = await Promise.all([getTrace(params.runId), getControls()]);
   if (!trace) notFound();
   const { run, events, observations, verify } = trace;
+  const decision = hedgeDecision(events);
   const untraced = (() => {
     const e = events.find((x) => x.type === "checker.result");
     return e ? (JSON.parse(e.body).untraced as string[]) : [];
@@ -86,6 +90,9 @@ export default async function TraceRunPage({ params }: { params: { runId: string
       ) : null}
       {run.status === "held" ? <p className="text-[14px] font-medium text-brand-label">Needs the farmer.</p> : null}
       {run.error ? <p className="text-[13px] text-bad">{run.error}</p> : null}
+
+      {decision ? <HedgeDecisionCard runId={run.id} model={run.model ? modelName(run.model) : "the judge"} decision={decision} canDecide={run.status === "published"} /> : null}
+      <ToolFlow events={events} />
 
       <Card label="Run">
         <CardBody>

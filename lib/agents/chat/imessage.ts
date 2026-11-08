@@ -8,7 +8,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { IMessage, IMessageWebhookPayload } from "@inkbox/sdk";
 import type { ChatMemory, ChatTurn } from "../../types";
-import { ChatUnavailableError, type ChatResult } from "./agent";
+import { ChatPausedError, ChatUnavailableError, PAUSED_TEXT, type ChatResult } from "./agent";
 import { memoryBlock, type Exchange } from "./memory";
 
 /** Messages passed verbatim; anything older reaches the agent only through the memory notes. */
@@ -138,7 +138,7 @@ export async function handleIMessage(payload: IMessageWebhookPayload, deps: IMes
     return "answered";
   } catch (err) {
     console.error("[chat] failed to answer", err);
-    const text = err instanceof ChatUnavailableError ? NOT_SET_UP : FAILED;
+    const text = err instanceof ChatPausedError ? PAUSED_TEXT : err instanceof ChatUnavailableError ? NOT_SET_UP : FAILED;
     await reply(text).catch((e) => console.error("[chat] failed to send the apology", e));
     await finish({ status: "failed", answer: text, error: err instanceof Error ? err.message : String(err) });
     return "failed";

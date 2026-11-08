@@ -12,6 +12,11 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { ACCEPTED_MIME, extractorFromEnv } from "./agents/documents/extract";
 import { runPhaseOne, type PhaseOneInput } from "./assess/phase-one";
+import { summariseProfits, type ProfitDistribution } from "./engine/distribution";
+import { farmFromProfile } from "./engine/farm";
+import { loadHistory } from "./engine/history";
+import { configHash, profitPaths } from "./engine/simulate";
+import { DEFAULT_CONFIG } from "./engine/types";
 import { londonDay, londonTime } from "./format";
 import { checkLossLimit, type LossLimit } from "./limits";
 import * as mock from "./mock";
@@ -26,6 +31,7 @@ import { createSupabaseAgentStore, getAgentStore, type AgentStore } from "./serv
 import { getStore, type Assessment, type Store } from "./server/store";
 import type { WhatIfBase } from "./sim";
 import { TraceWriter, verifyChain } from "./trace/chain";
+import { hedgeDecision, type HedgeChoice } from "./trace/decision";
 import type { AgentRun, Controls, Observation, TraceEvent } from "./trace/types";
 import type {
   AssessmentMeta,
@@ -447,6 +453,46 @@ export async function rerunAssessment(): Promise<AssessmentMeta> {
   return meta;
 }
 
+/* ---------- Monte Carlo: the whole-farm profit distribution ---------- */
+
+export interface ProfitSimulation extends ProfitDistribution {
+  seed: number;
+  configHash: string;
+  asOf: string;
+  /** The published run these figures belong to, if the assessment has one. */
+  runId?: string;
+  snapshotVersion: number;
+}
+
+// Deterministic for a snapshot, date and config, so compute once per server instance.
+const simulations = new Map<string, ProfitSimulation>();
+
+/**
+ * Every simulated year of whole-farm profit for the current snapshot, summarised for a chart. Same
+ * engine, seed and inputs as the assessment's run (lib/assess/phase-one.ts), so the figures match
+ * its trace. Null if the profile is missing something the engine needs.
+ */
+export async function getProfitSimulation(): Promise<ProfitSimulation | null> {
+  const [snapshot, { meta }] = await Promise.all([loadSnapshot(), loadAssessment()]);
+  const run = meta.runId ? await (await getAgentStore()).getRun(meta.runId).catch(() => null) : null;
+  const asOf = run?.asOf ?? meta.date;
+  const key = `${snapshot.id}:${asOf}:${configHash(DEFAULT_CONFIG)}`;
+  const cached = simulations.get(key);
+  if (cached) return cached;
+  const { farm, missing } = farmFromProfile(snapshot.fields, snapshot.market);
+  if (missing.length) return null;
+  const result: ProfitSimulation = {
+    ...summariseProfits(profitPaths(loadHistory(), farm, asOf, DEFAULT_CONFIG)),
+    seed: DEFAULT_CONFIG.seed,
+    configHash: configHash(DEFAULT_CONFIG),
+    asOf,
+    runId: run?.id,
+    snapshotVersion: snapshot.version,
+  };
+  simulations.set(key, result);
+  return result;
+}
+
 /* ---------- Risk agent: trace, kill switch, documents ---------- */
 
 /** Latest run for the farm when no id is given. `verify` recomputes the hash chain. */
@@ -469,6 +515,8 @@ export interface RunSummary {
   controlsFired: number;
   /** From the checker.result event: null if the judge never reached the checker. */
   checker: { untraced: number } | null;
+  /** The code-picked hedge's label ("" when no option improves the bad year), and the farmer's latest choice. Null without a clean judgement. */
+  decision: { label: string; choice: HedgeChoice | null } | null;
   verify: { ok: boolean; head: string; brokenAt?: number };
 }
 
@@ -480,11 +528,13 @@ export async function getRuns(): Promise<RunSummary[]> {
     runs.map(async (run) => {
       const events = await store.getEvents(run.id);
       const checkerEvent = events.find((e) => e.type === "checker.result");
+      const hedge = hedgeDecision(events);
       return {
         run,
         proposals: events.filter((e) => e.type === "proposal.queued_for_farmer").length,
         controlsFired: events.filter((e) => e.type.startsWith("control.")).length,
         checker: checkerEvent ? { untraced: (JSON.parse(checkerEvent.body).untraced as string[]).length } : null,
+        decision: hedge ? { label: hedge.hedge?.label ?? "", choice: hedge.farmerDecision?.choice ?? null } : null,
         verify: verifyChain(events),
       };
     })
@@ -502,7 +552,7 @@ async function controlStore(): Promise<AgentStore> {
 }
 
 /** Last events of a finished writer: phase one done and not queued, the judge's run.end, or an earlier human event. */
-const SETTLED_AFTER = new Set(["run.numbers_published", "run.end", "control.paused", "proposal.approved", "proposal.rejected"]);
+const SETTLED_AFTER = new Set(["run.numbers_published", "run.end", "control.paused", "proposal.approved", "proposal.rejected", "decision.farmer"]);
 
 /**
  * A human event on a run's chain, continuing from its last stored event. Each chain has one writer
@@ -517,6 +567,24 @@ async function appendHumanEvent(store: AgentStore, runId: string, type: string, 
   // ponytail: two humans at the same ms (approve + kill switch) collide on seq; the second insert fails and is logged.
   await TraceWriter.resume(runId, store, last.seq, last.hash).append(type, "human", payload);
   return true;
+}
+
+/**
+ * The farmer's answer to the hedge on a published run, as a human event on its chain (latest wins).
+ * Moves no money and never touches the profile: it only records "discuss with my merchant" or "not now".
+ */
+export async function recordHedgeDecision(runId: string, optionId: string, choice: HedgeChoice): Promise<void> {
+  if (choice !== "discuss" && choice !== "not_now") throw new Error("Unknown choice.");
+  const store = await getAgentStore();
+  const run = await store.getRun(runId);
+  if (!run) throw new Error("No such run.");
+  if (run.status !== "published") throw new Error("Only a published run's hedge can be decided.");
+  const hedge = hedgeDecision(await store.getEvents(runId))?.hedge;
+  if (!hedge || hedge.optionId !== optionId) throw new Error("That option isn't the hedge this run recommends.");
+  const logged = await appendHumanEvent(store, runId, "decision.farmer", { optionId, choice, at: new Date().toISOString() });
+  if (!logged) throw new Error("This run's trace is still being written; try again in a moment.");
+  revalidatePath(`/trace/${runId}`);
+  revalidatePath("/trace");
 }
 
 /** The farmer's kill switch. Logged on the latest run's trace as a human event. */

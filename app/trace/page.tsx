@@ -8,7 +8,7 @@ import { londonDay, londonTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const th = "h-10 whitespace-nowrap text-label font-normal text-sub";
-const COLUMNS = ["Started", "Trigger", "Status", "Model", "Turns", "Cost", "Proposals", "Controls fired", "Checker", "Chain"];
+const COLUMNS = ["Started", "Trigger", "Status", "Decision", "Model", "Turns", "Cost", "Proposals", "Controls fired", "Checker", "Chain"];
 
 export default async function AgentRunsPage() {
   const runs = await getRuns();
@@ -24,7 +24,7 @@ export default async function AgentRunsPage() {
       />
       {runs.length ? (
         <Card label="Agent runs">
-          <Table className="min-w-[960px]">
+          <Table className="min-w-[1080px]">
             <TableHeader>
               <TableRow className="border-line hover:bg-transparent">
                 {COLUMNS.map((c, i) => (
@@ -33,7 +33,7 @@ export default async function AgentRunsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {runs.map(({ run, proposals, controlsFired, checker, verify }) => {
+              {runs.map(({ run, proposals, controlsFired, checker, decision, verify }) => {
                 const started = new Date(run.startedAt);
                 return (
                   <TableRow key={run.id} className="border-line text-[13px]">
@@ -44,6 +44,14 @@ export default async function AgentRunsPage() {
                     </TableCell>
                     <TableCell>{run.trigger}</TableCell>
                     <TableCell><StatusBadge status={run.status} /></TableCell>
+                    <TableCell className="min-w-[160px] max-w-[180px]">
+                      {decision ? (
+                        <>
+                          <span className={cn(!decision.label && "text-sub")}>{decision.label || "No hedge helps"}</span>
+                          {decision.choice ? <span className="block text-[12px] text-sub">Farmer: {decision.choice === "discuss" ? "will discuss" : "not now"}</span> : null}
+                        </>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{run.model ? modelName(run.model) : "—"}</TableCell>
                     <TableCell className="tabular-nums">{run.turns ?? 0}</TableCell>
                     <TableCell className="tabular-nums">{run.totalCostUsd === null ? "—" : `US$${run.totalCostUsd.toFixed(3)}`}</TableCell>
