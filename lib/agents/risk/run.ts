@@ -4,8 +4,9 @@
  *   allowlist (only TOOL_NAMES run), turn cap, budget cap from `usage` at the Argon price,
  *   proposal cap (tools.ts), kill switch (paused flag checked before every turn and every tool,
  *   plus AbortController on the in-flight request), every call and result appended to the
- *   hash-chained trace with the Gemini interaction id. The figure checker then blocks any number
- *   the engine did not produce.
+ *   hash-chained trace with the Gemini interaction id, and a run deadline under the route's 300 s.
+ *   The figure checker then blocks any number the engine did not produce. Every failure path ends
+ *   in run.end with a final status (fail closed: a run is never left `running`).
  */
 import type { AgentStore } from "../../server/agent-store";
 import { TraceWriter } from "../../trace/chain";
@@ -23,11 +24,15 @@ export interface RunDeps {
   /** undefined = read GEMINI_API_KEY; null = no client (numbers only); or a fake in tests. */
   client?: InteractionsClient | null;
   pollMs?: number;
+  /** Whole-run deadline from the start of phase 2; default 270 s, under the route's maxDuration 300. */
+  deadlineMs?: number;
 }
 
 const USER_PROMPT =
   "Assess this run. Call get_engine_results, get_documents and get_profile, propose any changes the documents justify, then call submit_judgement.";
 const THINKING_LEVEL = "medium";
+const DEADLINE_MS = 270_000;
+const REQUEST_TIMEOUT_MS = 240_000;
 
 const callArgs = (s: FunctionCallStep): Record<string, unknown> =>
   typeof s.arguments === "string" ? (JSON.parse(s.arguments) as Record<string, unknown>) : (s.arguments ?? {});
@@ -62,27 +67,24 @@ export async function runPhaseTwo(runId: string, deps: RunDeps): Promise<{ statu
     return finish("numbers_only");
   }
 
+  // Only documents that passed the screen in THIS run: the judge cannot read or cite another run's.
+  const documents = (await store.getDocuments(run.farmId)).filter((d) => d.runId === runId);
   const ctx: ToolContext = {
-    runId, farmId: run.farmId, sim, documents: await store.getDocuments(run.farmId), profile: deps.profile,
+    runId, farmId: run.farmId, sim, documents, profile: deps.profile,
     store, trace, controls, outputs: [], proposals: 0,
   };
-  await store.updateRun(runId, { status: "running", model, promptVersion: PROMPT_VERSION });
-  await trace.append("judge.start", "code", {
-    model, promptVersion: PROMPT_VERSION, thinkingLevel: THINKING_LEVEL, tools: TOOL_NAMES,
-    limits: { maxTurns: controls.maxTurns, maxBudgetUsd: controls.maxBudgetUsd, maxProposals: controls.maxProposalsPerRun },
-  });
+  const deadlineMs = deps.deadlineMs ?? DEADLINE_MS;
+  const deadline = AbortSignal.timeout(deadlineMs);
 
   const abort = new AbortController();
   let killed = false;
-  const kill = async (where: string) => {
+  const kill = async (where: string, actor: "human" | "code" = "human", reason?: string) => {
     if (killed) return;
     killed = true;
     abort.abort();
-    await trace.append("control.kill_switch", "human", { where });
+    await trace.append("control.kill_switch", actor, { where, ...(reason ? { reason } : {}) });
   };
-  const poll = setInterval(() => {
-    void store.getControls().then((c) => { if (c.paused) void kill("poll"); });
-  }, deps.pollMs ?? 2000);
+  let poll: ReturnType<typeof setInterval> | undefined;
 
   let cost = 0, inputTokens = 0, outputTokens = 0, turns = 0;
   let input: unknown = USER_PROMPT;
@@ -90,9 +92,29 @@ export async function runPhaseTwo(runId: string, deps: RunDeps): Promise<{ statu
   let judgement: Judgement | undefined;
   let status: RunStatus = "failed";
   let error: string | null = null;
+  let deadlineHit = false;
+  const hitDeadline = async () => {
+    deadlineHit = true;
+    error = `Run deadline ${deadlineMs / 1000} s reached`;
+    await trace.append("control.deadline", "code", { limitMs: deadlineMs, turns });
+  };
 
   try {
+    await store.updateRun(runId, { status: "running", model, promptVersion: PROMPT_VERSION });
+    await trace.append("judge.start", "code", {
+      model, promptVersion: PROMPT_VERSION, thinkingLevel: THINKING_LEVEL, tools: TOOL_NAMES,
+      limits: { maxTurns: controls.maxTurns, maxBudgetUsd: controls.maxBudgetUsd, maxProposals: controls.maxProposalsPerRun, deadlineMs },
+    });
+    // A failed controls read counts as paused: the agent stops rather than run unsupervised.
+    poll = setInterval(() => {
+      store.getControls().then(
+        (c) => { if (c.paused) void kill("poll"); },
+        (e) => { void kill("poll", "code", `controls unreadable: ${e instanceof Error ? e.message : String(e)}`); },
+      );
+    }, deps.pollMs ?? 2000);
+
     for (let turn = 1; turn <= controls.maxTurns && !judgement; turn++) {
+      if (deadline.aborted) { await hitDeadline(); break; }
       if ((await store.getControls()).paused) { await kill("before_turn"); break; }
       const ix = await client.interactions.create(
         {
@@ -100,11 +122,13 @@ export async function runPhaseTwo(runId: string, deps: RunDeps): Promise<{ statu
           generation_config: { thinking_level: THINKING_LEVEL, tool_choice: { allowed_tools: { mode: "any", tools: TOOL_NAMES } } },
           ...(previous ? { previous_interaction_id: previous } : {}),
         },
-        // A set signal overrides timeout_ms in SDK 3.0.0, so the timeout rides on the same signal.
-        { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(240_000)]) },
+        // A set signal overrides timeout_ms in SDK 3.0.0, so the timeouts ride on the same signal.
+        { signal: AbortSignal.any([abort.signal, deadline, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) },
       );
       turns = turn;
       previous = ix.id;
+      // No usage means the spend is unknown: the budget control fires rather than count it as $0.
+      const usageMissing = !ix.usage;
       cost += usageCostUsd(ix.usage);
       inputTokens += ix.usage?.total_input_tokens ?? 0;
       outputTokens += (ix.usage?.total_output_tokens ?? 0) + (ix.usage?.total_thought_tokens ?? 0);
@@ -113,9 +137,9 @@ export async function runPhaseTwo(runId: string, deps: RunDeps): Promise<{ statu
         turn, interactionId: ix.id, status: ix.status, usage: ix.usage ?? null, costUsd: round4(cost),
         calls: calls.map((c) => c.name), text: ix.output_text ?? null,
       });
-      if (cost > controls.maxBudgetUsd) {
-        await trace.append("control.budget_limit", "code", { costUsd: round4(cost), limit: controls.maxBudgetUsd });
-        error = `Budget cap $${controls.maxBudgetUsd} reached`;
+      if (usageMissing || cost > controls.maxBudgetUsd) {
+        await trace.append("control.budget_limit", "code", { costUsd: round4(cost), limit: controls.maxBudgetUsd, ...(usageMissing ? { reason: "usage missing" } : {}) });
+        error = usageMissing ? "Budget control: Gemini returned no usage, spend unknown" : `Budget cap $${controls.maxBudgetUsd} reached`;
         break;
       }
       if (calls.length === 0) {
@@ -148,23 +172,30 @@ export async function runPhaseTwo(runId: string, deps: RunDeps): Promise<{ statu
       if (killed) break;
       input = results;
     }
-    if (judgement) {
-      await trace.append("judge.output", "gemini", judgement);
-      const check = verifyOutput(judgement, ctx.outputs);
+    if (judgement && !killed) {
+      // The verdict goes on the chain first; the trace page shows the prose only after a clean check.
+      const check = verifyOutput(judgement, ctx.outputs, sim, documents.map((d) => d.id));
       await trace.append("checker.result", "code", check);
+      await trace.append("judge.output", "gemini", judgement);
       status = check.untraced.length > 0 ? "blocked" : judgement.hold_for_human ? "held" : "published";
     } else if (!killed && !error && turns >= controls.maxTurns) {
       await trace.append("control.turn_limit", "code", { turns, limit: controls.maxTurns });
       error = `Turn cap ${controls.maxTurns} reached without submit_judgement`;
     }
+    if (!killed && (await store.getControls()).paused) killed = true;
   } catch (e) {
-    if (!killed) {
+    status = "failed";
+    if (killed) {
+      // Stopped by the kill switch: the abort error is expected.
+    } else if (deadline.aborted && !deadlineHit) {
+      await hitDeadline();
+    } else {
       error = e instanceof Error ? e.message : String(e);
       await trace.append("judge.error", "code", { message: error });
     }
   } finally {
     clearInterval(poll);
   }
-  if (killed || (await store.getControls()).paused) status = "killed";
-  return finish(status, { totalCostUsd: round4(cost), turns, inputTokens, outputTokens, error }, judgement);
+  if (killed) status = "killed";
+  return finish(status, { totalCostUsd: round4(cost), turns, inputTokens, outputTokens, error }, killed ? undefined : judgement);
 }

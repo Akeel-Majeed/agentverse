@@ -4,18 +4,19 @@ import { runPhaseOne } from "@/lib/assess/phase-one";
 import { runPhaseTwo } from "@/lib/agents/risk/run";
 import type { FunctionCallStep, InteractionLike, InteractionsClient } from "@/lib/agents/risk/gemini";
 import { verifyChain } from "@/lib/trace/chain";
-import type { AgentProposal } from "@/lib/trace/types";
+import type { AgentProposal, EngineResultEvent } from "@/lib/trace/types";
+import type { AgentStore } from "@/lib/server/agent-store";
 import * as demo from "@/lib/profile/fenland-ridge";
 
 const DOC_TEXT = "GRAIN PURCHASE CONTRACT. Seller: Fenland Ridge Farm Ltd. Commodity: feed wheat, harvest 2027. Quantity: 200 tonnes. Price: £185 per tonne.";
 const cleanJev = async () => ({ injection: 0.01, unsupported_change: 0.01 });
 
-async function setup(withDoc = false) {
+async function setup(withDoc = false, docName = "contract.txt") {
   const proposals: AgentProposal[] = [];
   const store = createMemoryAgentStore(async (p) => { proposals.push(p); });
   const { run } = await runPhaseOne({
     store, farmId: demo.FARM_ID, trigger: withDoc ? "document" : "demo", fields: demo.profileFields, market: demo.market, now: new Date(),
-    document: withDoc ? { name: "contract.txt", text: DOC_TEXT } : undefined, jev: withDoc ? cleanJev : null, extract: null, geminiAvailable: true,
+    document: withDoc ? { name: docName, text: DOC_TEXT } : undefined, jev: withDoc ? cleanJev : null, extract: null, geminiAvailable: true,
   });
   return { store, run, proposals };
 }
@@ -44,6 +45,7 @@ function fakeClient(script: Array<(req: Record<string, unknown>, turn: number) =
 
 const good = { ranked_options: [], risks: [], change_my_mind: [], conflicts: [], hold_for_human: false, hold_reason: null };
 const reads = () => [call("get_engine_results"), call("get_documents"), call("get_profile")];
+const simOf = async (store: AgentStore, runId: string) => (JSON.parse((await store.getEvents(runId)).find((e) => e.type === "engine.result")!.body) as EngineResultEvent).sim;
 
 describe("phase two", () => {
   it("publishes a clean judgement, chains turns with previous_interaction_id and keeps the trace valid", async () => {
@@ -68,6 +70,55 @@ describe("phase two", () => {
     const bad = { ...good, risks: [{ risk_id: "output_prices", explanation: "You could lose £999k.", cites: [] }] };
     const client = fakeClient([reads, () => [call("submit_judgement", bad)]]);
     expect((await runPhaseTwo(run.id, { store, profile: demo.profileFields, client })).status).toBe("blocked");
+  });
+  it("blocks untraced numbers in every prose field, including conflict values", async () => {
+    const { store, run } = await setup(true);
+    const doc = (await store.getDocuments(demo.FARM_ID))[0];
+    const conflict = { observation_id: doc.id, field_key: "sales.wheat_2027_forward_t", document_value: "999", profile_value: "0", explanation: "The contract and the profile differ." };
+    for (const bad of [
+      { ...good, conflicts: [conflict] },
+      { ...good, hold_for_human: true, hold_reason: "A 31 per cent chance." },
+      { ...good, risks: [{ risk_id: "output_prices", explanation: "Prices could gain you 42,000 pounds.", cites: [] }] },
+    ]) {
+      const { store: s2, run: r2 } = await setup(true);
+      const client = fakeClient([reads, () => [call("submit_judgement", bad)]]);
+      expect((await runPhaseTwo(r2.id, { store: s2, profile: demo.profileFields, client })).status).toBe("blocked");
+    }
+    const ok = { ...conflict, document_value: "200" };
+    const client = fakeClient([reads, () => [call("submit_judgement", { ...good, conflicts: [ok] })]]);
+    expect((await runPhaseTwo(run.id, { store, profile: demo.profileFields, client })).status).toBe("published");
+  });
+  it("blocks a gain claimed for a figure the engine computed as negative", async () => {
+    const { store, run } = await setup();
+    const sim = await simOf(store, run.id);
+    const neg = Object.values(sim.figures).find((f) => f.unit === "gbp" && f.value < -1000)!;
+    const claim = neg.display.replace("−", "");
+    const client = fakeClient([reads, () => [call("submit_judgement", { ...good, risks: [{ risk_id: "output_prices", explanation: `This gains ${claim}.`, cites: [neg.id] }] })]]);
+    expect((await runPhaseTwo(run.id, { store, profile: demo.profileFields, client })).status).toBe("blocked");
+  });
+  it("publishes engine display strings with real figure ids", async () => {
+    const { store, run } = await setup();
+    const sim = await simOf(store, run.id);
+    const opt = sim.options[0], th = sim.thresholds[0], risk = sim.risks[0];
+    const judgement = {
+      ...good,
+      ranked_options: [{ option_id: opt.id, rank: 1, reason: `Costs ${opt.cost.display}; changes the 1-in-20 profit by ${opt.p5Gain.display}.`, cites: [opt.cost.id, opt.p5Gain.id] }],
+      risks: [{ risk_id: risk.riskId, explanation: `Scores ${risk.score.display}.`, cites: [risk.score.id] }],
+      change_my_mind: [{ threshold_id: th.id, statement: `At ${th.display} the ranking changes.` }],
+    };
+    const client = fakeClient([reads, () => [call("submit_judgement", judgement)]]);
+    expect((await runPhaseTwo(run.id, { store, profile: demo.profileFields, client })).status).toBe("published");
+  });
+  it.each([
+    ["an unknown option id", { ranked_options: [{ option_id: "sell_the_farm", rank: 1, reason: "No.", cites: [] }] }],
+    ["an unknown cited figure", { risks: [{ risk_id: "output_prices", explanation: "Prices move.", cites: ["profit.p1"] }] }],
+    ["an unknown threshold", { change_my_mind: [{ threshold_id: "threshold.moon", statement: "If the moon falls." }] }],
+    ["an unknown risk", { risks: [{ risk_id: "asteroids", explanation: "Rocks.", cites: [] }] }],
+  ])("blocks %s", async (_label, patch) => {
+    const { store, run } = await setup();
+    const client = fakeClient([reads, () => [call("submit_judgement", { ...good, ...patch })]]);
+    const r = await runPhaseTwo(run.id, { store, profile: demo.profileFields, client });
+    expect(r.status).toBe("blocked");
   });
   it("holds when the agent asks for a human", async () => {
     const { store, run } = await setup();
@@ -176,6 +227,97 @@ describe("phase two", () => {
     expect(r.status).toBe("published");
     expect(proposals).toHaveLength(3);
     expect((await store.getEvents(run.id)).filter((e) => e.type === "control.proposal_limit")).toHaveLength(1);
+  });
+  describe("propose_change checks in code", () => {
+    const base = (docId: string) => ({
+      field_key: "sales.wheat_2027_forward_t", field_label: "2027 wheat sold forward", current_value: "12345", proposed_value: "200",
+      reason: "Contract sells 200 t forward", observation_id: docId, quote: "Quantity: 200 tonnes",
+    });
+    async function propose(args: (docId: string) => Record<string, unknown>, opts: { docName?: string; otherRun?: boolean } = {}) {
+      const { store, run, proposals } = await setup(true, opts.docName);
+      const doc = (await store.getDocuments(demo.FARM_ID))[0];
+      let target = run;
+      if (opts.otherRun) target = (await runPhaseOne({ store, farmId: demo.FARM_ID, trigger: "demo", fields: demo.profileFields, market: demo.market, now: new Date(), jev: null, extract: null, geminiAvailable: true })).run;
+      const client = fakeClient([() => [call("get_documents")], () => [call("propose_change", args(doc.id), "p1")], () => [call("submit_judgement", good)]]);
+      await runPhaseTwo(target.id, { store, profile: demo.profileFields, client });
+      const result = (await store.getEvents(target.id)).filter((e) => e.type === "tool.result" && JSON.parse(e.body).tool === "propose_change").map((e) => JSON.parse(e.body).result);
+      return { proposals, result: result[0] };
+    }
+    it("fills the current value and label from the profile and catalogue, not the model", async () => {
+      const { proposals } = await propose(base);
+      expect(proposals).toHaveLength(1);
+      const current = demo.profileFields.find((f) => f.key === "sales.wheat_2027_forward_t")?.value;
+      expect(proposals[0].currentValue).toBe(current === undefined || current === null ? "not set" : String(current));
+      expect(proposals[0].fieldLabel).toBe("2027 wheat sold forward");
+    });
+    it.each([
+      ["a quote that does not contain the proposed value", (id: string) => ({ ...base(id), proposed_value: "250" })],
+      ["a field key outside the catalogue", (id: string) => ({ ...base(id), field_key: "bank.overdraft_limit" })],
+      ["an untraced number in the reason", (id: string) => ({ ...base(id), reason: "Selling 200 t forward saves £999k" })],
+      ["a quote shorter than 8 characters", (id: string) => ({ ...base(id), quote: "200 ton" })],
+    ])("rejects %s", async (_label, args) => {
+      const { proposals, result } = await propose(args);
+      expect(proposals).toHaveLength(0);
+      expect(result.error).toBeTruthy();
+    });
+    it("matches the quote against the document text only, not its file name", async () => {
+      const { proposals } = await propose((id) => ({ ...base(id), proposed_value: "750", quote: "Quantity 750 tonnes" }), { docName: "Quantity 750 tonnes.txt" });
+      expect(proposals).toHaveLength(0);
+    });
+    it("only accepts documents observed in this run", async () => {
+      const { proposals, result } = await propose(base, { otherRun: true });
+      expect(proposals).toHaveLength(0);
+      expect(result.error).toMatch(/observation_id/);
+    });
+  });
+  it("stops at the run deadline and ends the run failed", async () => {
+    const { store, run } = await setup();
+    const client: InteractionsClient = {
+      interactions: { create: (_req, options) => new Promise<InteractionLike>((_resolve, reject) => { options?.signal?.addEventListener("abort", () => reject(new Error("aborted"))); }) },
+    };
+    const r = await runPhaseTwo(run.id, { store, profile: demo.profileFields, client, deadlineMs: 50 });
+    expect(r.status).toBe("failed");
+    const events = await store.getEvents(run.id);
+    expect(events.some((e) => e.type === "control.deadline")).toBe(true);
+    expect(events[events.length - 1].type).toBe("run.end");
+    expect((await store.getRun(run.id))!.error).toMatch(/deadline/i);
+  });
+  it("treats a response without usage as the budget control firing", async () => {
+    const { store, run } = await setup();
+    const client: InteractionsClient = { interactions: { create: async () => ({ id: "ix-1", status: "completed", steps: reads() }) } };
+    const r = await runPhaseTwo(run.id, { store, profile: demo.profileFields, client });
+    expect(r.status).toBe("failed");
+    const budget = (await store.getEvents(run.id)).find((e) => e.type === "control.budget_limit");
+    expect(JSON.parse(budget!.body).reason).toBe("usage missing");
+  });
+  it("stops the run when the kill-switch read fails (fail closed)", async () => {
+    const { store, run } = await setup();
+    let reads = 0;
+    const flaky: AgentStore = { ...store, getControls: async () => { if (++reads > 2) throw new Error("db down"); return store.getControls(); } };
+    const client: InteractionsClient = {
+      interactions: { create: (_req, options) => new Promise<InteractionLike>((_resolve, reject) => { options?.signal?.addEventListener("abort", () => reject(new Error("aborted"))); }) },
+    };
+    const r = await runPhaseTwo(run.id, { store: flaky, profile: demo.profileFields, client, pollMs: 10 });
+    expect(r.status).toBe("killed");
+    const events = await store.getEvents(run.id);
+    expect(events.some((e) => e.type === "control.kill_switch")).toBe(true);
+    expect(events[events.length - 1].type).toBe("run.end");
+  });
+  it("ends the run failed, never stuck running, when the final controls read throws", async () => {
+    const { store, run } = await setup();
+    const flaky: AgentStore = {
+      ...store,
+      getControls: async () => {
+        if ((await store.getEvents(run.id)).some((e) => e.type === "checker.result")) throw new Error("db down");
+        return store.getControls();
+      },
+    };
+    const client = fakeClient([reads, () => [call("submit_judgement", good)]]);
+    const r = await runPhaseTwo(run.id, { store: flaky, profile: demo.profileFields, client });
+    expect(r.status).toBe("failed");
+    expect((await store.getRun(run.id))!.status).toBe("failed");
+    const events = await store.getEvents(run.id);
+    expect(events[events.length - 1].type).toBe("run.end");
   });
   it("runs numbers only when there is no client", async () => {
     const { store, run } = await setup();
