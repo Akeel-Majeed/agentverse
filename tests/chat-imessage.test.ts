@@ -4,7 +4,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 // React's cache() only exists in the Next server runtime; run the data layer without memoising.
 vi.mock("react", async (original) => ({ ...(await original<typeof import("react")>()), cache: <T>(fn: T) => fn }));
 import { ChatUnavailableError, type ChatResult } from "@/lib/agents/chat/agent";
-import { FAILED, NOT_SET_UP, handleIMessage, historyToMessages, splitForIMessage, type IMessageDeps } from "@/lib/agents/chat/imessage";
+import { FAILED, NOT_SET_UP, handleIMessage, historyToMessages, inboundText, senderAllowed, splitForIMessage, type IMessageDeps } from "@/lib/agents/chat/imessage";
 
 function payload(over: Partial<NonNullable<IMessageWebhookPayload["data"]["message"]>> = {}, event = "imessage.received"): IMessageWebhookPayload {
   return {
@@ -153,5 +153,28 @@ describe("history and message splitting", () => {
     expect(parts).toEqual(["One.", "Two is longer.".slice(0, 12), "Three."]);
     expect(parts.every((p) => p.length <= 12)).toBe(true);
     expect(splitForIMessage("Short.")).toEqual(["Short."]);
+  });
+});
+
+describe("who the agent answers", () => {
+  it("answers anyone when no allow-list is set", () => {
+    expect(senderAllowed("+447700900123", "")).toBe(true);
+  });
+
+  it("answers only listed senders, however the number is written", () => {
+    expect(senderAllowed("+447700900123", "+44 7700 900123, farmer@icloud.com")).toBe(true);
+    expect(senderAllowed("Farmer@iCloud.com", "+44 7700 900123, farmer@icloud.com")).toBe(true);
+    expect(senderAllowed("+447700900999", "+44 7700 900123")).toBe(false);
+    expect(senderAllowed(null, "+44 7700 900123")).toBe(false);
+  });
+
+  it("ignores a webhook from a sender not on the list", () => {
+    process.env.INKBOX_ALLOWED_SENDERS = "+447700900999";
+    try {
+      expect(inboundText(payload())).toBeNull();
+    } finally {
+      delete process.env.INKBOX_ALLOWED_SENDERS;
+    }
+    expect(inboundText(payload())).not.toBeNull();
   });
 });

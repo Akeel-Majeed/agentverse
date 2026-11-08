@@ -8,7 +8,7 @@ vi.mock("react", async (original) => ({ ...(await original<typeof import("react"
 beforeEach(() => {
   for (const k of ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY", "GEMINI_API_KEY", "TYPESAFE_API_KEY", "AGENT_TABLES", "RISK_AGENT_DATABASE_URL"]) delete process.env[k];
   delete (globalThis as { __agentStore?: unknown }).__agentStore;
-  delete (globalThis as { __mockStore?: unknown }).__mockStore;
+  delete (globalThis as { __hedgedMockStore?: unknown }).__hedgedMockStore;
   vi.resetModules();
 });
 

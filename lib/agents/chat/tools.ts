@@ -9,6 +9,7 @@ import {
   getAssessmentMeta,
   getBreakEvens,
   getCalendar,
+  getLossLimit,
   getOnboarding,
   getPendingChanges,
   getProfitSummary,
@@ -23,6 +24,8 @@ import { amount, gbp, gbpK, gbpPerT } from "../../format";
 import { riskName } from "../../profile/catalogue";
 import { bandFor } from "../../score";
 import { simulateRisk, whatIf } from "../../sim";
+import { whatWouldChange } from "../../what-would-change";
+import type { LossLimit } from "../../limits";
 import type { Mitigation, RiskResult, SignalImpact } from "../../types";
 
 export const RISK_IDS = ["output_prices", "input_prices", "weather_yield", "regulation", "interest_rates"] as const;
@@ -81,6 +84,17 @@ function impactView(i: SignalImpact) {
   };
 }
 
+function lossLimitView(l: LossLimit) {
+  return {
+    limit: l.limit === null ? "not recorded" : gbp(l.limit),
+    confirmed_by_farmer: l.confirmed,
+    farm_loss_in_bad_year: gbp(l.farmLoss),
+    past_limit: l.limit === null ? "can't check: no limit recorded" : l.breached,
+    risks_past_limit_on_their_own: l.risksOver.map((r) => ({ risk: r.name, loss: gbp(r.loss) })),
+    note: l.confirmed ? undefined : "The farmer hasn't confirmed this limit yet: ask them to confirm it in their farm profile.",
+  };
+}
+
 /** Build the tool set. Every call is recorded in `calls` for the figure checker and the action log. */
 export function createTools(calls: ToolCall[]) {
   const tool = <S extends z.ZodType>(def: { name: string; description: string; inputSchema: S; run: (input: z.infer<S>) => Promise<unknown> }) =>
@@ -108,7 +122,7 @@ export function createTools(calls: ToolCall[]) {
         "The farm's risk profile: the snapshot it is based on, and for each of the five risks its score, bad-year hit, what the farm has at stake and the total effect of news since the snapshot. Start here for any broad question.",
       inputSchema: z.object({}),
       run: async () => {
-        const [{ snapshot, rows, impacts }, meta] = await Promise.all([getRiskProfile(), getAssessmentMeta()]);
+        const [{ snapshot, rows, impacts }, meta, lossLimit] = await Promise.all([getRiskProfile(), getAssessmentMeta(), getLossLimit()]);
         return {
           assessed: day(meta.date),
           snapshot: { version: snapshot.version, taken: day(snapshot.takenAt), reason: snapshot.reason },
@@ -123,6 +137,7 @@ export function createTools(calls: ToolCall[]) {
             news_since_snapshot: r.newsMeasured ? gbp(r.newsDelta, { sign: true }) : r.newsCount ? "no £ figure yet" : "none",
           })),
           news_items_since_snapshot: impacts.length,
+          loss_limit: lossLimitView(lossLimit),
           note: "Bad years don't add up across risks: they rarely all peak in the same year.",
         };
       },
@@ -130,13 +145,14 @@ export function createTools(calls: ToolCall[]) {
     tool({
       name: "get_risk",
       description:
-        "Everything about one risk: score, bad-year hit, share of profit, 7-day change, the agent's reasoning, the step-by-step working, sources and the exposure model.",
+        "Everything about one risk: score, bad-year hit, share of profit, 7-day change, what would change the score (calculated), the agent's reasoning, the step-by-step working, sources and the exposure model.",
       inputSchema: z.object({ risk_id: riskId }),
       run: async ({ risk_id }) => {
-        const r = await getRisk(risk_id);
+        const [r, meta, lossLimit] = await Promise.all([getRisk(risk_id), getAssessmentMeta(), getLossLimit()]);
         if (!r) return { error: `Unknown risk ${risk_id}` };
         return {
           ...riskView(r),
+          what_would_change: whatWouldChange(r.model, meta.typicalProfit, lossLimit.limit).map((p) => p.text),
           summary: r.summary,
           reasoning: r.reasoning,
           working: r.working,
@@ -207,14 +223,14 @@ export function createTools(calls: ToolCall[]) {
         rate_change: z.number().min(-5).max(10).optional(),
       }),
       run: async (input) => {
-        const { baseline } = await getWhatIfConfig();
+        const { baseline, base } = await getWhatIfConfig();
         const inputs = {
           wheatPrice: input.wheat_price ?? baseline.wheatPrice,
           fertiliserPrice: input.fertiliser_price ?? baseline.fertiliserPrice,
           yieldPct: input.yield_pct ?? baseline.yieldPct,
           rateChange: input.rate_change ?? baseline.rateChange,
         };
-        const result = whatIf(inputs);
+        const result = whatIf(inputs, base);
         return {
           scenario: {
             wheat_price: gbpPerT(inputs.wheatPrice),
@@ -228,17 +244,19 @@ export function createTools(calls: ToolCall[]) {
           },
           farm_profit: gbpK(result.profitK),
           change_vs_today: gbpK(result.deltaK, { sign: true }),
-          loss_if_wheat_below: gbpPerT(result.lossPrice),
+          loss_if_wheat_below: result.lossPrice === null ? "wheat price doesn't move profit: none exposed" : gbpPerT(result.lossPrice),
+          wheat_exposed_to_price: `${Math.round(result.wheatExposedT).toLocaleString("en-GB")} t`,
+          working: result.working,
           by_driver: result.impacts.map((i) => ({ driver: i.label, effect: gbpK(i.valueK, { sign: true }) })),
         };
       },
     }),
     tool({
       name: "get_profit_summary",
-      description: "Expected profit for the harvest year, bad and good years, chance of a loss, weekly change, and each crop's price against its break-even.",
+      description: "Expected profit for the harvest year, bad and good years, chance of a loss, weekly change, the farm's loss limit check, and each crop's price against its break-even.",
       inputSchema: z.object({}),
       run: async () => {
-        const [p, breakEvens, meta] = await Promise.all([getProfitSummary(), getBreakEvens(), getAssessmentMeta()]);
+        const [p, breakEvens, meta, lossLimit] = await Promise.all([getProfitSummary(), getBreakEvens(), getAssessmentMeta(), getLossLimit()]);
         return {
           harvest_year: meta.harvestYear,
           expected_profit: gbp(p.expected),
@@ -248,6 +266,7 @@ export function createTools(calls: ToolCall[]) {
           loss_making_years: `${p.lossYearsOf20} in 20`,
           change_vs_last_week: gbp(p.deltaWeek, { sign: true }),
           working: p.working,
+          loss_limit: lossLimitView(lossLimit),
           break_evens: breakEvens.map((b) => ({
             crop: b.crop,
             price: gbpPerT(b.price),

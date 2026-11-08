@@ -12,7 +12,7 @@ vi.mock("@supabase/supabase-js", () => {
 beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SECRET_KEY = "test";
-  delete (globalThis as { __mockStore?: unknown }).__mockStore;
+  delete (globalThis as { __hedgedMockStore?: unknown }).__hedgedMockStore;
   vi.resetModules();
 });
 

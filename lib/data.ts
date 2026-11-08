@@ -13,21 +13,25 @@ import { cache } from "react";
 import { ACCEPTED_MIME, extractorFromEnv } from "./agents/documents/extract";
 import { runPhaseOne, type PhaseOneInput } from "./assess/phase-one";
 import { londonDay, londonTime } from "./format";
+import { checkLossLimit, type LossLimit } from "./limits";
 import * as mock from "./mock";
 import { reassess } from "./profile/assess";
 import { FARM_ID, weekMoves } from "./profile/fenland-ridge";
 import { FIELDS, SECTIONS, fieldDef, riskName, RISKS } from "./profile/catalogue";
-import { makeSnapshot, measureSignals, profileChanges } from "./profile/risk-profile";
+import { describeProblems, problemFor, profileProblems } from "./profile/checks";
+import { makeSnapshot, measureSignals, profileChanges, valuesOf } from "./profile/risk-profile";
 import { addDays, formatValue, parseValue } from "./profile/values";
 import { jevFromEnv } from "./screen/screen";
 import { createSupabaseAgentStore, getAgentStore, type AgentStore } from "./server/agent-store";
 import { getStore, type Assessment, type Store } from "./server/store";
+import type { WhatIfBase } from "./sim";
 import { TraceWriter, verifyChain } from "./trace/chain";
 import type { AgentRun, Controls, Observation, TraceEvent } from "./trace/types";
 import type {
   AssessmentMeta,
   BreakEven,
   CalendarItem,
+  ChatTurn,
   Farm,
   IMessageSetup,
   MarketBaseline,
@@ -115,6 +119,20 @@ export async function getBreakEvens(): Promise<BreakEven[]> {
   return (await loadAssessment()).breakEvens;
 }
 
+/** The farm's loss limit checked against the latest assessment (see lib/limits.ts). */
+export async function getLossLimit(): Promise<LossLimit> {
+  const [fields, { risks, profit, meta }] = await Promise.all([loadProfileFields(), loadAssessment()]);
+  const field = fields.find((f) => f.key === "ins.max_loss");
+  const limit = field?.value === null || field?.value === undefined || field.value === "" ? null : Number(field.value);
+  return checkLossLimit({
+    limit: Number.isFinite(limit) ? limit : null,
+    confirmed: Boolean(field?.confirmedAt) && field?.confidence === "high",
+    profit,
+    risks,
+    typicalProfit: meta.typicalProfit,
+  });
+}
+
 /* ---------- Approval queue ---------- */
 
 const APPROVED_SOURCE: Record<PendingSource, string> = {
@@ -151,6 +169,10 @@ export async function approveChange(
   if (!def) return { ok: false, error: "Not saved: this change isn't linked to a profile field. Reject it, or edit the field in your profile." };
   const parsed = parseValue(def, value ?? item.proposedValue);
   if (!parsed.ok) return { ok: false, error: `Not saved: ${parsed.error}` };
+  // The same checks as the farmer's own edits: a proposal from a document, message or adviser
+  // agent can't put the profile into a state that can't be true.
+  const conflict = problemFor(profileProblems({ ...valuesOf(await store.getProfileFields()), [def.key]: parsed.value }), def.key);
+  if (conflict) return { ok: false, error: `Not saved: ${conflict}` };
   await store.saveProfileFields([confirmedField(def.key, parsed.value, APPROVED_SOURCE[item.source], new Date().toISOString())]);
   const updated = await store.updatePendingChange(id, "approved", value);
   await logDecision(item, "proposal.approved", { approvedValue: parsed.value });
@@ -254,6 +276,13 @@ export async function saveSection(sectionId: string, values: Record<string, stri
   }
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
+  const problems = profileProblems({ ...valuesOf(fields), ...valuesOf(updates) });
+  for (const def of FIELDS.filter((d) => d.section === sectionId)) {
+    const conflict = problemFor(problems, def.key);
+    if (conflict) errors[def.key] = conflict;
+  }
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+
   await store.saveProfileFields(updates);
   await store.confirmSection(sectionId, now);
   const [after, confirmations, snapshot] = await Promise.all([store.getProfileFields(), store.getSectionConfirmations(), store.getSnapshot()]);
@@ -314,13 +343,18 @@ export async function getRiskInputs(riskId: string): Promise<RiskInputs> {
   const byKey = new Map(fields.map((f) => [f.key, f]));
   const impacts = allImpacts.filter((i) => i.signal.riskId === riskId);
   return {
-    fields: FIELDS.filter((d) => d.risks.includes(riskId as RiskId)).map((def) => ({
-      key: def.key,
-      label: def.label,
-      value: formatValue(def, byKey.get(def.key)?.value ?? null) || "Not recorded",
-      sectionId: def.section,
-      sectionTitle: SECTIONS.find((s) => s.id === def.section)?.title ?? def.section,
-    })),
+    fields: FIELDS.filter((d) => d.risks.includes(riskId as RiskId)).map((def) => {
+      const live = byKey.get(def.key)?.value ?? null;
+      const frozen = snapshot.fields[def.key] ?? null;
+      return {
+        key: def.key,
+        label: def.label,
+        value: formatValue(def, live) || "Not recorded",
+        snapshotValue: String(live ?? "") === String(frozen ?? "") ? undefined : formatValue(def, frozen) || "Not recorded",
+        sectionId: def.section,
+        sectionTitle: SECTIONS.find((s) => s.id === def.section)?.title ?? def.section,
+      };
+    }),
     exposure: snapshot.exposures.find((e) => e.riskId === riskId) ?? null,
     snapshot: { version: snapshot.version, takenAt: snapshot.takenAt },
     impacts,
@@ -378,6 +412,8 @@ export async function updateRiskProfile(
 ): Promise<{ ok: true; version: number; takenAt: string; meta: AssessmentMeta } | { ok: false; error: string }> {
   const store = await getStore();
   const [fields, previous, assessment] = await Promise.all([store.getProfileFields(), store.getSnapshot(), store.getAssessment()]);
+  const problems = profileProblems(valuesOf(fields));
+  if (problems.length) return { ok: false, error: `Not updated: fix the farm profile first. ${describeProblems(problems)}` };
   const now = new Date();
   const takenAt = now.toISOString();
   const snapshot = makeSnapshot({
@@ -544,6 +580,42 @@ export async function addDemoDocument(name: keyof typeof DEMO_DOCUMENTS): Promis
   return runDocument({ name, file: { data: (await readFile(file)).toString("base64"), mimeType } });
 }
 
+/* ---------- Activity: what the agents did and what the farmer decided ---------- */
+
+export interface Activity {
+  turns: ChatTurn[];
+  decisions: PendingChange[];
+  snapshots: { version: number; takenAt: string; reason: string }[];
+  totals: { answered: number; failed: number; toolCalls: number; caught: number; caughtReplies: number; heldBack: number };
+}
+
+/** The action log: every chat turn (both channels) with its tool calls and figure checks, every approval decision and snapshot. */
+export async function getActivity(): Promise<Activity> {
+  const store = await getStore();
+  const [turns, pending, snapshots] = await Promise.all([
+    store.listChatTurns(100).catch((err) => {
+      console.warn("[data] couldn't load the chat log", err);
+      return [] as ChatTurn[];
+    }),
+    store.getPendingChanges(),
+    store.listSnapshots(20),
+  ]);
+  const newest = [...turns].reverse();
+  return {
+    turns: newest,
+    decisions: pending.filter((p) => p.status !== "pending"),
+    snapshots,
+    totals: {
+      answered: turns.filter((t) => t.status === "answered").length,
+      failed: turns.filter((t) => t.status === "failed").length,
+      toolCalls: turns.reduce((s, t) => s + (t.tools?.length ?? 0), 0),
+      caught: turns.reduce((s, t) => s + (t.checker?.flagged.length ?? 0), 0),
+      caughtReplies: turns.filter((t) => (t.checker?.flagged.length ?? 0) > 0).length,
+      heldBack: turns.filter((t) => t.checker?.blocked).length,
+    },
+  };
+}
+
 /* ---------- Not in the database yet: calendar, reminders, what-if ---------- */
 
 export async function getCalendar(): Promise<CalendarItem[]> {
@@ -554,12 +626,46 @@ export async function getReminders(): Promise<Reminder[]> {
   return structuredClone(mock.reminders);
 }
 
+/** The what-if's starting point, from the risk profile snapshot: the same tonnes, prices and debt as every other page. */
+function whatIfBase(snapshot: ProfileSnapshot, typicalProfit: number): WhatIfBase {
+  const v = snapshot.fields;
+  const n = (key: string) => {
+    const x = Number(v[key] ?? 0);
+    return Number.isFinite(x) ? x : 0;
+  };
+  const price = (id: keyof MarketBaseline) => snapshot.market[id]?.value ?? 0;
+  const crop = (id: string) => n(`crop.${id}.area_ha`) * n(`crop.${id}.yield_t_ha`);
+  const variable = /variable|tracker|base|sonia/i.test(String(v["fin.loan_rate_type"] ?? ""));
+  return {
+    profitK: typicalProfit / 1000,
+    wheatPrice: price("wheat_feed_gbp_t"),
+    anPrice: price("an_gbp_t"),
+    wheatStoreT: n("sales.wheat_2026_unsold_t"),
+    wheatCropT: crop("wheat"),
+    wheatForwardT: n("sales.wheat_2027_forward_t"),
+    otherCropsK: (crop("barley") * price("barley_feed_gbp_t") + crop("osr") * price("osr_gbp_t")) / 1000,
+    anUnboughtT: Math.max(0, n("inputs.n_need_t") - n("inputs.n_bought_t")),
+    variableDebtK: variable ? n("fin.loan") / 1000 : 0,
+  };
+}
+
 export async function getWhatIfConfig(): Promise<{
+  base: WhatIfBase;
   baseline: WhatIfInputs;
   presets: WhatIfPreset[];
   sliders: WhatIfSlider[];
 }> {
-  return structuredClone({ baseline: mock.whatIfBaseline, presets: mock.whatIfPresets, sliders: mock.whatIfSliders });
+  const [snapshot, { meta }] = await Promise.all([loadSnapshot(), loadAssessment()]);
+  const base = whatIfBase(snapshot, meta.typicalProfit);
+  const baseline: WhatIfInputs = { ...mock.whatIfBaseline, wheatPrice: base.wheatPrice, fertiliserPrice: base.anPrice };
+  // Presets change one thing; everything else starts from the snapshot's prices.
+  const presets = mock.whatIfPresets.map((p) => ({
+    ...p,
+    inputs: Object.fromEntries(
+      (Object.keys(baseline) as (keyof WhatIfInputs)[]).map((k) => [k, p.inputs[k] === mock.whatIfBaseline[k] ? baseline[k] : p.inputs[k]])
+    ) as unknown as WhatIfInputs,
+  }));
+  return structuredClone({ base, baseline, presets, sliders: mock.whatIfSliders });
 }
 
 /* ---------- Onboarding ---------- */

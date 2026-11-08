@@ -14,6 +14,7 @@ Mitigations are options to discuss with your merchant, adviser or bank, not advi
 4. `/trace/[runId]` (or `/trace` for the latest run): every step of a run, the hash-chain check, the kill switch and the "Run judgement" button.
 5. `/evidence`: the evaluation results.
 6. `/profile#approvals`: the farmer's approval queue for agent proposals.
+7. `/activity`: the chat action log (tool calls, figure checks, decisions, snapshots).
 
 ### Architecture
 
@@ -35,7 +36,7 @@ The five functions the judge may call: `get_engine_results`, `get_documents`, `g
 - **From raw data to output.** On `/trace/[runId]` each cited £ figure links to its function result, then the observation, then the source. A risk page's "View trace" link lands on the figure's row with its formula, inputs and source (`docs/eval/screenshots/trace-figure-anchor.png`). The risk page keeps a hand-checkable closed-form working beside the simulation's 1-in-20 figure, with seed and path count (`risk-simulation-check.png`).
 - **The model's text is checked by code.** `checkFiguresStrict` in `lib/agents/checker.ts` NFKC-normalises every string field of the judgement and blocks any digit that does not match an engine figure with the same unit and sign, gain words in front of a negative figure, and unknown figure ids. A blocked run's explanation is withheld on the trace page. In the 2 live runs under the strict checker, it passed every figure (`docs/eval/run-timings.md`, runs 7 and 8).
 - **Documents are quoted, not paraphrased.** Gemini 3.8 Flash returns each field with a quote; `lib/agents/documents/extract.ts` keeps a field only if the quote is in the document text. A proposal needs a quote from this run's document that contains the value.
-- **What would change its mind.** The judgement schema (`lib/agents/risk/schema.ts`) has a required `change_my_mind` list; each entry must name an engine threshold id, and the strict checker rejects unknown ids.
+- **What would change its mind.** The judgement schema (`lib/agents/risk/schema.ts`) has a required `change_my_mind` list; each entry must name an engine threshold id, and the strict checker rejects unknown ids. Each risk page also shows, worked out in code, the exposure at which the risk's score moves or the farm comes back inside its loss limit (`lib/what-would-change.ts`).
 - **Every step is recorded.** Each event's hash is `sha256(prev_hash || canonical({seq,type,actor,body}))`; the trace page recomputes the chain and shows whether it is intact, with the Gemini interaction id on every model turn (`trace-published.png`, `trace-published-judgement.png`).
 
 ## Testing on unseen data (25%)
@@ -87,7 +88,7 @@ Gemini 4 Argon, `thinking_level: medium`, live calls; cost computed in code from
 
 ### Controls enforced in code
 
-None of these rely on the prompt. Tests with scripted clients are in `tests/risk-agent.test.ts`, `tests/judge-route.test.ts`, `tests/trace.test.ts`, `tests/screen.test.ts` and `tests/migration.test.ts`.
+None of these rely on the prompt. Tests with scripted clients are in `tests/risk-agent.test.ts`, `tests/judge-route.test.ts`, `tests/trace.test.ts`, `tests/screen.test.ts`, `tests/migration.test.ts`, `tests/chat-agent.test.ts` and `tests/middleware.test.ts`.
 
 | Control | Enforced in |
 |---|---|
@@ -104,11 +105,17 @@ None of these rely on the prompt. Tests with scripted clients are in `tests/risk
 | No agent writes the profile: proposals go to `pending_changes`; the `risk_agent` database role has no write grant on `profile_fields` | `lib/agents/risk/tools.ts`, `supabase/migrations/0005_agent_runs.sql` |
 | Append-only trace: triggers reject update, delete and truncate on `agent_events` and `observations` | `supabase/migrations/0005_agent_runs.sql` |
 | Hash chain over every event, verified on read | `lib/trace/chain.ts` (`verifyChain`) |
-| iMessage agent is read-only; every figure in a reply must appear in a tool result or the farmer's message | `lib/agents/chat/tools.ts`, `lib/agents/checker.ts` |
+| iMessage and in-app chat agent is read-only; every figure in a reply must match a tool result or the farmer's message in size and direction; one rewrite, then the reply is held back and the turn logged `blocked` (fails closed) | `lib/agents/chat/tools.ts`, `lib/agents/chat/agent.ts`, `lib/agents/checker.ts` |
+| Loss limit: the largest loss the farmer says the farm can take is checked against the whole-farm 1-in-20 bad year and each risk alone; shown on the overview, each risk page and in the chat tools; an unconfirmed limit is flagged, not treated as final | `lib/limits.ts` |
+| Input checks: believable maximum per unit, UK date order, one number per field, and checks across fields (crop area vs land farmed, forward sales vs the crop); they block saving, approving a proposed change and updating the risk profile | `lib/profile/values.ts`, `lib/profile/checks.ts`, `lib/data.ts` |
+| Password lock: with `HEDGED_PASSWORD` set, every page, server action and API route asks for it (HTTP Basic); the Inkbox webhook and `/api/mcp` keep their own checks (signature, bearer `MCP_TOKEN`) | `middleware.ts` |
+| Sender allow-list: with `INKBOX_ALLOWED_SENDERS` set, the iMessage agent answers only those senders | `lib/agents/chat/imessage.ts` |
+| In-app question cap, counted from the shared chat log so it holds across serverless instances | `lib/agents/chat/web.ts` |
+| Chat action log at `/activity`: every chat turn with its tool calls and figure checks, every approval decision, every snapshot | `lib/data.ts` (`getActivity`), `app/activity/page.tsx` |
 
 **Human in the loop.** The farmer approves or rejects each proposed change with a tap at `/profile#approvals` (`docs/eval/screenshots/approvals-agent-proposal.png`). The approve or reject is appended to the run's chain.
 
-**A control firing on screen.** The kill switch stopped a live run mid-judgement; the run ended `killed` with the chain intact (`docs/eval/screenshots/kill-switch-fired.png`, `kill-switch-fired-events.png`). The injection photo was held before any judge call (`trace-held-injection-photo.png`). The other controls (budget, turn and proposal caps, 270 s deadline, denied function, figure checker block, non-verbatim quote, second judge request) fire only in the scripted tests; none fired in the live runs.
+**A control firing on screen.** The kill switch stopped a live run mid-judgement; the run ended `killed` with the chain intact (`docs/eval/screenshots/kill-switch-fired.png`, `kill-switch-fired-events.png`). The injection photo was held before any judge call (`trace-held-injection-photo.png`). The loss limit fires in the UI: the overview banner turns red when the whole-farm 1-in-20 bad year is past the farmer's limit, and each risk page shows whether the options added bring it back inside (`lib/limits.ts`). The other controls (budget, turn and proposal caps, 270 s deadline, denied function, figure checker block, non-verbatim quote, second judge request) fire only in the scripted tests; none fired in the live runs.
 
 ### EU AI Act record-keeping
 
@@ -150,12 +157,13 @@ Hedged is not claimed to be a high-risk system. Article 12(3) applies only to An
 - Judge timing is 6 live runs; p50 43.5 s is close to Vercel Hobby's 60 s cap and one run took 69 s. `/api/judge` asks for 300 s, so it needs Vercel Pro, or run the judge locally with `bun run agent:demo`.
 - Live, only the kill switch and the screen hold have fired. The other controls fire only in scripted tests.
 - On Vercel, set `AGENT_TABLES=1` and apply `supabase/migrations/0005_agent_runs.sql`: the in-memory agent store does not survive across serverless invocations.
-- Every server action in `lib/data.ts` is public, so in the demo anyone can call `setPaused(false)` and restart a stopped agent. Real authentication is a next step.
+- Unless `HEDGED_PASSWORD` is set, every server action in `lib/data.ts` is public, so anyone can call `setPaused(false)` and restart a stopped agent. The password is one shared secret, not per-user authentication; that is a next step.
 - DSCR leaves out the depreciation add-back, because the profile has no depreciation field.
 - The `backtest_results` table is never written; the backtest output lives in `docs/eval/backtest.json`.
-- The figure checker does not parse spelled-out numbers ("one in four"), so a figure written in words is not checked.
+- The judge's strict checker does not parse spelled-out numbers ("one in four"). The chat checker flags some worded amounts ("a hundred and fifty thousand pounds", "twenty per cent"), not every form.
 - The `assessments` columns `run_id`, `status` and `head_hash` are not written; the assessment's run and its current head are resolved when it is read.
 - `/trace` with no run id shows the latest run, which may not be the run behind the assessment on screen.
+- The closed-form working on each risk page (exposure × a price or yield swing × 1.65, risks combined as independent swings, √ of the sum of squares) uses normal tails, which understate extreme years, and no natural hedge between price and yield. Minimum-price contracts are modelled like forward sales; the what-if moves one driver at a time from the snapshot; there is one demo farm.
 - This README cites no survey or interviews of farmers; the user need is stated, not measured here.
 
 ## Run it
@@ -185,7 +193,7 @@ Without `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` the app runs on in-
 
 `supabase/seed.sql` is generated from the demo data (`lib/mock.ts`, `lib/profile/fenland-ridge.ts`): change those, then run `bun run db:seed-sql`. Re-running the seed resets the demo farm.
 
-Routes: `/onboarding`, `/overview`, `/risks/[id]`, `/what-if`, `/calendar`, `/profile`, `/documents`, `/trace/[runId]`, `/evidence`.
+Routes: `/onboarding` (setup), `/overview`, `/risks/[id]`, `/what-if`, `/calendar`, `/profile`, `/activity` (chat action log), `/documents`, `/trace/[runId]` (agent runs), `/evidence`.
 
 ### Plugging in the backend
 
@@ -195,7 +203,9 @@ Routes: `/onboarding`, `/overview`, `/risks/[id]`, `/what-if`, `/calendar`, `/pr
 - `lib/profile/`: the farm profile catalogue, the demo farm's profile, and the risk profile maths (exposures from a snapshot, news measured against it).
 - `lib/mock.ts`: demo assessment, imported only by the data layer and the seed script.
 - `lib/score.ts`: 1–10 score from bad-year hit as a % of typical profit.
-- `lib/sim.ts`: client-side demo maths for the risk pages and the what-if.
+- `lib/sim.ts`: the risk simulation and the what-if (built from the snapshot).
+- `lib/what-would-change.ts`: the exposure at which each risk's score moves, or the farm comes back inside its loss limit.
+- `lib/limits.ts`, `lib/profile/checks.ts`: the loss limit and the input checks (see Controls).
 
 ### iMessage assistant (Inkbox)
 
@@ -239,6 +249,8 @@ Copy `.env.example` to `.env.local`. Everything except `NEXT_PUBLIC_*` is server
 | `RISK_AGENT_DATABASE_URL` | Optional Postgres URL for the restricted `risk_agent` role |
 | `TYPESAFE_API_KEY` | Jev input screen. Without it, free text from outside sources is held for review |
 | `MCP_TOKEN` | Bearer token for `/api/mcp`; unset disables the route |
+| `HEDGED_PASSWORD` | Optional password for the whole deployed app (HTTP Basic, any username); unset = open |
+| `INKBOX_ALLOWED_SENDERS` | Optional comma-separated senders the iMessage agent answers; unset = anyone who connects |
 
 ## Data and licences
 
@@ -252,5 +264,6 @@ Copy `.env.example` to `.env.local`. Everything except `NEXT_PUBLIC_*` is server
 | Demo documents and photos (`data/demo/`) | Generated by `scripts/make-demo-docs.py` (Pillow) | made for this project | Synthetic |
 | Farm attack and clean texts (`data/eval/farm-attacks.json`) | Written by an AI subagent that did not see the screen code | made for this project | Synthetic |
 | Farm photo cases (`data/eval/image-attacks/`) | 10 rendered documents made by the team, 5 with a printed instruction | made for this project | Synthetic |
+| Live adapters, not yet wired into the figures (`lib/live.ts`) | AHDB delivered prices and fertiliser series; Bank of England Bank Rate and SONIA; Open-Meteo forecast and soil moisture | AHDB terms; Bank of England terms; CC BY 4.0 | Real; endpoints and licences in `docs/architecture.md` §3 |
 
 The history is loaded by `scripts/load-history.ts`. No real financial records, account details or logins are used.

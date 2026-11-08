@@ -21,8 +21,12 @@ const config = {
 export function SimulationBars({ bars, ghost, height = 260 }: { bars: number[]; ghost: number[]; height?: number }) {
   const data = bars.map((after, i) => ({ year: i + 1, after, before: ghost[i] }));
   const all = [...bars, ...ghost, 0];
-  const lo = Math.floor(Math.min(...all) / 25) * 25;
-  const hi = Math.ceil(Math.max(...all) / 25) * 25;
+  // Round £k steps that include £0, at most about five ticks.
+  const span = Math.max(...all) - Math.min(...all);
+  const step = [25, 50, 100, 150, 200, 250, 500, 1000].find((s) => span / s <= 5) ?? 2000;
+  const lo = Math.floor(Math.min(...all) / step) * step;
+  const hi = Math.ceil(Math.max(...all) / step) * step;
+  const ticks = Array.from({ length: Math.round((hi - lo) / step) + 1 }, (_, i) => lo + i * step);
   const losses = bars.filter((b) => b < 0).length;
   const ghostLosses = ghost.filter((b) => b < 0).length;
 
@@ -32,7 +36,7 @@ export function SimulationBars({ bars, ghost, height = 260 }: { bars: number[]; 
       aria-label={`20 simulated years of farm profit. ${losses} loss-making years (today ${ghostLosses}). Worst ${gbpK(bars[0])}, best ${gbpK(bars[bars.length - 1])}.`}
     >
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
-        <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 12 }}>
+        <AreaChart data={data} margin={{ top: 8, right: 32, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="fillAfter" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="var(--color-after)" stopOpacity={0.8} />
@@ -49,17 +53,33 @@ export function SimulationBars({ bars, ghost, height = 260 }: { bars: number[]; 
             tickLine={false}
             axisLine={false}
             tickMargin={8}
-            minTickGap={32}
-            tickFormatter={(v: number) => `Year ${v}`}
+            ticks={[1, 10, 20]}
+            interval={0}
+            tickFormatter={(v: number) => (v === 1 ? "Worst year" : v === 20 ? "Best year" : "Middle")}
           />
-          <YAxis hide domain={[lo, hi]} />
-          <ReferenceLine y={0} stroke="#121611" strokeWidth={1} strokeDasharray="3 3" />
+          <YAxis
+            domain={[lo, hi]}
+            width={52}
+            tickLine={false}
+            axisLine={false}
+            ticks={ticks}
+            interval={0}
+            tickFormatter={(v: number) => gbpK(v)}
+            tick={{ fontSize: 11.5, fill: "#565C50" }}
+          />
+          <ReferenceLine
+            y={0}
+            stroke="#121611"
+            strokeWidth={1}
+            strokeDasharray="3 3"
+            label={{ value: "£0: break-even", position: "insideTopLeft", fontSize: 11.5, fill: "#565C50" }}
+          />
           <ChartTooltip
             cursor={false}
             content={
               <ChartTooltipContent
                 indicator="dot"
-                labelFormatter={(_, payload) => `Year ${payload[0]?.payload?.year} of 20`}
+                labelFormatter={(_, payload) => `Simulated year ${payload[0]?.payload?.year} of 20, sorted worst to best`}
                 valueFormatter={(v) => gbpK(Number(v))}
               />
             }

@@ -30,7 +30,9 @@ export function RiskTable({ risks }: { risks: RiskResult[] }) {
           <TableHead className={th}>Risk</TableHead>
           <TableHead className={cn(th, "text-right")}>Bad year</TableHead>
           <TableHead className={cn(th, "text-right")}>% of profit</TableHead>
-          <TableHead className={cn(th, "text-right")}>7-day</TableHead>
+          <TableHead className={cn(th, "whitespace-nowrap text-right")} title="Change in the bad-year hit over the last 7 days. Down (green) is better.">
+            Bad year, 7 days
+          </TableHead>
           <TableHead className={cn(th, "pr-5")}>Mitigation</TableHead>
         </TableRow>
       </TableHeader>

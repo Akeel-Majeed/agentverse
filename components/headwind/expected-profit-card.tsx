@@ -12,7 +12,7 @@ export function ExpectedProfitCard({ summary, harvestYear }: { summary: ProfitSu
       <CardHeader title="Expected profit" description={`${harvestYear} harvest year`} />
       <CardBody className="flex flex-col gap-5">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <MoneyFigure detail={profitDetail(summary, "expected")} className="text-[40px] font-medium leading-none tracking-[-0.03em] text-ink">
+          <MoneyFigure detail={profitDetail(summary, "expected", harvestYear)} className="text-[40px] font-medium leading-none tracking-[-0.03em] text-ink">
             {gbp(summary.expected)}
           </MoneyFigure>
           <p className={`text-[13px] font-medium tabular ${deltaTone}`}>
@@ -20,6 +20,10 @@ export function ExpectedProfitCard({ summary, harvestYear }: { summary: ProfitSu
           </p>
         </div>
         <RangeBar low={summary.badYear} high={summary.goodYear} marker={summary.expected} />
+        <p className="-mt-2 text-[12.5px] leading-relaxed text-sub">
+          Bad and good years are for all five risks together. They rarely peak in the same year, so the bad year is not expected profit minus every
+          risk&apos;s bad-year hit.
+        </p>
         <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line">
           <div className="bg-panel px-4 py-3">
             <dt className="text-label text-sub">Chance of a loss</dt>

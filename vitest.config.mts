@@ -12,6 +12,7 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
+    setupFiles: ["tests/setup.ts"],
     // Always test against the demo data, never a configured database or live API.
     env: { NEXT_PUBLIC_SUPABASE_URL: "", SUPABASE_SECRET_KEY: "", ANTHROPIC_API_KEY: "", INKBOX_API_KEY: "" },
   },

@@ -124,7 +124,8 @@ function regulation(v: Values): RiskExposure {
 }
 
 function interestRates(v: Values): RiskExposure {
-  const variable = String(v["fin.loan_rate_type"] ?? "").toLowerCase().includes("variable");
+  // Variable, tracker and base- or SONIA-linked loans all move with Bank Rate.
+  const variable = /variable|tracker|base|sonia/i.test(String(v["fin.loan_rate_type"] ?? ""));
   const debt = variable ? n(v, "fin.loan") : 0;
   return {
     riskId: "interest_rates",
