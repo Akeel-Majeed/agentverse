@@ -51,7 +51,7 @@ function deps(over: Partial<IMessageDeps> = {}) {
       { direction: "inbound", content: "hello", createdAt: new Date("2026-11-07T18:59:00Z") },
     ],
     send: async (_c, text, key) => void (order.push("send"), sent.push({ text, key })),
-    recall: vi.fn(async () => ({ conversationId: "conv_1", notes: "- 6 Nov: asked about fixing the loan", turns: 3, updatedAt: "2026-11-06T09:00:00Z" })),
+    recall: vi.fn(async () => ({ notes: "- 6 Nov: asked about fixing the loan", turns: 3, updatedAt: "2026-11-06T09:00:00Z" })),
     answer: vi.fn(async () => answer),
     remember: vi.fn(async () => void order.push("remember")),
     ...over,
@@ -82,7 +82,7 @@ describe("iMessage handler", () => {
   it("updates the memory with the exchange after the reply is sent", async () => {
     await handleIMessage(payload(), t.d);
     expect(t.order).toEqual(["send", "remember"]);
-    expect(t.d.remember).toHaveBeenCalledWith("conv_1", expect.objectContaining({ turns: 3 }), {
+    expect(t.d.remember).toHaveBeenCalledWith(expect.objectContaining({ turns: 3 }), {
       question: "What's my biggest risk?",
       answer: answer.text,
       at: "2026-11-07T20:00:00Z",

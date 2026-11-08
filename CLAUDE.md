@@ -7,6 +7,7 @@ Risk intelligence for UK farmers (hackathon project). The product is called **He
 ```
 app/                    pages: onboarding (setup flow), overview, risks, risks/[id], what-if, profile, calendar
                         api/inkbox/webhook   iMessage in → chat agent → reply
+                        api/assistant        in-app "Ask Hedged" panel, same agent
 components/headwind/    app components; ui/ = shadcn
 lib/data.ts             the only data import for components (server functions + actions)
 lib/server/store.ts     Supabase if configured and seeded, else in-memory demo data
@@ -17,18 +18,18 @@ lib/figures.ts          the working behind every clickable £ figure
 lib/live.ts             live market/rate/weather adapters (not wired in yet; check: bun scripts/live-check.ts)
 lib/agents/checker.ts   blocks reply figures no tool or user message contains
 lib/agents/chat/        iMessage agent: tools (read-only), agent (prompt + checker retry),
-                        memory (running notes per conversation), imessage + inkbox (wiring)
+                        memory (shared running notes), history, imessage + inkbox + web (wiring)
 lib/mock.ts, profile/fenland-ridge.ts   demo data, also the source of supabase/seed.sql
 scripts/                ask (chat CLI + eval: bun run ask --eval), generate-seed, inkbox-setup
 ```
 
 **Five risks** (ids): `output_prices`, `input_prices`, `weather_yield`, `regulation`, `interest_rates`.
 
-**Supabase** (keyed by `farm_id`, migrations in `supabase/migrations/`, run in order; seed via `bun run db:seed-sql`): `farms`, `profile_fields`, `profile_sections`, `profile_snapshots`, `assessments`, `pending_changes`, `market_data`, `signals`, `signal_impacts`, views `latest_assessment`/`latest_snapshot`, `chat_turns` (chat action log), `chat_memory` (chat notes; context only, never a figure source).
+**Supabase** (keyed by `farm_id`, migrations in `supabase/migrations/`, run in order; seed via `bun run db:seed-sql`): `farms`, `profile_fields`, `profile_sections`, `profile_snapshots`, `assessments`, `pending_changes`, `market_data`, `signals`, `signal_impacts`, views `latest_assessment`/`latest_snapshot`, `chat_turns` (chat action log, both channels), `chat_memory` (chat notes per farm; context only, never a figure source).
 
 **Risk profile flow:** farmer edits profile → "Update risk profile" freezes a snapshot → assessment built from it → each signal measured against the snapshot in code → impacts over £5k become alerts.
 
-**Chat agent:** short iMessage replies, answers only what was asked, no figures unprompted. Sees memory notes + last 24 messages. Every figure from a tool; checker forces a rewrite otherwise. No write tools.
+**Chat agent:** one conversation across iMessage and the in-app panel. Short replies, answers only what was asked, no figures unprompted. Sees shared memory notes + last 24 messages from `chat_turns`. Every figure from a tool; checker forces a rewrite otherwise. No write tools.
 
 ## Status and next steps
 

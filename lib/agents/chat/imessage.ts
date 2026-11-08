@@ -60,11 +60,11 @@ export interface IMessageDeps {
   typing(conversationId: string): Promise<void>;
   history(conversationId: string): Promise<Pick<IMessage, "direction" | "content" | "createdAt">[]>;
   send(conversationId: string, text: string, idempotencyKey: string): Promise<void>;
-  /** Running notes on this conversation, or null if none yet. */
-  recall(conversationId: string): Promise<ChatMemory | null>;
+  /** Running notes on the farm's conversation, or null if none yet. */
+  recall(): Promise<ChatMemory | null>;
   answer(messages: Anthropic.Beta.BetaMessageParam[], context: string): Promise<ChatResult>;
   /** Fold an answered exchange into the notes. Runs after the reply is sent. */
-  remember(conversationId: string, previous: ChatMemory | null, exchange: Exchange): Promise<void>;
+  remember(previous: ChatMemory | null, exchange: Exchange): Promise<void>;
 }
 
 /** Which webhook events the agent answers: inbound one-to-one text messages. */
@@ -102,7 +102,7 @@ export async function handleIMessage(payload: IMessageWebhookPayload, deps: IMes
     const past = (await deps.history(inbound.conversationId)).filter((m) => new Date(m.createdAt).getTime() <= at);
     const present = past.some((m) => m.direction === "inbound" && m.content?.trim() === inbound.text);
     const history = historyToMessages(present ? past : [...past, { direction: "inbound", content: inbound.text, createdAt: new Date(inbound.createdAt) }]);
-    const memory = await deps.recall(inbound.conversationId).catch((err) => {
+    const memory = await deps.recall().catch((err) => {
       console.warn("[chat] couldn't read the memory; answering without it", err);
       return null;
     });
@@ -116,7 +116,7 @@ export async function handleIMessage(payload: IMessageWebhookPayload, deps: IMes
       model: result.model,
     });
     await deps
-      .remember(inbound.conversationId, memory, { question: inbound.text, answer: result.text, at: inbound.createdAt })
+      .remember(memory, { question: inbound.text, answer: result.text, at: inbound.createdAt })
       .catch((err) => console.warn("[chat] couldn't update the memory", err));
     return "answered";
   } catch (err) {

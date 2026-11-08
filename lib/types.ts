@@ -356,10 +356,15 @@ export type SaveSectionResult =
   | { ok: false; errors: Record<string, string> };
 
 /** One question answered by the chat agent, as logged in `chat_turns`. */
+export type ChatChannel = "imessage" | "web";
+
 export interface ChatTurn {
   inboundMessageId: string;
   conversationId: string;
   question: string;
+  /** Where the question was asked. Both channels share one history. */
+  channel?: ChatChannel;
+  createdAt?: string;
   status: "answering" | "answered" | "failed";
   answer?: string;
   tools?: { name: string; input: unknown; ms: number }[];
@@ -368,9 +373,8 @@ export interface ChatTurn {
   error?: string;
 }
 
-/** The chat agent's running notes on one iMessage conversation, as stored in `chat_memory`. */
+/** The chat agent's running notes on the farm's conversation (iMessage and app), as stored in `chat_memory`. */
 export interface ChatMemory {
-  conversationId: string;
   notes: string;
   /** Answered messages folded into the notes so far. */
   turns: number;

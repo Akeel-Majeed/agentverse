@@ -37,7 +37,7 @@ A chat agent that answers the farmer's questions about the risk profile, exposur
 
 - `lib/agents/chat/tools.ts`: read-only tools over the data layer and simulation code. Every figure is computed by code; there is no write tool.
 - `lib/agents/chat/agent.ts`: Anthropic SDK tool runner (model from `ANTHROPIC_MODEL`). Short text-message replies; it answers only what was asked and gives no figures unprompted.
-- `lib/agents/chat/memory.ts`: long-term memory. After each answered message the model folds the exchange into short running notes per conversation (`chat_memory`, run `supabase/migrations/0003_chat_memory.sql`). The agent sees the notes plus the last 24 messages verbatim. Notes hold no figures from past replies and never count as a source for the figure checker.
+- `lib/agents/chat/memory.ts`: long-term memory. After each answered message the model folds the exchange into short running notes per farm, shared by iMessage and the in-app assistant (`chat_memory`, run `supabase/migrations/0004_chat_memory.sql`). The agent sees the notes plus the last 24 messages verbatim. Notes hold no figures from past replies and never count as a source for the figure checker.
 - `lib/agents/checker.ts`: every figure in a reply must appear in a tool result or the farmer's message, or the agent rewrites the reply.
 - `app/api/inkbox/webhook/route.ts`: verifies the Inkbox signature, then answers in the same conversation. Every turn is logged in `chat_turns` (run `supabase/migrations/0002_chat_log.sql`).
 

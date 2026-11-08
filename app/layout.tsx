@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import localFont from "next/font/local";
 import { ApprovalProvider } from "@/components/headwind/approvals";
+import { Assistant } from "@/components/headwind/assistant";
 import { NAV_COOKIE } from "@/components/headwind/nav-state";
 import { TopNav } from "@/components/headwind/top-nav";
 import { getAssessmentMeta, getFarm, getPendingChanges } from "@/lib/data";
@@ -35,6 +36,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <ApprovalProvider initial={pending}>
           <TopNav farmName={farm.name} updatedAt={meta.updatedAt} initialCollapsed={navCollapsed} />
           <div className="transition-[padding] duration-200 ease-out motion-reduce:transition-none lg:pl-[var(--nav-w)]">{children}</div>
+          <Assistant />
         </ApprovalProvider>
       </body>
     </html>

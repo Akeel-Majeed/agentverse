@@ -1,7 +1,8 @@
 /**
- * Long-term memory for the chat agent: short running notes on each iMessage conversation
- * (what the farmer asked about, their plans and preferences, follow-ups offered), updated after
- * every answered message. The agent sees the notes plus the last messages verbatim.
+ * Long-term memory for the chat agent: short running notes on the farm's conversation (what the
+ * farmer asked about, their plans and preferences, follow-ups offered), shared by iMessage and the
+ * in-app assistant and updated after every answered question. The agent sees the notes plus the
+ * last messages verbatim.
  *
  * The notes are written by the model, so they are context, never a source: they hold no figures
  * from the assistant's replies, and the figure checker never counts them as one.
@@ -67,6 +68,12 @@ export async function updateMemory(previous: string | null, exchange: Exchange, 
     .join("\n");
   // Keep the old notes if the model returns nothing usable (refusal, empty).
   return res.stop_reason === "refusal" || !text.trim() ? (previous ?? "").trim() : clip(text);
+}
+
+/** The memory after one more answered exchange. */
+export async function nextMemory(previous: ChatMemory | null, exchange: Exchange, client?: Anthropic): Promise<ChatMemory> {
+  const notes = await updateMemory(previous?.notes ?? null, exchange, client);
+  return { notes, turns: (previous?.turns ?? 0) + 1, updatedAt: new Date().toISOString() };
 }
 
 /** The notes as a system block for the chat agent. */
