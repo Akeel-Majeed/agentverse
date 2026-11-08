@@ -3,15 +3,18 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { simDetail } from "@/lib/figures";
-import { amount, gbpK } from "@/lib/format";
+import { amount, gbp, gbpK } from "@/lib/format";
 import { scoreFromBadYear } from "@/lib/score";
 import { riskWorking, simulateRisk } from "@/lib/sim";
 import type { RiskResult } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { whatWouldChange } from "@/lib/what-would-change";
 import { Card, CardBody, CardHeader, Counter, Disclosure } from "./card";
 import { KpiCell, KpiStrip } from "./kpi-cell";
 import { MitigationList, MitigationRow } from "./mitigation-row";
 import { MoneyFigure } from "./money-figure";
 import { PageHeader } from "./page-header";
+import { SimulationCheck } from "./simulation-check";
 import { LevelLabel, ScoreRing } from "./score";
 import { SimulationBars } from "./simulation-bars";
 import { TradeoffTable } from "./tradeoff-table";
@@ -22,8 +25,11 @@ export function RiskDetail({
   typicalProfit,
   dateLabel,
   profile,
+  lossLimit = null,
 }: {
   risk: RiskResult;
+  /** The farm's loss limit in £ (ins.max_loss), checked live against the simulated bad year. */
+  lossLimit?: number | null;
   typicalProfit: number;
   dateLabel: string;
   /** Where the figures come from in the farm profile, shown before the working. */
@@ -39,6 +45,11 @@ export function RiskDetail({
   const hitDelta = sim.hitK - today.hitK;
   const profitDelta = sim.badYearProfitK - today.badYearProfitK;
   const exposureDelta = sim.exposure - today.exposure;
+  const changePoints = useMemo(
+    () => whatWouldChange({ ...risk.model, exposure: sim.exposure, meanK: sim.meanK }, typicalProfit, lossLimit),
+    [risk, sim, typicalProfit, lossLimit]
+  );
+  const pastLimit = (s: { badYearProfitK: number }) => lossLimit !== null && -s.badYearProfitK * 1000 > lossLimit;
 
   const toggle = (id: string) =>
     setActiveIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
@@ -81,11 +92,22 @@ export function RiskDetail({
             />
           }
           sub={
-            changed && Math.round(profitDelta) !== 0 ? (
-              <span className={profitDelta > 0 ? "text-good" : "text-bad"}>{gbpK(profitDelta, { sign: true })} vs today</span>
-            ) : (
-              `Expected ${gbpK(sim.meanK)}`
-            )
+            <>
+              {changed && Math.round(profitDelta) !== 0 ? (
+                <span className={profitDelta > 0 ? "text-good" : "text-bad"}>{gbpK(profitDelta, { sign: true })} vs today</span>
+              ) : (
+                `Expected ${gbpK(sim.meanK)}`
+              )}
+              {lossLimit !== null ? (
+                <span className={cn("mt-0.5 block font-medium", pastLimit(sim) ? "text-bad" : "text-good")}>
+                  {pastLimit(sim)
+                    ? `Past your ${gbp(lossLimit)} loss limit`
+                    : pastLimit(today)
+                      ? `Back inside your ${gbp(lossLimit)} limit`
+                      : `Inside your ${gbp(lossLimit)} limit`}
+                </span>
+              ) : null}
+            </>
           }
         />
         <KpiCell
@@ -138,6 +160,30 @@ export function RiskDetail({
         </CardBody>
       </Card>
 
+      <Card label="What would change this">
+        <CardHeader
+          title="What would change this"
+          description={
+            changed
+              ? "Calculated from the exposure left after the options you've added."
+              : "Calculated from the same model as the figures above: how far the exposure has to move to change the picture."
+          }
+        />
+        <CardBody>
+          <ul className="flex flex-col gap-3">
+            {changePoints.map((p) => (
+              <li key={p.text} className="flex gap-3 text-[14px] leading-relaxed">
+                <span aria-hidden className={cn("mt-2 h-2 w-2 shrink-0 rounded-full", p.direction === "better" ? "bg-good" : "bg-bad")} />
+                <span className="min-w-0">
+                  {p.text}
+                  <span className="mt-0.5 block break-words font-mono text-[12px] text-sub">{p.working}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </CardBody>
+      </Card>
+
       {profile}
 
       <Card label="How this was worked out">
@@ -173,6 +219,7 @@ export function RiskDetail({
           </Disclosure>
         </div>
       </Card>
+      {risk.simulation ? <SimulationCheck riskId={risk.id} simulation={risk.simulation} /> : null}
       <Disclaimer className="px-1" />
     </div>
   );

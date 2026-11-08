@@ -88,9 +88,11 @@ export interface RiskResult {
   sources: Source[];
   mitigations: Mitigation[];
   model: ExposureModel;
+  /** Monte Carlo result for this risk, shown beside the hand-checkable working. */
+  simulation?: { runId: string; p5Hit: number; p5HitDisplay: string; score: number; seed: number; paths: number; configHash: string };
 }
 
-export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house";
+export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house" | "agent";
 export type PendingStatus = "pending" | "approved" | "rejected";
 
 export interface PendingChange {
@@ -104,6 +106,9 @@ export interface PendingChange {
   reason: string;
   status: PendingStatus;
   receivedAt?: string;
+  /** Agent proposals: the run that proposed it and the verbatim quote it rests on. */
+  runId?: string;
+  evidence?: { observationId: string; quote: string };
 }
 
 export type CalendarLane = "Selling" | "Inputs" | "Finance" | "Schemes" | "Markets";
@@ -151,6 +156,10 @@ export interface AssessmentMeta {
   updatedAt: string;
   harvestYear: number;
   typicalProfit: number;
+  /** Agent run behind this assessment (phase one), its status and trace head hash. */
+  runId?: string;
+  runStatus?: string;
+  headHash?: string;
 }
 
 export interface Reminder {
@@ -345,7 +354,8 @@ export interface RiskProfileRow {
 
 /** Everything the risk page shows about where a risk's figures come from. */
 export interface RiskInputs {
-  fields: { key: string; label: string; value: string; sectionId: string; sectionTitle: string }[];
+  /** Live profile values; `snapshotValue` is set when the value has changed since the snapshot the figures use. */
+  fields: { key: string; label: string; value: string; snapshotValue?: string; sectionId: string; sectionTitle: string }[];
   exposure: RiskExposure | null;
   snapshot: { version: number; takenAt: string };
   impacts: SignalImpact[];
@@ -368,7 +378,7 @@ export interface ChatTurn {
   status: "answering" | "answered" | "failed";
   answer?: string;
   tools?: { name: string; input: unknown; ms: number }[];
-  checker?: { flagged: string[]; untraced: string[]; rewritten: boolean };
+  checker?: { flagged: string[]; untraced: string[]; rewritten: boolean; blocked?: boolean };
   model?: string;
   error?: string;
 }

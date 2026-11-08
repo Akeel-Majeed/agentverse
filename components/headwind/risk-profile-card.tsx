@@ -61,7 +61,7 @@ export function RiskProfileCard({
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {[...rows].sort((a, b) => b.score - a.score || b.badYear - a.badYear).map((r) => (
               <tr key={r.riskId} className="border-b border-line align-top last:border-0 hover:bg-panel">
                 <td className="py-3.5 pl-5">
                   <Link href={`/risks/${r.riskId}`} className="flex items-center gap-2.5 rounded-sm text-[14px] font-medium tracking-[-0.03em] hover:underline">
@@ -70,7 +70,7 @@ export function RiskProfileCard({
                   </Link>
                 </td>
                 <td className="max-w-[420px] py-3.5 pr-4 text-[12.5px] leading-relaxed text-sub">
-                  <span className="font-semibold text-ink tabular">{gbp(r.exposure.total)}</span> · {r.exposure.summary}
+                  {r.exposure.summary}
                 </td>
                 <td className="py-3.5 text-right text-[13px] font-medium tabular">{gbp(r.badYear)}</td>
                 <td className={cn("py-3.5 pr-5 text-right text-[13px] tabular", r.newsDelta < 0 ? "text-bad" : r.newsDelta > 0 ? "text-good" : "text-sub")}>

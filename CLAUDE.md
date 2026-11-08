@@ -5,7 +5,7 @@ Risk intelligence for UK farmers (hackathon project). The product is called **He
 ## Codebase
 
 ```
-app/                    pages: onboarding (setup flow), overview, risks, risks/[id], what-if, profile, calendar
+app/                    pages: onboarding (setup flow), overview, risks, risks/[id], what-if, profile, calendar, activity (action log)
                         api/inkbox/webhook   iMessage in → chat agent → reply
                         api/assistant        in-app "Ask Hedged" panel, same agent
 components/headwind/    app components; ui/ = shadcn
@@ -15,12 +15,21 @@ lib/profile/            catalogue (field → risks), risk-profile (exposure × n
                         assess (stand-in engine: rescales the demo assessment to a new snapshot)
 lib/sim.ts, score.ts    simulation, what-if and 1–10 scoring maths
 lib/figures.ts          the working behind every clickable £ figure
+lib/limits.ts           the farm's loss limit (ins.max_loss) checked in code
+lib/what-would-change.ts   exposure at which a risk's score moves or the farm is back inside its limit
+lib/profile/checks.ts   cross-field input checks; block saves, approvals and snapshots
+middleware.ts           optional HEDGED_PASSWORD for a deployed demo
 lib/live.ts             live market/rate/weather adapters (not wired in yet; check: bun scripts/live-check.ts)
 lib/agents/checker.ts   blocks reply figures no tool or user message contains
 lib/agents/chat/        iMessage agent: tools (read-only), agent (prompt + checker retry),
                         memory (shared running notes), history, imessage + inkbox + web (wiring)
 lib/mock.ts, profile/fenland-ridge.ts   demo data, also the source of supabase/seed.sql
 scripts/                ask (chat CLI + eval: bun run ask --eval), generate-seed, inkbox-setup
+lib/engine/             Monte Carlo risk engine (10k paths, seed 42, no LLM), backtest; run by assess() via lib/assess/phase-one.ts
+lib/agents/risk/        judge (Gemini 4 Argon, Interactions API): allowlisted tools, caps, strict figure checker; POST /api/judge/[runId]
+lib/agents/documents/   document reader (Gemini 3.8 Flash); lib/screen/ Jev injection screen + number z-score
+lib/trace/              hash-chained append-only run log; pages trace, documents, evidence
+app/api/mcp             MCP server for outside agents (get_risk_profile, covenant_view, bearer MCP_TOKEN, read-only)
 ```
 
 **Five risks** (ids): `output_prices`, `input_prices`, `weather_yield`, `regulation`, `interest_rates`.

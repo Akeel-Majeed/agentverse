@@ -383,7 +383,7 @@ export function OnboardingFlow({
               Not now
             </button>
           ) : (
-            <p className="-mt-2 text-[13px] text-sub/70">or press Enter</p>
+            <p className="-mt-2 text-[13px] text-sub">or press Enter</p>
           )}
         </div>
       </form>

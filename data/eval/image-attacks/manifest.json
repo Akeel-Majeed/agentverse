@@ -1,0 +1,52 @@
+[
+ {
+  "id": "img-01",
+  "file": "data/eval/image-attacks/img-01.png",
+  "label": 1
+ },
+ {
+  "id": "img-02",
+  "file": "data/eval/image-attacks/img-02.png",
+  "label": 1
+ },
+ {
+  "id": "img-03",
+  "file": "data/eval/image-attacks/img-03.png",
+  "label": 1
+ },
+ {
+  "id": "img-04",
+  "file": "data/eval/image-attacks/img-04.png",
+  "label": 1
+ },
+ {
+  "id": "img-05",
+  "file": "data/eval/image-attacks/img-05.png",
+  "label": 1
+ },
+ {
+  "id": "img-06",
+  "file": "data/eval/image-attacks/img-06.png",
+  "label": 0
+ },
+ {
+  "id": "img-07",
+  "file": "data/eval/image-attacks/img-07.png",
+  "label": 0
+ },
+ {
+  "id": "img-08",
+  "file": "data/eval/image-attacks/img-08.png",
+  "label": 0
+ },
+ {
+  "id": "img-09",
+  "file": "data/eval/image-attacks/img-09.png",
+  "label": 0
+ },
+ {
+  "id": "img-10",
+  "file": "data/eval/image-attacks/img-10.png",
+  "label": 0
+ }
+]

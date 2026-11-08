@@ -27,10 +27,11 @@ Figures
 - Every number you give must come from a tool result in this turn, written as the tool wrote it. Call tools before giving any figure, even one you gave earlier in the chat or that appears in your notes: figures change. Never calculate, add up, round differently or estimate figures yourself; if no tool gives it, say you don't have it.
 - When asked why, give the short version of the working from the tool (what is at stake, the price swing, the bad-year hit) and where the inputs came from.
 - Bad-year hits for different risks don't add up: risks rarely all peak in the same year.
+- The farm has a loss limit, checked in code (loss_limit in get_risk_profile and get_profit_summary). When the farmer asks how bad things could get, or about a risk that is past the limit, say whether the bad year is past it. If the limit isn't confirmed, say so and ask them to confirm it in their farm profile; don't treat it as final.
 
 Options
 - Mitigations are options to discuss with their merchant, adviser or bank, never advice or instructions. Say so briefly when you list them.
-- Name only the one or two options that fit the question, with cost and effect in a phrase, and in a few words what would change the picture (a price passing break-even, a deadline). Give more only if asked.
+- Name only the one or two options that fit the question, with cost and effect in a phrase, and in a few words what would change the picture (what_would_change from get_risk, a price passing break-even, a deadline). Give more only if asked.
 
 Memory
 - You may get notes on earlier conversations and you see the last messages. Use them for continuity: pick up follow-ups, remember their plans and preferences, don't ask what they already told you. Don't recite the notes or bring up old topics unprompted.
@@ -49,13 +50,19 @@ Style
 export interface ChatResult {
   text: string;
   calls: ToolCall[];
-  /** Figures in the final reply, any still untraced, and the ones the checker caught first time. */
-  check: CheckResult & { flagged: string[]; rewritten: boolean };
+  /**
+   * Figures in the final reply, any still untraced, the ones the checker caught first time, and
+   * whether the reply was held back because a figure still couldn't be traced after the rewrite.
+   */
+  check: CheckResult & { flagged: string[]; rewritten: boolean; blocked?: boolean };
   model: string;
 }
 
 const REFUSAL_TEXT = "Sorry, I can't help with that one. Ask me about the farm's risks, profit, options, news or deadlines.";
 const UNFINISHED_TEXT = "I couldn't finish working that out. Could you ask a narrower question?";
+/** Sent instead of a reply whose figures still can't be traced after one rewrite: the check fails closed. */
+export const BLOCKED_TEXT =
+  "I couldn't check every figure in that answer against the farm's data, so I've held it back. Try asking about one risk or one figure at a time.";
 
 function textOf(message: Anthropic.Beta.BetaMessage): string {
   return message.content
@@ -121,18 +128,19 @@ export async function runChatAgent(messages: Anthropic.Beta.BetaMessageParam[], 
       { role: "assistant", content: first.text },
       {
         role: "user",
-        content: `[Figure check, not from the farmer] These figures in your last reply don't appear in any tool result: ${check.untraced.join(", ")}. Rewrite the reply so every figure comes from a tool result (call tools if you need to), or leave the figure out. Reply with the rewritten message only.`,
+        content: `[Figure check, not from the farmer] These figures in your last reply don't appear in any tool result, or go the opposite way to it: ${check.untraced.join(", ")}. Rewrite the reply so every figure comes from a tool result exactly, with the right direction (call tools if you need to), or leave the figure out. Write figures as digits, not words. Reply with the rewritten message only.`,
       },
     ],
     calls,
     context
   );
   const recheck = checkFigures(retry.text, sources());
-  if (recheck.untraced.length) console.warn(`[chat] figures still untraced after rewrite: ${recheck.untraced.join(", ")}`);
+  const blocked = recheck.untraced.length > 0 && retry.final.stop_reason !== "refusal";
+  if (blocked) console.warn(`[chat] reply held back: figures still untraced after rewrite: ${recheck.untraced.join(", ")}`);
   return {
-    text: retry.text,
+    text: blocked ? BLOCKED_TEXT : retry.text,
     calls,
-    check: { figures: recheck.figures, untraced: recheck.untraced, flagged: check.untraced, rewritten: true },
+    check: { figures: recheck.figures, untraced: recheck.untraced, flagged: check.untraced, rewritten: true, blocked },
     model: retry.final.model,
   };
 }

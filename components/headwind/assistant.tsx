@@ -16,6 +16,7 @@ function checkNote(t: ChatTurn): string {
   const tools = t.tools?.length ?? 0;
   const toolText = tools ? `${tools} tool${tools === 1 ? "" : "s"}` : "no tools";
   const caught = t.checker?.flagged.length ?? 0;
+  if (t.checker?.blocked) return `${toolText} · a figure couldn't be traced, so the reply was held back`;
   if (caught) return `${toolText} · ${caught} untraced figure${caught === 1 ? "" : "s"} caught and rewritten`;
   return `${toolText} · every figure traced to a tool`;
 }
@@ -57,13 +58,18 @@ export function Assistant() {
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [available, setAvailable] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/assistant", { cache: "no-store" });
-      if (res.ok) setTurns(((await res.json()) as { turns: ChatTurn[] }).turns);
+      if (res.ok) {
+        const body = (await res.json()) as { turns: ChatTurn[]; available?: boolean };
+        setTurns(body.turns);
+        setAvailable(body.available !== false);
+      }
     } catch {
       /* offline: keep what we have */
     }
@@ -141,7 +147,11 @@ export function Assistant() {
           </header>
 
           <div ref={listRef} className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-4" aria-live="polite">
-            {shown.length === 0 && !pending ? (
+            {!available ? (
+              <p role="status" className="m-auto px-4 text-center text-[14px] text-sub">
+                The assistant isn&apos;t switched on for this deployment (no Anthropic API key). Every figure on the pages works without it.
+              </p>
+            ) : shown.length === 0 && !pending ? (
               <div className="m-auto flex flex-col items-center gap-4 px-2 text-center">
                 <p className="text-[15px] text-sub">Ask about your risks, options, news or deadlines. Answers use the same figures as the dashboard.</p>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -205,7 +215,8 @@ export function Assistant() {
                 rows={1}
                 value={input}
                 maxLength={MAX}
-                placeholder="Ask a question…"
+                disabled={!available}
+                placeholder={available ? "Ask a question…" : "Not available on this deployment"}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -217,7 +228,7 @@ export function Assistant() {
               />
               <button
                 type="submit"
-                disabled={!input.trim() || Boolean(pending)}
+                disabled={!available || !input.trim() || Boolean(pending)}
                 aria-label="Send"
                 className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30", focus)}
               >

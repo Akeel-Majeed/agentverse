@@ -1,5 +1,5 @@
 {
-  "name": "headwind",
+  "name": "hedged",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,11 +10,17 @@
     "test": "vitest run",
     "db:seed-sql": "bun scripts/generate-seed.ts > supabase/seed.sql",
     "ask": "bun --preload ./scripts/shims.ts scripts/ask.ts",
-    "inkbox:setup": "bun scripts/inkbox-setup.ts"
+    "inkbox:setup": "bun scripts/inkbox-setup.ts",
+    "history:load": "bun scripts/load-history.ts",
+    "backtest": "bun scripts/backtest.ts",
+    "screen:eval": "bun --preload ./scripts/shims.ts scripts/screen-eval.ts",
+    "agent:demo": "bun --preload ./scripts/shims.ts scripts/risk-agent.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "@google/genai": "^3.0.0",
     "@inkbox/sdk": "^0.7.29",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@radix-ui/react-dialog": "^1.3.1",
     "@radix-ui/react-slider": "^1.6.1",
     "@radix-ui/react-slot": "^1.5.0",
@@ -24,6 +30,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",
     "next": "14.2.35",
+    "postgres": "4.1.0",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^3.10.1",
@@ -34,6 +41,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

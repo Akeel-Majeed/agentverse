@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it, vi } from "vitest";
-import { ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
-import { checkFigures, extractFigures } from "@/lib/agents/checker";
+import { BLOCKED_TEXT, ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
+import { checkFigures, checkFiguresStrict, extractFigures } from "@/lib/agents/checker";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 // React's cache() only exists in the Next server runtime; run the data layer without memoising.
@@ -13,8 +13,22 @@ describe("figure checker", () => {
     expect(keys).toEqual(["gbp:149000", "gbp/t:178", "pct:175", "in20:4", "score:10", "t:2898", "ha:450"]);
   });
 
-  it("treats £11k and £11,000 as the same figure, and ignores sign", () => {
+  it("treats £11k and £11,000 as the same figure, and accepts the right direction", () => {
     expect(checkFigures("It costs £11,000, down £17k", ['{"a":"£11k","b":"−£17k"}']).untraced).toEqual([]);
+  });
+
+  it("flags the right number pointing the wrong way", () => {
+    expect(checkFigures("Profit rose £17k this week", ['{"change":"−£17k"}']).untraced).toEqual(["£17k"]);
+    expect(checkFigures("Profit is up +£17k", ['{"change":"−£17k"}']).untraced).toEqual(["+£17k"]);
+    // A source without a direction allows either.
+    expect(checkFigures("It cuts the hit by £31k", ['{"effect":"cuts the bad-year hit by £31k"}']).untraced).toEqual([]);
+  });
+
+  it("catches money without a £ sign, diesel prices, rate points, litres and numbers in words", () => {
+    const src = ['{"debt":"£840k","diesel":"68p/L","rates":"+1.5 points","litres":"22,800 L"}'];
+    expect(checkFigures("Rates on 840k could rise 1.5 points; diesel 68p/L on 22,800 L", src).untraced).toEqual([]);
+    expect(checkFigures("Rates on 900k could rise 2.5 points; diesel 75p/L on 2,000 L", src).untraced).toEqual(["900k", "75p/L", "2,000 L", "2.5 points"]);
+    expect(checkFigures("about a hundred and fifty thousand pounds", src).untraced).toEqual(["a hundred and fifty thousand pounds"]);
   });
 
   it("flags figures no source contains", () => {
@@ -23,6 +37,54 @@ describe("figure checker", () => {
 
   it("does not confuse t/ha yields with tonnes", () => {
     expect(extractFigures("8.5 t/ha").map((f) => f.key)).toEqual([]);
+  });
+});
+
+describe("strict figure checker (judge): fails closed", () => {
+  const SRC = [JSON.stringify({
+    figures: {
+      "risk.output_prices.p5_hit": { display: "−£17k", value: -17234.5 },
+      "dscr.p_below": { display: "4.2%", value: 0.042 },
+      "threshold.rate_dscr": { display: "7.3%" },
+      "threshold.wheat_breakeven": { display: "£185/t" },
+      "risk.output_prices.score": { display: "8/10" },
+      "option.sell_forward_wheat_50.cost": { display: "£3k" },
+    },
+    dscr: { threshold: 1.25 },
+    meta: { paths: 10000, asOf: "2026-08-01" },
+  })];
+  const IDS = ["profit.p5", "option.sell_forward_wheat_50.cost", "sales.wheat_2027_forward_t"];
+  const untraced = (text: string) => checkFiguresStrict(text, SRC, IDS).untraced;
+
+  it("passes engine display strings, ids, years, crop years and the 1-in-20 label", () => {
+    expect(untraced(
+      "In the 1-in-20 year (profit.p5, P5, cvar5) you lose £17k; the bad-year hit is −£17k. DSCR falls below 1.25 in 4.2% of " +
+      "10,000 simulated years for harvest 2026/27 and 2027. Score 8/10. Wheat break-even £185/t, rate 7.3%. " +
+      "Selling forward costs £3k (option.sell_forward_wheat_50.cost, sales.wheat_2027_forward_t).",
+    )).toEqual([]);
+  });
+
+  it.each([
+    ["a gain claimed for a negative figure", "Selling forward gains £17k in the bad year."],
+    ["an explicit sign that does not match", "The bad year improves by +£17k."],
+    ["a reformatted figure", "The hit is £17,000."],
+    ["pounds written out", "That is 42,000 pounds."],
+    ["GBP prefix", "Worth GBP 50k."],
+    ["per cent written out", "A 31 per cent chance."],
+    ["a bare ratio", "DSCR drops to 0.9."],
+    ["a bare rate", "At a rate of 7.25 the loan bites."],
+    ["a number glued to a unit", "Spread 17kg of seed."],
+    ["a different precision", "Rate 7.30%."],
+    ["full-width digits", "The hit is −£１７k and ２００k more."],
+    ["non-ASCII digits", "Rate ٣ points higher."],
+    ["an unknown dotted id with a digit", "See risk.made_up.p7 for detail."],
+    ["a dotted token hiding a number", "Profit falls to profit.minus40k."],
+  ])("flags %s", (_label, text) => {
+    expect(untraced(text).length).toBeGreaterThan(0);
+  });
+
+  it("leaves the chat checker's lenient behaviour alone", () => {
+    expect(checkFigures("It costs £11,000, down £17k", ['{"a":"£11k","b":"−£17k"}']).untraced).toEqual([]);
   });
 });
 
@@ -65,6 +127,17 @@ describe("chat agent", () => {
     expect(out.text).toContain("£11k");
     const lastMessages = requests[2].messages as { role: string; content: string }[];
     expect(lastMessages.at(-1)?.content).toContain("£9k");
+  });
+
+  it("holds the reply back when a figure still can't be traced after the rewrite", async () => {
+    const { client } = fakeClient([
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu_1", name: "get_risk", input: { risk_id: "interest_rates" } } as never] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "Fixing half would save you £9k a year.", citations: null } as never] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "Fixing half saves about £7.3k a year.", citations: null } as never] },
+    ]);
+    const out = await runChatAgent(ask("Should I fix my loan?"), client);
+    expect(out.text).toBe(BLOCKED_TEXT);
+    expect(out.check).toMatchObject({ flagged: ["£9k"], untraced: ["£7.3k"], rewritten: true, blocked: true });
   });
 
   it("sends the conversation context after the cached rules", async () => {

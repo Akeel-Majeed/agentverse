@@ -68,6 +68,7 @@ const VALUES: Record<string, Seed> = {
   "reg.assurance": ["Red Tractor Combinable Crops", "Red Tractor certificate · Upload", "high", ONBOARDED],
 
   "fin.loan": [840000, "Bank statement · Upload", "high", ONBOARDED],
+  "fin.capital_repayment": [60000, "Bank facility letter · Upload", "high", ONBOARDED],
   "fin.loan_rate_type": ["Variable", "Bank statement · Upload", "high", ONBOARDED],
   "fin.loan_margin_pct": [3.1, "Bank facility letter · Upload", "high", ONBOARDED],
   "fin.loan_renewal": ["2027-05-14", "Bank facility letter · Upload", "high", ONBOARDED],

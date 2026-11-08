@@ -17,7 +17,7 @@ export const BANDS: Band[] = [
   { level: "Severe", color: "#C8361C", text: "#C8361C", range: "8–10" },
 ];
 
-const THRESHOLDS = [10, 15, 25, 35, 45, 60, 75, 90, 100];
+export const THRESHOLDS = [10, 15, 25, 35, 45, 60, 75, 90, 100];
 
 /** Score 1–10 from the bad-year hit as a % of typical profit. */
 export function scoreFromPct(pct: number): number {

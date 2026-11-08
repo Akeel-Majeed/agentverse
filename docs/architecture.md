@@ -1,8 +1,10 @@
-# Headwind: agent architecture and end-to-end flow
+# Hedged: agent architecture and end-to-end flow
 
 Status: draft for the AgentVerse build, 7-8 Nov 2026. Fictional farm, real data sources.
 
-Headwind turns a UK arable farm's position (tonnes unsold, nitrogen unbought, debt unfixed, scheme agreements expiring) plus live market, weather and policy data into one number per risk: the £ hit in a 1-in-20 bad year, as a share of a typical year's profit. It then proposes mitigations, and nothing about the farm's record changes without the farmer approving it.
+> **Built vs planned.** This document describes the target design. Built: the deterministic risk engine (`lib/sim.ts`, `lib/score.ts`, `lib/profile/`), onboarding and the approval queue, the iMessage and in-app chat agent with read-only tools and the figure checker, the loss limit and input checks, the action log (`/activity`), Supabase storage, and live data adapters (`lib/live.ts`, not yet feeding the figures). **Planned, not built:** the verifier agent, the daily `/api/refresh` cron, the extractor agent for documents, MCP adviser agents, Langfuse/OpenTelemetry traces. The database is Supabase Postgres, not Neon.
+
+Hedged turns a UK arable farm's position (tonnes unsold, nitrogen unbought, debt unfixed, scheme agreements expiring) plus live market, weather and policy data into one number per risk: the £ hit in a 1-in-20 bad year, as a share of a typical year's profit. It then proposes mitigations, and nothing about the farm's record changes without the farmer approving it.
 
 ## 1. End-to-end process
 
@@ -158,7 +160,7 @@ RPA does not publish parcel polygons openly, so draw mock boundaries around the 
 
 Each endpoint below was called from this machine. The suggestion list assumed Python; the stack is TypeScript, so the Yahoo and spreadsheet paths use plain `fetch` and the `xlsx` package rather than yfinance and pandas.
 
-| Suggested | Result | Use in Headwind |
+| Suggested | Result | Use in Hedged |
 |---|---|---|
 | Yahoo Finance chart API, `query1.finance.yahoo.com/v8/finance/chart/{ticker}` | Works without a key for `TTF=F` (Dutch gas, EUR), `ZW=F` (CBOT wheat, US cents/bu), `KE=F` (KC wheat). `MWT=F`, `ECO.PA`, `EBMZ26.PA`, `ECOZ26.PA` return "symbol may be delisted". `EBM=F` responds but the value is not a €/t wheat price, so do not use it. Rapeseed only exists as an index (`ENRSE.PA`) | Gas as the fertiliser shock signal, CBOT wheat as the global price signal. Euronext milling wheat is not reliably on Yahoo, so the UK strip stays on the AHDB table and Paris parity is a fallback only |
 | FRED API, `api.stlouisfed.org/fred/series/observations?series_id=…&api_key=…&file_type=json` | Free key. `IUDSOIA` (SONIA), `DCOILBRENTEU` (Brent), `PCU325311325311` (US nitrogen fertiliser PPI) exist. `IUDBEDR` (Bank Rate) is not on FRED, 404 | JSON mirror for SONIA and Brent. Bank Rate stays on the BoE IADB CSV |
@@ -472,7 +474,7 @@ Packages: `@anthropic-ai/sdk @opentelemetry/sdk-node @langfuse/otel @langfuse/tr
 ### 6.5 Runtime notes
 
 - Vercel Cron on Hobby fires once a day with up to 59 minutes of drift, so `0 6 * * *` lands between 06:00 and 06:59. Fallback: a GitHub Actions schedule hitting `/api/refresh` with the `CRON_SECRET` bearer token.
-- Storage: Neon Postgres (free 512 MB, Vercel Marketplace, does not pause). Supabase's free project pauses after 7 idle days, which is a demo-day risk. Tables: `farm`, `source_snapshot`, `assessment` (with `trace_id`), `pending_change`.
+- Storage: Supabase, as built (Postgres + Storage, server-side access only; agent tables in migration `0005_agent_runs.sql`).
 - Human in the loop needs no durable-execution library. The proposer writes `pending_change` rows; the approval route flips `status`; the next refresh reads approved rows. The agent run ends after proposing.
 
 ## 7. Hackathon scope

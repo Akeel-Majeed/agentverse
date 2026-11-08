@@ -1,0 +1,107 @@
+import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TraceTimeline } from "@/components/headwind/trace-timeline";
+import { canonical, GENESIS, TraceWriter, verifyChain } from "@/lib/trace/chain";
+import { createMemoryAgentStore, toControls } from "@/lib/server/agent-store";
+
+describe("canonical JSON", () => {
+  it("sorts keys at every depth", () => {
+    expect(canonical({ b: 1, a: { d: 2, c: [3, { f: 1, e: 2 }] } })).toBe('{"a":{"c":[3,{"e":2,"f":1}],"d":2},"b":1}');
+  });
+});
+
+describe("trace", () => {
+  it("lists a farm's runs newest first, capped by limit", async () => {
+    const store = createMemoryAgentStore();
+    const make = async (farmId: string, startedAt: string) => {
+      const r = await store.createRun({ farmId, trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+      await store.updateRun(r.id, { startedAt });
+      return r.id;
+    };
+    const a = await make("f", "2026-11-08T09:00:00.000Z");
+    const c = await make("f", "2026-11-08T11:00:00.000Z");
+    const b = await make("f", "2026-11-08T10:00:00.000Z");
+    await make("other", "2026-11-08T12:00:00.000Z");
+    expect((await store.listRuns("f")).map((r) => r.id)).toEqual([c, b, a]);
+    expect((await store.listRuns("f", 2)).map((r) => r.id)).toEqual([c, b]);
+  });
+  it("chains hashes and verifies", async () => {
+    const store = createMemoryAgentStore();
+    const run = await store.createRun({ farmId: "f", trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+    const w = new TraceWriter(run.id, store);
+    await Promise.all([w.append("a", "code", { x: 1 }), w.append("b", "jev", { p: 0.9 }), w.append("c", "gemini", { y: "z" })]);
+    const events = await store.getEvents(run.id);
+    expect(events.map((e) => e.seq)).toEqual([1, 2, 3]);
+    expect(events[0].prevHash).toBe(GENESIS);
+    const v = verifyChain(events);
+    expect(v.ok).toBe(true);
+    expect(v.head).toBe(w.head());
+  });
+  it("detects an edited body", async () => {
+    const store = createMemoryAgentStore();
+    const run = await store.createRun({ farmId: "f", trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+    const w = new TraceWriter(run.id, store);
+    await w.append("a", "code", { x: 1 });
+    await w.append("b", "code", { x: 2 });
+    const events = structuredClone(await store.getEvents(run.id));
+    events[0].body = '{"x":999}';
+    expect(verifyChain(events)).toMatchObject({ ok: false, brokenAt: 1 });
+  });
+  it("detects an edited type, actor or seq", async () => {
+    const store = createMemoryAgentStore();
+    const run = await store.createRun({ farmId: "f", trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+    const w = new TraceWriter(run.id, store);
+    await w.append("judge.output", "gemini", { x: 1 });
+    await w.append("b", "code", { x: 2 });
+    const original = await store.getEvents(run.id);
+    for (const edit of [{ type: "checker.result" }, { actor: "human" as const }, { seq: 7 }]) {
+      const events = structuredClone(original);
+      Object.assign(events[1], edit);
+      expect(verifyChain(events).ok).toBe(false);
+    }
+  });
+  it("controls default to not paused and can be paused", async () => {
+    const store = createMemoryAgentStore();
+    expect((await store.getControls()).paused).toBe(false);
+    await store.setPaused(true, "akeel");
+    expect(await store.getControls()).toMatchObject({ paused: true, updatedBy: "akeel" });
+  });
+  it("fails closed when the database has no controls row", () => {
+    expect(toControls(null).paused).toBe(true);
+    expect(toControls(undefined).updatedBy).toMatch(/missing/i);
+  });
+});
+
+describe("trace timeline", () => {
+  const judgement = {
+    ranked_options: [{ option_id: "fix_rate", rank: 1, reason: "SECRET-REASON gains £999k", cites: [] }],
+    risks: [{ risk_id: "output_prices", explanation: "SECRET-EXPLANATION", cites: [] }],
+    change_my_mind: [{ threshold_id: "threshold.rate_dscr", statement: "SECRET-STATEMENT" }],
+    conflicts: [], hold_for_human: false, hold_reason: null,
+  };
+  async function render(untraced: string[] | null) {
+    const store = createMemoryAgentStore();
+    const run = await store.createRun({ farmId: "f", trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+    const w = new TraceWriter(run.id, store);
+    if (untraced) await w.append("checker.result", "code", { figures: ["£999k"], untraced });
+    await w.append("judge.output", "gemini", judgement);
+    const events = await store.getEvents(run.id);
+    const html = renderToStaticMarkup(createElement(TraceTimeline, { events, observations: [], judgeModel: "gemini-4-argon" }));
+    // The default view: everything outside the collapsed raw-event toggles.
+    return { html, visible: html.replace(/<details[\s\S]*?<\/details>/g, "") };
+  }
+  it("withholds the judge's prose when the checker blocked it, and lists what was untraced", async () => {
+    const { html, visible } = await render(["£999k"]);
+    expect(visible).not.toMatch(/SECRET/);
+    expect(visible).toMatch(/withheld/i);
+    expect(visible).toContain("£999k");
+    expect(html).toMatch(/<summary[^>]*>[^<]*unverified/i);
+  });
+  it("withholds the prose when no checker verdict exists", async () => {
+    expect((await render(null)).visible).not.toMatch(/SECRET/);
+  });
+  it("shows the prose after a clean check", async () => {
+    expect((await render([])).visible).toMatch(/SECRET-EXPLANATION/);
+  });
+});

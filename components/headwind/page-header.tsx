@@ -30,5 +30,5 @@ export function PageHeader({
 }
 
 export function PageShell({ children }: { children: ReactNode }) {
-  return <main className="mx-auto flex max-w-[1280px] flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-9">{children}</main>;
+  return <main className="mx-auto flex max-w-[1280px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-10 lg:pt-9">{children}</main>;
 }

@@ -46,6 +46,8 @@ export interface Store {
   getSectionConfirmations(): Promise<Record<string, string>>;
   confirmSection(id: string, at: string): Promise<void>;
   getSnapshot(): Promise<ProfileSnapshot>;
+  /** Snapshot history, newest first, without the frozen fields. */
+  listSnapshots(limit: number): Promise<Pick<ProfileSnapshot, "id" | "version" | "takenAt" | "reason">[]>;
   /** False if the farm already has a snapshot with this version (another tab got there first). */
   insertSnapshot(s: ProfileSnapshot): Promise<boolean>;
   deleteSnapshot(id: string): Promise<void>;
@@ -53,6 +55,7 @@ export interface Store {
   getSignals(since: string): Promise<Signal[]>;
   getPendingChanges(): Promise<PendingChange[]>;
   updatePendingChange(id: string, status: PendingChange["status"], proposedValue?: string): Promise<PendingChange | null>;
+  insertPendingChange(c: Omit<PendingChange, "id" | "receivedAt">): Promise<void>;
   /** Start logging a chat turn. False if this inbound message was already taken (a webhook retry). */
   claimChatTurn(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question" | "channel">): Promise<boolean>;
   /** The most recent chat turns from every channel, oldest first. */
@@ -114,6 +117,11 @@ function createMockStore(): Store {
       state.confirmations[id] = at;
     },
     getSnapshot: async () => structuredClone(state.snapshots.at(-1)!),
+    listSnapshots: async (limit) =>
+      state.snapshots
+        .slice(-limit)
+        .reverse()
+        .map(({ id, version, takenAt, reason }) => ({ id, version, takenAt, reason })),
     insertSnapshot: async (s) => {
       if (state.snapshots.some((x) => x.version === s.version)) return false;
       state.snapshots.push(structuredClone(s));
@@ -131,6 +139,9 @@ function createMockStore(): Store {
       item.status = status;
       if (proposedValue !== undefined) item.proposedValue = proposedValue;
       return structuredClone(item);
+    },
+    insertPendingChange: async (c) => {
+      state.pending.unshift({ ...structuredClone(c), id: crypto.randomUUID(), receivedAt: receivedLabel(new Date().toISOString()) });
     },
     claimChatTurn: async (turn) => {
       if (state.chat.some((t) => t.inboundMessageId === turn.inboundMessageId)) return false;
@@ -178,6 +189,8 @@ const toPending = (r: Row): PendingChange => ({
   reason: String(r.reason),
   status: r.status as PendingChange["status"],
   receivedAt: receivedLabel(String(r.received_at)),
+  runId: (r.run_id as string | null) ?? undefined,
+  evidence: (r.evidence as PendingChange["evidence"] | null) ?? undefined,
 });
 
 const toSnapshot = (r: Row): ProfileSnapshot => ({
@@ -264,6 +277,13 @@ function createSupabaseStore(db: SupabaseClient): Store {
     async getSnapshot() {
       return toSnapshot(must(await db.from("latest_snapshot").select("*").eq("farm_id", farm).single(), "latest snapshot"));
     },
+    async listSnapshots(limit) {
+      const rows = must(
+        await db.from("profile_snapshots").select("id, version, taken_at, reason").eq("farm_id", farm).order("version", { ascending: false }).limit(limit),
+        "snapshot history"
+      );
+      return rows.map((r: Row) => ({ id: String(r.id), version: Number(r.version), takenAt: String(r.taken_at), reason: String(r.reason) }));
+    },
     async insertSnapshot(s) {
       const { error } = await db.from("profile_snapshots").insert({
         id: s.id,
@@ -305,9 +325,24 @@ function createSupabaseStore(db: SupabaseClient): Store {
     async updatePendingChange(id, status, proposedValue) {
       const patch: Row = { status, resolved_at: status === "pending" ? null : new Date().toISOString() };
       if (proposedValue !== undefined) patch.proposed_value = proposedValue;
+      // resolved_by exists only once migration 0005 is applied (AGENT_TABLES=1).
+      if (process.env.AGENT_TABLES === "1") patch.resolved_by = status === "pending" ? null : "farmer";
       const { data, error } = await db.from("pending_changes").update(patch).eq("farm_id", farm).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(`Supabase: update pending change: ${error.message}`);
       return data ? toPending(data) : null;
+    },
+    async insertPendingChange(c) {
+      const { error } = await db.from("pending_changes").insert({
+        farm_id: farm,
+        field_key: c.fieldKey ?? null,
+        field_label: c.field,
+        current_value: c.currentValue,
+        proposed_value: c.proposedValue,
+        source: c.source,
+        reason: c.reason,
+        status: c.status,
+      });
+      if (error) throw new Error(`Supabase: insert pending change: ${error.message}`);
     },
     async claimChatTurn(turn) {
       const row = {
@@ -384,7 +419,11 @@ function createSupabaseStore(db: SupabaseClient): Store {
 /* ---------- Choosing a store ---------- */
 
 let supabaseStore: Store | undefined;
-let mockStore: Store | undefined;
+// The demo store lives on globalThis so a dev recompile of a route module doesn't wipe the farmer's
+// approvals and snapshots. (Each serverless instance still has its own copy: use Supabase in production.)
+// Keyed by this module's store code, so editing the store itself still starts a fresh one.
+const globalStore = globalThis as typeof globalThis & { __hedgedMockStore?: { code: string; store: Store } };
+const MOCK_CODE = String(createMockStore);
 let retryAt = 0;
 let checking: Promise<Store | undefined> | undefined;
 
@@ -417,5 +456,6 @@ export async function getStore(): Promise<Store> {
     const found = await checking;
     if (found) return found;
   }
-  return (mockStore ??= createMockStore());
+  if (globalStore.__hedgedMockStore?.code !== MOCK_CODE) globalStore.__hedgedMockStore = { code: MOCK_CODE, store: createMockStore() };
+  return globalStore.__hedgedMockStore.store;
 }

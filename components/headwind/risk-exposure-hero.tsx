@@ -1,7 +1,9 @@
+import { CircleHelp } from "lucide-react";
 import Link from "next/link";
 import { riskBadYearDetail } from "@/lib/figures";
+import { RISK_WHY } from "@/lib/profile/catalogue";
 import { BANDS } from "@/lib/score";
-import type { RiskResult } from "@/lib/types";
+import type { RiskId, RiskResult } from "@/lib/types";
 import { Card, CardBody, CardHeader } from "./card";
 import { MoneyFigure } from "./money-figure";
 import { LevelLabel, ScoreRing } from "./score";
@@ -11,9 +13,25 @@ export function RiskExposureHero({ risks }: { risks: RiskResult[] }) {
     <Card label="Risk exposure">
       <CardHeader title="Risk exposure" description="Score out of 10 for each risk, from how much a 1-in-20 bad year would cost you." />
       <CardBody className="px-5 py-8">
-        <ul className="flex flex-wrap justify-center gap-x-12 gap-y-8">
+        <ul className="flex flex-wrap justify-center gap-x-4 gap-y-8 sm:gap-x-12">
           {risks.map((risk) => (
-            <li key={risk.id} className="flex w-[160px] flex-col items-center text-center">
+            <li key={risk.id} className="relative flex w-[136px] flex-col items-center text-center sm:w-[160px]">
+              <button
+                type="button"
+                aria-label={`Why ${risk.name} matters`}
+                aria-describedby={`why-${risk.id}`}
+                className="peer absolute right-[14px] top-0 z-10 rounded-full text-sub hover:text-ink focus-visible:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <CircleHelp aria-hidden size={14} />
+              </button>
+              {/* Centred on the 160px column so a 200px panel stays inside the card's 20px padding. */}
+              <span
+                role="tooltip"
+                id={`why-${risk.id}`}
+                className="invisible absolute left-1/2 top-6 z-10 w-[200px] -translate-x-1/2 rounded-lg border border-line bg-white p-3 text-left text-[12.5px] leading-snug text-ink shadow-card peer-hover:visible peer-focus:visible"
+              >
+                {RISK_WHY[risk.id as RiskId]}
+              </span>
               <Link
                 href={`/risks/${risk.id}`}
                 className="group flex flex-col items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"

@@ -67,10 +67,27 @@ export interface IMessageDeps {
   remember(previous: ChatMemory | null, exchange: Exchange): Promise<void>;
 }
 
-/** Which webhook events the agent answers: inbound one-to-one text messages. */
+const normalise = (handle: string) => handle.replace(/[\s()-]/g, "").toLowerCase();
+
+/**
+ * Senders allowed to talk to the farm's agent, from INKBOX_ALLOWED_SENDERS (comma-separated phone
+ * numbers or Apple IDs). Unset means anyone who connects can ask: fine for the fictional demo
+ * farm, not for a real one, since the agent reads the farm's finances.
+ */
+export function senderAllowed(sender: string | null | undefined, allowList = process.env.INKBOX_ALLOWED_SENDERS): boolean {
+  const allowed = (allowList ?? "").split(",").map((x) => normalise(x)).filter(Boolean);
+  if (allowed.length === 0) return true;
+  return Boolean(sender) && allowed.includes(normalise(sender!));
+}
+
+/** Which webhook events the agent answers: inbound one-to-one text messages from an allowed sender. */
 export function inboundText(payload: IMessageWebhookPayload) {
   const m = payload.data.message;
   if (payload.event_type !== "imessage.received" || !m || m.direction !== "inbound" || m.is_group) return null;
+  if (!senderAllowed(m.sender_number ?? m.remote_number)) {
+    console.warn("[chat] ignored a message from a sender not in INKBOX_ALLOWED_SENDERS");
+    return null;
+  }
   const text = (m.content ?? "").trim();
   return text ? { id: m.id, conversationId: m.conversation_id, text, createdAt: m.created_at } : null;
 }
@@ -112,7 +129,7 @@ export async function handleIMessage(payload: IMessageWebhookPayload, deps: IMes
       status: "answered",
       answer: result.text,
       tools: result.calls.map(({ name, input, ms }) => ({ name, input, ms })),
-      checker: { flagged: result.check.flagged, untraced: result.check.untraced, rewritten: result.check.rewritten },
+      checker: { flagged: result.check.flagged, untraced: result.check.untraced, rewritten: result.check.rewritten, blocked: result.check.blocked },
       model: result.model,
     });
     await deps

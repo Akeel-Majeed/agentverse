@@ -11,13 +11,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/** Whether the chat agent can answer on this deployment. */
+const available = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+const NOT_SET_UP = "The assistant isn't set up on this deployment yet (no Anthropic API key).";
+
 export async function GET() {
   try {
     const turns = await (await getStore()).listChatTurns(30);
-    return Response.json({ turns });
+    return Response.json({ turns, available: available() });
   } catch (err) {
     console.warn("[assistant] couldn't load the conversation", err);
-    return Response.json({ turns: [] });
+    return Response.json({ turns: [], available: available() });
   }
 }
 
@@ -29,6 +33,8 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: "Send JSON with a question." }, { status: 400 });
   }
+  // Say so before logging anything: a question that can't be answered shouldn't fill the shared history.
+  if (!available()) return Response.json({ error: NOT_SET_UP }, { status: 503 });
   const store = await getStore();
   try {
     const turn = await askFromWeb(question, {
@@ -50,7 +56,7 @@ export async function POST(req: Request) {
     if (err instanceof AssistantInputError) return Response.json({ error: err.message }, { status: 400 });
     if (err instanceof AssistantRateLimitError) return Response.json({ error: err.message }, { status: 429 });
     if (err instanceof ChatUnavailableError) {
-      return Response.json({ error: "The assistant isn't set up on this deployment yet (no Anthropic API key)." }, { status: 503 });
+      return Response.json({ error: NOT_SET_UP }, { status: 503 });
     }
     console.error("[assistant] failed to answer", err);
     return Response.json({ error: "Sorry, something went wrong working that out. Try again in a minute." }, { status: 500 });

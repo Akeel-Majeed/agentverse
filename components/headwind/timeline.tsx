@@ -29,7 +29,11 @@ function Diamond({ kind }: { kind: CalendarItem["kind"] }) {
   return (
     <span
       aria-hidden
-      className={cn("block h-[10px] w-[10px] shrink-0 rotate-45 rounded-[1.5px]", kind === "key" ? "bg-brand" : "bg-ink")}
+      className={cn(
+        "block shrink-0 rotate-45 rounded-[1.5px]",
+        // The next key decision is a larger, hollow diamond so it reads differently from a deadline.
+        kind === "key" ? "h-[12px] w-[12px] border-2 border-ink bg-card" : "h-[10px] w-[10px] bg-ink"
+      )}
     />
   );
 }

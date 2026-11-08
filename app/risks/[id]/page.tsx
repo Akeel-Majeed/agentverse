@@ -4,18 +4,24 @@ import { PageShell } from "@/components/headwind/page-header";
 import { RiskDetail } from "@/components/headwind/risk-detail";
 import { ScoreChip } from "@/components/headwind/score";
 import { RiskInputsCard } from "@/components/headwind/risk-inputs-card";
-import { getAssessmentMeta, getRisk, getRiskInputs, getRisks } from "@/lib/data";
+import { getAssessmentMeta, getLossLimit, getRisk, getRiskInputs, getRisks } from "@/lib/data";
 import { longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default async function RiskPage({ params }: { params: { id: string } }) {
-  const [risk, risks, meta, inputs] = await Promise.all([getRisk(params.id), getRisks(), getAssessmentMeta(), getRiskInputs(params.id)]);
+  const [risk, risks, meta, inputs, lossLimit] = await Promise.all([
+    getRisk(params.id),
+    getRisks(),
+    getAssessmentMeta(),
+    getRiskInputs(params.id),
+    getLossLimit(),
+  ]);
   if (!risk) notFound();
 
   return (
     <PageShell>
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-8">
-        <nav aria-label="Risks" className="-mb-2 overflow-x-auto border-b border-line">
+        <nav aria-label="Risks" className="relative -mb-2 overflow-x-auto border-b border-line">
           <ul className="flex items-center gap-1">
             {risks.map((r) => {
               const current = r.id === risk.id;
@@ -41,6 +47,7 @@ export default async function RiskPage({ params }: { params: { id: string } }) {
           key={risk.id}
           risk={risk}
           typicalProfit={meta.typicalProfit}
+          lossLimit={lossLimit.limit}
           dateLabel={longDate(meta.date)}
           profile={<RiskInputsCard inputs={inputs} />}
         />

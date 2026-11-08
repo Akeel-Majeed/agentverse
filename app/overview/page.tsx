@@ -4,6 +4,7 @@ import { BreakEvenList } from "@/components/headwind/break-even-list";
 import { Card, CardBody, CardHeader } from "@/components/headwind/card";
 import { ComingUp } from "@/components/headwind/coming-up";
 import { ExpectedProfitCard } from "@/components/headwind/expected-profit-card";
+import { LossLimitBanner } from "@/components/headwind/loss-limit";
 import { MitigationList, TopMitigationItem } from "@/components/headwind/mitigation-row";
 import { NewsImpactList } from "@/components/headwind/news-impacts";
 import { PageHeader, PageShell } from "@/components/headwind/page-header";
@@ -16,6 +17,7 @@ import {
   getBreakEvens,
   getCalendar,
   getFarm,
+  getLossLimit,
   getProfitSummary,
   getRiskProfile,
   getRisks,
@@ -24,7 +26,7 @@ import {
 import { longDate } from "@/lib/format";
 
 export default async function OverviewPage() {
-  const [farm, meta, risks, top, profit, breakEvens, calendar, riskProfile] = await Promise.all([
+  const [farm, meta, risks, top, profit, breakEvens, calendar, riskProfile, lossLimit] = await Promise.all([
     getFarm(),
     getAssessmentMeta(),
     getRisks(),
@@ -33,6 +35,7 @@ export default async function OverviewPage() {
     getBreakEvens(),
     getCalendar(),
     getRiskProfile(),
+    getLossLimit(),
   ]);
   const upcoming = calendar
     .filter((c) => c.kind !== "period" && c.start >= meta.date)
@@ -53,6 +56,8 @@ export default async function OverviewPage() {
           </>
         }
       />
+
+      <LossLimitBanner status={lossLimit} />
 
       <RiskExposureHero risks={risks} />
 
