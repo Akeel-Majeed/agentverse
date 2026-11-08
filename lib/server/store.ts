@@ -46,6 +46,8 @@ export interface Store {
   getSectionConfirmations(): Promise<Record<string, string>>;
   confirmSection(id: string, at: string): Promise<void>;
   getSnapshot(): Promise<ProfileSnapshot>;
+  /** Snapshot history, newest first, without the frozen fields. */
+  listSnapshots(limit: number): Promise<Pick<ProfileSnapshot, "id" | "version" | "takenAt" | "reason">[]>;
   /** False if the farm already has a snapshot with this version (another tab got there first). */
   insertSnapshot(s: ProfileSnapshot): Promise<boolean>;
   deleteSnapshot(id: string): Promise<void>;
@@ -114,6 +116,11 @@ function createMockStore(): Store {
       state.confirmations[id] = at;
     },
     getSnapshot: async () => structuredClone(state.snapshots.at(-1)!),
+    listSnapshots: async (limit) =>
+      state.snapshots
+        .slice(-limit)
+        .reverse()
+        .map(({ id, version, takenAt, reason }) => ({ id, version, takenAt, reason })),
     insertSnapshot: async (s) => {
       if (state.snapshots.some((x) => x.version === s.version)) return false;
       state.snapshots.push(structuredClone(s));
@@ -264,6 +271,13 @@ function createSupabaseStore(db: SupabaseClient): Store {
     async getSnapshot() {
       return toSnapshot(must(await db.from("latest_snapshot").select("*").eq("farm_id", farm).single(), "latest snapshot"));
     },
+    async listSnapshots(limit) {
+      const rows = must(
+        await db.from("profile_snapshots").select("id, version, taken_at, reason").eq("farm_id", farm).order("version", { ascending: false }).limit(limit),
+        "snapshot history"
+      );
+      return rows.map((r: Row) => ({ id: String(r.id), version: Number(r.version), takenAt: String(r.taken_at), reason: String(r.reason) }));
+    },
     async insertSnapshot(s) {
       const { error } = await db.from("profile_snapshots").insert({
         id: s.id,
@@ -386,7 +400,9 @@ function createSupabaseStore(db: SupabaseClient): Store {
 let supabaseStore: Store | undefined;
 // The demo store lives on globalThis so a dev recompile of a route module doesn't wipe the farmer's
 // approvals and snapshots. (Each serverless instance still has its own copy: use Supabase in production.)
-const globalStore = globalThis as typeof globalThis & { __hedgedMockStore?: Store };
+// Keyed by this module's store code, so editing the store itself still starts a fresh one.
+const globalStore = globalThis as typeof globalThis & { __hedgedMockStore?: { code: string; store: Store } };
+const MOCK_CODE = String(createMockStore);
 let retryAt = 0;
 let checking: Promise<Store | undefined> | undefined;
 
@@ -419,5 +435,6 @@ export async function getStore(): Promise<Store> {
     const found = await checking;
     if (found) return found;
   }
-  return (globalStore.__hedgedMockStore ??= createMockStore());
+  if (globalStore.__hedgedMockStore?.code !== MOCK_CODE) globalStore.__hedgedMockStore = { code: MOCK_CODE, store: createMockStore() };
+  return globalStore.__hedgedMockStore.store;
 }

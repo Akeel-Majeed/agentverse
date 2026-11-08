@@ -23,6 +23,7 @@ import type {
   AssessmentMeta,
   BreakEven,
   CalendarItem,
+  ChatTurn,
   Farm,
   IMessageSetup,
   MarketBaseline,
@@ -375,6 +376,42 @@ export async function rerunAssessment(): Promise<AssessmentMeta> {
   const meta = await assess(store, snapshot, assessment, new Date());
   refresh();
   return meta;
+}
+
+/* ---------- Activity: what the agents did and what the farmer decided ---------- */
+
+export interface Activity {
+  turns: ChatTurn[];
+  decisions: PendingChange[];
+  snapshots: { version: number; takenAt: string; reason: string }[];
+  totals: { answered: number; failed: number; toolCalls: number; caught: number; caughtReplies: number; heldBack: number };
+}
+
+/** The action log: every chat turn (both channels) with its tool calls and figure checks, every approval decision and snapshot. */
+export async function getActivity(): Promise<Activity> {
+  const store = await getStore();
+  const [turns, pending, snapshots] = await Promise.all([
+    store.listChatTurns(100).catch((err) => {
+      console.warn("[data] couldn't load the chat log", err);
+      return [] as ChatTurn[];
+    }),
+    store.getPendingChanges(),
+    store.listSnapshots(20),
+  ]);
+  const newest = [...turns].reverse();
+  return {
+    turns: newest,
+    decisions: pending.filter((p) => p.status !== "pending"),
+    snapshots,
+    totals: {
+      answered: turns.filter((t) => t.status === "answered").length,
+      failed: turns.filter((t) => t.status === "failed").length,
+      toolCalls: turns.reduce((s, t) => s + (t.tools?.length ?? 0), 0),
+      caught: turns.reduce((s, t) => s + (t.checker?.flagged.length ?? 0), 0),
+      caughtReplies: turns.filter((t) => (t.checker?.flagged.length ?? 0) > 0).length,
+      heldBack: turns.filter((t) => t.checker?.blocked).length,
+    },
+  };
 }
 
 /* ---------- Not in the database yet: calendar, reminders, what-if ---------- */
