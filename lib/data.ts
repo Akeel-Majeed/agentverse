@@ -305,13 +305,18 @@ export async function getRiskInputs(riskId: string): Promise<RiskInputs> {
   const byKey = new Map(fields.map((f) => [f.key, f]));
   const impacts = allImpacts.filter((i) => i.signal.riskId === riskId);
   return {
-    fields: FIELDS.filter((d) => d.risks.includes(riskId as RiskId)).map((def) => ({
-      key: def.key,
-      label: def.label,
-      value: formatValue(def, byKey.get(def.key)?.value ?? null) || "Not recorded",
-      sectionId: def.section,
-      sectionTitle: SECTIONS.find((s) => s.id === def.section)?.title ?? def.section,
-    })),
+    fields: FIELDS.filter((d) => d.risks.includes(riskId as RiskId)).map((def) => {
+      const live = byKey.get(def.key)?.value ?? null;
+      const frozen = snapshot.fields[def.key] ?? null;
+      return {
+        key: def.key,
+        label: def.label,
+        value: formatValue(def, live) || "Not recorded",
+        snapshotValue: String(live ?? "") === String(frozen ?? "") ? undefined : formatValue(def, frozen) || "Not recorded",
+        sectionId: def.section,
+        sectionTitle: SECTIONS.find((s) => s.id === def.section)?.title ?? def.section,
+      };
+    }),
     exposure: snapshot.exposures.find((e) => e.riskId === riskId) ?? null,
     snapshot: { version: snapshot.version, takenAt: snapshot.takenAt },
     impacts,

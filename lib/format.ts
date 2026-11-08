@@ -2,7 +2,9 @@ const MINUS = "−";
 
 /** £96k, −£47k. Input in £k. */
 export function gbpK(valueK: number, opts: { sign?: boolean; decimals?: number } = {}): string {
-  const decimals = opts.decimals ?? (Math.abs(valueK) < 10 && valueK % 1 !== 0 ? 1 : 0);
+  // One decimal under £10k (£7.5k), but never a trailing ".0" (£10k, not £10.0k).
+  const oneDp = Math.abs(valueK) < 10 && valueK % 1 !== 0 && Math.abs(valueK).toFixed(1).slice(-1) !== "0";
+  const decimals = opts.decimals ?? (oneDp ? 1 : 0);
   const rounded = Number(Math.abs(valueK).toFixed(decimals));
   const body = `£${rounded.toLocaleString("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}k`;
   if (rounded === 0) return opts.sign ? `£0` : "£0";

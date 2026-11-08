@@ -31,14 +31,19 @@ export function RiskInputsCard({ inputs }: { inputs: RiskInputs }) {
           )}
         </div>
         <div className="min-w-0">
-          <SectionLabel as="h3" className="mb-2">Profile fields used</SectionLabel>
+          <SectionLabel as="h3" className="mb-2">Your profile now</SectionLabel>
           <ul className="divide-y divide-line text-[12.5px]">
             {inputs.fields.map((f) => (
               <li key={f.key} className="flex items-baseline justify-between gap-3 py-1.5 first:pt-0">
                 <Link href={`/profile?section=${f.sectionId}#field-${f.key}`} className="min-w-0 text-sub hover:text-ink hover:underline">
                   {f.label}
                 </Link>
-                <span className="shrink-0 text-right font-medium tabular">{f.value}</span>
+                <span className="shrink-0 text-right font-medium tabular">
+                  {f.value}
+                  {f.snapshotValue !== undefined ? (
+                    <span className="block text-[11.5px] font-normal text-warn">{f.snapshotValue} in the snapshot · update to use</span>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>

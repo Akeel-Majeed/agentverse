@@ -63,7 +63,7 @@ export function simulateRisk(model: ExposureModel, active: Mitigation[] = []): R
 }
 
 export function formatShock(model: ExposureModel, perUnit: number): string {
-  if (model.unit === "£k") return `${num(perUnit / 10, 1)}%`;
+  if (model.unit === "£k") return `${num(perUnit / 10, (perUnit / 10).toFixed(1).endsWith(".0") ? 0 : 1)}%`;
   return `£${num(Math.round(perUnit))}/${model.unit}`;
 }
 

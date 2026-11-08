@@ -18,7 +18,7 @@ function Benefit({ risk, m }: { risk: RiskResult; m: Mitigation }) {
     <div className="text-right">
       <MoneyFigure detail={mitigationDetail(risk, m)} className="text-[15px] font-semibold text-good" />
       <div className="mt-0.5 text-[11px] text-sub">
-        {m.benefitKind === "profit" ? "profit a year" : "bad-year hit"}
+        {m.benefitKind === "profit" ? "more profit, every year" : "bad-year hit"}
       </div>
     </div>
   );

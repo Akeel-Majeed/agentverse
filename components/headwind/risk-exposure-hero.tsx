@@ -11,9 +11,9 @@ export function RiskExposureHero({ risks }: { risks: RiskResult[] }) {
     <Card label="Risk exposure">
       <CardHeader title="Risk exposure" description="Score out of 10 for each risk, from how much a 1-in-20 bad year would cost you." />
       <CardBody className="px-5 py-8">
-        <ul className="flex flex-wrap justify-center gap-x-12 gap-y-8">
+        <ul className="flex flex-wrap justify-center gap-x-4 gap-y-8 sm:gap-x-12">
           {risks.map((risk) => (
-            <li key={risk.id} className="flex w-[160px] flex-col items-center text-center">
+            <li key={risk.id} className="flex w-[136px] flex-col items-center text-center sm:w-[160px]">
               <Link
                 href={`/risks/${risk.id}`}
                 className="group flex flex-col items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"

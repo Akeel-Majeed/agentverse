@@ -1,4 +1,4 @@
-import { amount, gbp, gbpK } from "./format";
+import { amount, gbp, gbpK, num } from "./format";
 import { formatShock, riskWorking, simulateExposure, Z95, type RiskSim, type TradeoffRow } from "./sim";
 import type { FigureDetail, Mitigation, ProfitSummary, RiskResult } from "./types";
 
@@ -32,11 +32,13 @@ export function mitigationDetail(risk: RiskResult, m: Mitigation): FigureDetail 
       title: m.title,
       value: `+${gbp(m.badYearReduction)}/yr`,
       description: m.description,
+      // The saving is the option's own estimate (see its description and sources); shown as such,
+      // not as a calculation this page did.
       working: [
         { label: model.keys.exposure, value: amount(model.exposure, model.unit) },
-        { label: "margin_today", value: "3.1%" },
-        { label: "margin_well_secured", value: "1.3–1.8%" },
-        { label: `saving = ${model.keys.exposure} × (3.1% − 1.8%)`, value: `${gbp(m.badYearReduction)}/yr` },
+        { label: "saving_a_year (the option's estimate)", value: `${gbp(m.badYearReduction)}/yr` },
+        { label: "saving_as_share_of_exposure", value: `${num((m.badYearReduction / (model.exposure * (model.unit === "£k" ? 1000 : 1))) * 100, 1)}%` },
+        { label: "bad_year_hit (unchanged: this raises profit, it doesn't cut the risk)", value: gbp(risk.badYear) },
         { label: "score_after", value: `${m.scoreAfter} / 10` },
       ],
       sources: risk.sources,
@@ -85,9 +87,9 @@ export function tradeoffDetail(
   return simDetail(risk, sim, title, row[field], model.tradeoff.note);
 }
 
-export function profitDetail(p: ProfitSummary, which: "expected" | "badYear" | "goodYear" | "deltaWeek"): FigureDetail {
+export function profitDetail(p: ProfitSummary, which: "expected" | "badYear" | "goodYear" | "deltaWeek", harvestYear?: number): FigureDetail {
   const titles = {
-    expected: "Expected profit, 2027 harvest year",
+    expected: harvestYear ? `Expected profit, ${harvestYear} harvest year` : "Expected profit",
     badYear: "Farm profit in a bad year",
     goodYear: "Farm profit in a good year",
     deltaWeek: "Change in expected profit vs last week",

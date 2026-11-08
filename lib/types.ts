@@ -345,7 +345,8 @@ export interface RiskProfileRow {
 
 /** Everything the risk page shows about where a risk's figures come from. */
 export interface RiskInputs {
-  fields: { key: string; label: string; value: string; sectionId: string; sectionTitle: string }[];
+  /** Live profile values; `snapshotValue` is set when the value has changed since the snapshot the figures use. */
+  fields: { key: string; label: string; value: string; snapshotValue?: string; sectionId: string; sectionTitle: string }[];
   exposure: RiskExposure | null;
   snapshot: { version: number; takenAt: string };
   impacts: SignalImpact[];
