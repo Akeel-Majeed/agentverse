@@ -346,7 +346,9 @@ function createSupabaseStore(db: SupabaseClient): Store {
 /* ---------- Choosing a store ---------- */
 
 let supabaseStore: Store | undefined;
-let mockStore: Store | undefined;
+// The demo store lives on globalThis: in dev, server actions, route handlers and pages can load
+// separate copies of this module, and they must all see the same in-memory data.
+const g = globalThis as { __mockStore?: Store };
 let retryAt = 0;
 let checking: Promise<Store | undefined> | undefined;
 
@@ -379,5 +381,5 @@ export async function getStore(): Promise<Store> {
     const found = await checking;
     if (found) return found;
   }
-  return (mockStore ??= createMockStore());
+  return (g.__mockStore ??= createMockStore());
 }

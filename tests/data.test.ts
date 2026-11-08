@@ -11,6 +11,7 @@ const load = () => import("@/lib/data");
 beforeEach(() => {
   delete process.env.NEXT_PUBLIC_SUPABASE_URL;
   delete process.env.SUPABASE_SECRET_KEY;
+  delete (globalThis as { __mockStore?: unknown }).__mockStore;
   vi.resetModules();
 });
 
