@@ -1,8 +1,8 @@
-# Headwind: agent architecture and end-to-end flow
+# Hedged: agent architecture and end-to-end flow
 
 Status: draft for the AgentVerse build, 7-8 Nov 2026. Fictional farm, real data sources.
 
-Headwind turns a UK arable farm's position (tonnes unsold, nitrogen unbought, debt unfixed, scheme agreements expiring) plus live market, weather and policy data into one number per risk: the £ hit in a 1-in-20 bad year, as a share of a typical year's profit. It then proposes mitigations, and nothing about the farm's record changes without the farmer approving it.
+Hedged turns a UK arable farm's position (tonnes unsold, nitrogen unbought, debt unfixed, scheme agreements expiring) plus live market, weather and policy data into one number per risk: the £ hit in a 1-in-20 bad year, as a share of a typical year's profit. It then proposes mitigations, and nothing about the farm's record changes without the farmer approving it.
 
 ## 1. End-to-end process
 
@@ -158,7 +158,7 @@ RPA does not publish parcel polygons openly, so draw mock boundaries around the 
 
 Each endpoint below was called from this machine. The suggestion list assumed Python; the stack is TypeScript, so the Yahoo and spreadsheet paths use plain `fetch` and the `xlsx` package rather than yfinance and pandas.
 
-| Suggested | Result | Use in Headwind |
+| Suggested | Result | Use in Hedged |
 |---|---|---|
 | Yahoo Finance chart API, `query1.finance.yahoo.com/v8/finance/chart/{ticker}` | Works without a key for `TTF=F` (Dutch gas, EUR), `ZW=F` (CBOT wheat, US cents/bu), `KE=F` (KC wheat). `MWT=F`, `ECO.PA`, `EBMZ26.PA`, `ECOZ26.PA` return "symbol may be delisted". `EBM=F` responds but the value is not a €/t wheat price, so do not use it. Rapeseed only exists as an index (`ENRSE.PA`) | Gas as the fertiliser shock signal, CBOT wheat as the global price signal. Euronext milling wheat is not reliably on Yahoo, so the UK strip stays on the AHDB table and Paris parity is a fallback only |
 | FRED API, `api.stlouisfed.org/fred/series/observations?series_id=…&api_key=…&file_type=json` | Free key. `IUDSOIA` (SONIA), `DCOILBRENTEU` (Brent), `PCU325311325311` (US nitrogen fertiliser PPI) exist. `IUDBEDR` (Bank Rate) is not on FRED, 404 | JSON mirror for SONIA and Brent. Bank Rate stays on the BoE IADB CSV |

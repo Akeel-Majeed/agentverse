@@ -1,8 +1,8 @@
 # agentverse
 
-## Headwind (frontend demo)
+## Hedged
 
-AI risk agent for UK arable farms. Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui. All figures are fictional demo data.
+Risk intelligence for UK arable farms. Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui. All figures are fictional demo data.
 
 ```bash
 bun install

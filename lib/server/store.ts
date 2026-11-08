@@ -384,7 +384,9 @@ function createSupabaseStore(db: SupabaseClient): Store {
 /* ---------- Choosing a store ---------- */
 
 let supabaseStore: Store | undefined;
-let mockStore: Store | undefined;
+// The demo store lives on globalThis so a dev recompile of a route module doesn't wipe the farmer's
+// approvals and snapshots. (Each serverless instance still has its own copy: use Supabase in production.)
+const globalStore = globalThis as typeof globalThis & { __hedgedMockStore?: Store };
 let retryAt = 0;
 let checking: Promise<Store | undefined> | undefined;
 
@@ -417,5 +419,5 @@ export async function getStore(): Promise<Store> {
     const found = await checking;
     if (found) return found;
   }
-  return (mockStore ??= createMockStore());
+  return (globalStore.__hedgedMockStore ??= createMockStore());
 }

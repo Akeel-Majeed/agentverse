@@ -15,7 +15,7 @@ export default async function RiskPage({ params }: { params: { id: string } }) {
   return (
     <PageShell>
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-8">
-        <nav aria-label="Risks" className="-mb-2 overflow-x-auto border-b border-line">
+        <nav aria-label="Risks" className="relative -mb-2 overflow-x-auto border-b border-line">
           <ul className="flex items-center gap-1">
             {risks.map((r) => {
               const current = r.id === risk.id;
