@@ -67,6 +67,7 @@ export async function runPhaseOne(input: PhaseOneInput): Promise<{ run: AgentRun
     const scaled = recent.map((v) => (v * wheat) / recent.at(-1)!);
     const check = screenNumber(wheat, scaled.slice(0, -1), controls.zThreshold);
     await trace.append("screen.number", "code", { metric: "wheat_feed_gbp_t", ...check });
+    if (check.status !== "passed") held = true; // |z| over the threshold: the farmer checks the figure
   }
   if (input.document) {
     const doc = input.document;
@@ -88,9 +89,11 @@ export async function runPhaseOne(input: PhaseOneInput): Promise<{ run: AgentRun
       lap("read", tRead);
     }
     // No text to screen (a file but no reader, or the read failed): fail closed, the farmer decides.
+    // Otherwise one Jev call screens everything the judge can read: the file name (from the client),
+    // the text, and the field values Flash extracted. Any of them can quarantine the document.
     const result: ScreenResult = text === null
       ? { status: "review", checks: [{ name: "reader", actor: "code", value: NaN, threshold: 0, fired: true, note: readerNote }] }
-      : await screenText(text, { threshold: controls.jevThreshold, ask: input.jev });
+      : await screenText([doc.name, text, ...fields.map((f) => `${f.key}: ${f.value}`)].join("\n"), { threshold: controls.jevThreshold, ask: input.jev });
     const obs = await observe({
       ...base, kind: "document", source: doc.name, url: null,
       value: { name: doc.name, mimeType: doc.file?.mimeType ?? "text/plain", text, fields },
