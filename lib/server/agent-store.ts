@@ -112,10 +112,12 @@ export async function getAgentStore(): Promise<AgentStore> {
     return (g.__agentStore ??= createSupabaseAgentStore());
   }
   const { getStore } = await import("./store");
-  return (g.__agentStore ??= createMemoryAgentStore(async (p) => (await getStore()).insertPendingChange({
-    fieldKey: p.fieldKey, field: p.fieldLabel, currentValue: p.currentValue, proposedValue: p.proposedValue,
-    source: "agent", reason: p.reason, status: "pending", runId: p.runId, evidence: p.evidence,
-  })));
+  return (g.__agentStore ??= createMemoryAgentStore(async (p) => {
+    await (await getStore()).insertPendingChange({
+      fieldKey: p.fieldKey, field: p.fieldLabel, currentValue: p.currentValue, proposedValue: p.proposedValue,
+      source: "agent", reason: p.reason, status: "pending", runId: p.runId, evidence: p.evidence,
+    });
+  }));
 }
 
 /* ---------- Database stores (column names from supabase/migrations/0005_agent_runs.sql) ---------- */

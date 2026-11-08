@@ -59,6 +59,7 @@ export const SOURCE_LABELS: Record<PendingSource, string> = {
   mcp: "Adviser agent · via MCP",
   companies_house: "Companies House",
   agent: "Risk agent",
+  chat: "Ask Hedged chat",
 };
 
 export function ApprovalQueueItem({

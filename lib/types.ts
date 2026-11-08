@@ -92,7 +92,7 @@ export interface RiskResult {
   simulation?: { runId: string; p5Hit: number; p5HitDisplay: string; score: number; seed: number; paths: number; configHash: string };
 }
 
-export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house" | "agent";
+export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house" | "agent" | "chat";
 export type PendingStatus = "pending" | "approved" | "rejected";
 
 export interface PendingChange {
