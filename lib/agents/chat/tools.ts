@@ -410,7 +410,7 @@ export function createTools(calls: ToolCall[], change: ChangeContext = { channel
     tool({
       name: "propose_profile_change",
       description:
-        "Propose changing one farm profile value, e.g. after the farmer says they sold grain, bought fertiliser or their loan changed. Nothing changes yet: it goes to the approval queue and you must show the farmer the exact change with its ref and ask them to reply YES. Use the field key from get_profile; give the value as the farmer stated it.",
+        "Propose changing one farm profile value, e.g. after the farmer says they sold grain, bought fertiliser or their loan changed. Nothing changes yet: it goes to the approval queue and you must show the farmer the exact change with its ref and ask them to confirm. Use the field key from get_profile; give the value as the farmer stated it.",
       inputSchema: z.object({
         field_key: z.string().describe("Profile field key from get_profile, e.g. sales.wheat_2026_unsold_t"),
         value: z.string().min(1).describe("New value, e.g. 828 or 828 t or 31 Mar 2027"),
@@ -421,7 +421,7 @@ export function createTools(calls: ToolCall[], change: ChangeContext = { channel
     tool({
       name: "confirm_profile_change",
       description:
-        "Apply a change the farmer has just confirmed. Only call it when the farmer's latest message is a plain YES to a change you showed them earlier with its ref. Code checks this and refuses otherwise.",
+        "Apply a change the farmer has just confirmed. Call it when the farmer's latest message answers the change you showed them in your last message (with its ref) and seems to agree. Code checks the reply really confirms that exact change (Jev) and refuses otherwise.",
       inputSchema: z.object({ ref: z.string().describe("The change's ref, e.g. 3F9A2C") }),
       run: async (input) => confirmProfileChange(input, change),
     }),

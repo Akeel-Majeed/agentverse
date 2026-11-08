@@ -2,8 +2,8 @@ import "server-only";
 /**
  * Profile changes through chat: the agent proposes, the farmer confirms. Proposals go to the
  * approval queue (pending_changes) like any other source; a change is applied only through
- * approveChange, after the code gate in confirm.ts has seen the farmer's plain yes to that exact
- * change. The agent never writes to the profile directly.
+ * approveChange, after the gate in confirm.ts has seen the farmer explicitly confirm that exact
+ * change (judged by Jev, or a plain yes without it). The agent never writes to the profile directly.
  */
 import type Anthropic from "@anthropic-ai/sdk";
 import { approveChange, rejectChange } from "../../data";
@@ -13,7 +13,7 @@ import { valuesOf } from "../../profile/risk-profile";
 import { formatValue, parseValue } from "../../profile/values";
 import { getStore } from "../../server/store";
 import type { PendingChange } from "../../types";
-import { changeRef, confirmationGate } from "./confirm";
+import { changeRef, confirmationGate, jevConfirmFromEnv, type ConfirmAsk } from "./confirm";
 
 /** Open chat proposals at once: a runaway agent can't flood the farmer's approval queue. */
 export const MAX_OPEN_CHAT_PROPOSALS = 3;
@@ -22,6 +22,8 @@ export interface ChangeContext {
   channel: "imessage" | "web";
   /** The conversation this turn answers; the confirmation gate reads it. */
   messages: Anthropic.Beta.BetaMessageParam[];
+  /** Jev for the confirmation check. Defaults to TYPESAFE_API_KEY; null forces the plain-yes fallback. */
+  confirmAsk?: ConfirmAsk | null;
 }
 
 const fromChat = (p: PendingChange) => p.source === "chat" || p.source === "imessage";
@@ -67,20 +69,23 @@ export async function proposeProfileChange(args: { field_key: string; value: str
     from,
     to,
     status: "waiting for the farmer's YES; nothing has changed yet",
-    tell_the_farmer: `Change ${def.label} from ${from} to ${to}? Reply YES to confirm (ref ${ref}).`,
+    tell_the_farmer: `Change ${def.label} from ${from} to ${to}? Reply yes to confirm (ref ${ref}).`,
   };
 }
 
 export async function confirmProfileChange(args: { ref: string }, ctx: ChangeContext) {
   const item = await findByRef(args.ref);
   if (!item) return { applied: false, error: `No change ${args.ref} is waiting for approval.` };
-  // Enforced in code: the farmer's latest message is a plain yes, and they were shown this change before.
-  const gate = confirmationGate(ctx.messages, changeRef(item.id));
-  if (!gate.ok) return { applied: false, control: "confirmation required", reason: gate.reason };
+  // Enforced in code: the farmer was just shown this change and their reply explicitly confirms it.
+  const ask = ctx.confirmAsk === undefined ? jevConfirmFromEnv() : ctx.confirmAsk;
+  const gate = await confirmationGate(ctx.messages, { ref: changeRef(item.id), field: item.field, from: item.currentValue, to: item.proposedValue }, ask);
+  const checked = { method: gate.method, jev_confirms: gate.confirms, jev_injection: gate.injection };
+  if (!gate.ok) return { applied: false, control: "confirmation required", reason: gate.reason, checked, note: gate.note };
   const result = await approveChange(item.id);
   if (!result.ok) return { applied: false, error: result.error };
   return {
     applied: true,
+    checked,
     field: item.field,
     now: item.proposedValue,
     was: item.currentValue,

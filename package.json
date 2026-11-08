@@ -14,7 +14,8 @@
     "history:load": "bun scripts/load-history.ts",
     "backtest": "bun scripts/backtest.ts",
     "screen:eval": "bun --preload ./scripts/shims.ts scripts/screen-eval.ts",
-    "agent:demo": "bun --preload ./scripts/shims.ts scripts/risk-agent.ts"
+    "agent:demo": "bun --preload ./scripts/shims.ts scripts/risk-agent.ts",
+    "eval:confirm": "bun scripts/confirm-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
