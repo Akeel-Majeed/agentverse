@@ -52,6 +52,7 @@ export interface Store {
   getSignals(since: string): Promise<Signal[]>;
   getPendingChanges(): Promise<PendingChange[]>;
   updatePendingChange(id: string, status: PendingChange["status"], proposedValue?: string): Promise<PendingChange | null>;
+  insertPendingChange(c: Omit<PendingChange, "id" | "receivedAt">): Promise<void>;
   /** Start logging a chat turn. False if this inbound message was already taken (a webhook retry). */
   claimChatTurn(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<boolean>;
   finishChatTurn(inboundMessageId: string, result: Omit<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<void>;
@@ -124,6 +125,9 @@ function createMockStore(): Store {
       item.status = status;
       if (proposedValue !== undefined) item.proposedValue = proposedValue;
       return structuredClone(item);
+    },
+    insertPendingChange: async (c) => {
+      state.pending.unshift({ ...structuredClone(c), id: crypto.randomUUID(), receivedAt: receivedLabel(new Date().toISOString()) });
     },
     claimChatTurn: async (turn) => {
       if (state.chat.some((t) => t.inboundMessageId === turn.inboundMessageId)) return false;
@@ -296,6 +300,19 @@ function createSupabaseStore(db: SupabaseClient): Store {
       const { data, error } = await db.from("pending_changes").update(patch).eq("farm_id", farm).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(`Supabase: update pending change: ${error.message}`);
       return data ? toPending(data) : null;
+    },
+    async insertPendingChange(c) {
+      const { error } = await db.from("pending_changes").insert({
+        farm_id: farm,
+        field_key: c.fieldKey ?? null,
+        field_label: c.field,
+        current_value: c.currentValue,
+        proposed_value: c.proposedValue,
+        source: c.source,
+        reason: c.reason,
+        status: c.status,
+      });
+      if (error) throw new Error(`Supabase: insert pending change: ${error.message}`);
     },
     async claimChatTurn(turn) {
       const { error } = await db.from("chat_turns").insert({

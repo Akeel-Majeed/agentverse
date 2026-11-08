@@ -58,6 +58,7 @@ export const SOURCE_LABELS: Record<PendingSource, string> = {
   imessage: "iMessage reply",
   mcp: "Adviser agent · via MCP",
   companies_house: "Companies House",
+  agent: "Risk agent",
 };
 
 export function ApprovalQueueItem({

@@ -90,7 +90,7 @@ export interface RiskResult {
   model: ExposureModel;
 }
 
-export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house";
+export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house" | "agent";
 export type PendingStatus = "pending" | "approved" | "rejected";
 
 export interface PendingChange {
