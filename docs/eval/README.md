@@ -46,16 +46,16 @@ Jev `jev-latest`, injection probability ≥ 0.5 → quarantined; threshold fixed
 
 Gemini 4 Argon, `thinking_level: medium`, live calls, cost computed in code from each interaction's `usage`.
 
-- **p50 43 s, $0.043 per run** over the 3 recorded runs that reached the judge (31.3 s, 43.0 s, 57.4 s; 2–3 turns each). All three ended `published` with no untraced figures.
+- **p50 43.5 s, $0.042 per run** over the 6 live runs that reached the judge (31.3, 33.6, 43.0, 44.0, 57.4 and 69.0 s; 2–3 turns each). The first 3 alone gave p50 43 s, $0.043. All 6 ended `published` with no untraced figures; the last 2 (33.6 s and 44.0 s) ran after the review fixes, under the strict figure checker, and it passed them.
 - The 2 injection inputs (merchant email, photo with a printed instruction) were held at the screen: no Argon call, $0.
-- A fourth live run on the keyless dev server (8 Nov, 03:15, forward-contract photo) took **69.0 s**, $0.042, 3 turns, and also ended `published`. That is over Vercel Hobby's 60 s route limit: `/api/judge` asks for 300 s, which needs Vercel Pro, or run the judge locally with `bun run agent:demo`.
-- Three to four runs is a small sample.
+- One run (keyless dev server, forward-contract photo) took **69.0 s**, over Vercel Hobby's 60 s route limit: `/api/judge` asks for 300 s, which needs Vercel Pro, or run the judge locally with `bun run agent:demo`.
+- Six runs is a small sample.
 
 ## Controls seen firing
 
 - Kill switch stopping a live run mid-judgement: `screenshots/kill-switch-fired.png`, `kill-switch-fired-events.png`.
 - Injection photo held before any judge call: `screenshots/trace-held-injection-photo.png`.
-- The other controls (budget, turn and proposal caps, denied function, figure checker block, non-verbatim quote) are tested with a scripted client in `tests/risk-agent.test.ts`; none fired in the live runs.
+- The other controls (budget, turn and proposal caps, 270 s deadline, denied function, strict figure checker block, non-verbatim quote, second judge request on the same run) are tested with scripted clients in `tests/`; none fired in the live runs.
 
 ## Screenshots
 
@@ -75,5 +75,7 @@ Gemini 4 Argon, `thinking_level: medium`, live calls, cost computed in code from
 - DSCR leaves out the depreciation add-back, because the profile has no depreciation field.
 - The `backtest_results` table is never written; the backtest output lives in `backtest.json`.
 - The figure checker does not parse spelled-out numbers ("one in four").
+- The `assessments` columns `run_id`, `status` and `head_hash` are not written; the run and its current head are resolved when the assessment is read.
+- `/trace` with no run id shows the latest run, which may not be the run behind the assessment on screen.
 - On Vercel the agent tables must be in Supabase (`AGENT_TABLES=1`, migration `0003_agent_runs.sql` applied): the in-memory agent store does not survive across serverless invocations.
 - The monthly backtest checks each factor's tails, not their joint structure. Regulation is not backtested.

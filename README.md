@@ -64,7 +64,7 @@ Named user: a UK arable farmer (Fenland Ridge Farm Ltd, a fictional 450 ha farm 
 
 Loop: photo or PDF → Gemini 3.8 Flash extracts text and quoted fields → Jev screens the text (quarantine on injection) → the engine simulates 10,000 years → Gemini 4 Argon reads the results through five declared functions and submits a judgement → the figure checker (code) blocks any number the engine did not produce → the farmer approves each proposed change with a tap. Every step, with the Gemini interaction id, is appended to a hash-chained log you can verify on the Trace page.
 
-Controls in code: function allowlist, turn cap, budget cap computed from `usage`, proposal cap, kill switch (checked between steps and aborting the in-flight request), append-only trace. Keys live only in environment variables (`GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `ANTHROPIC_API_KEY`); none are committed.
+Controls in code: function allowlist, turn cap, budget cap computed from `usage` (missing usage also stops the run), proposal cap, a 270 s overall deadline, kill switch (checked between steps and aborting the in-flight request; a missing or unreadable controls row counts as stopped), one judge per run (atomic claim, a second request gets 409), and an append-only trace where each event's hash covers `sha256(prev_hash || canonical({seq,type,actor,body}))`. The strict figure checker (NFKC-normalised, every string field of the judgement) blocks any digit that does not match an engine figure with the same unit and sign, gain words in front of a negative figure, and unknown figure ids; a blocked run's explanation is withheld. Jev screens the file name, the text and the values Flash extracted together; a price that fails the z-score check holds the run. A proposal needs a quote of at least 8 characters from this run's document that contains the value, a catalogue key and a parseable value; its label and current value come from code. The farmer's approve or reject is appended to the run's chain. Keys live only in environment variables (`GEMINI_API_KEY`, `TYPESAFE_API_KEY`, `ANTHROPIC_API_KEY`); none are committed.
 
 The five functions the judge may call: `get_engine_results`, `get_documents`, `get_profile` (read-only), `propose_change` (writes only to the approval queue, and only with a verbatim quote from a screened document), `submit_judgement` (ends the turn). Nothing else runs.
 
@@ -81,16 +81,18 @@ Full write-up with links: [`docs/eval/README.md`](docs/eval/README.md). The thre
 
 - **Simulation backtest** (monthly walk-forward, 2017–2026, 115 one-month-ahead forecasts per series, 5 price series): the Monte Carlo's 1-in-20 low-side breach rate is 3.5%–8.7% against a 5% target, and Kupiec does not reject it for any series. It does **not** beat a plain normal refit (pinball loss about equal); it does beat historical simulation on pinball loss for every series.
 - **Input screen** (Jev, threshold 0.5 fixed before the run): on the public deepset/prompt-injections test split (n = 116) it caught 46 / 60 injections, 76.7% (95% CI 64.6%–85.6%), with 0 / 56 false alarms (0%–6.4%). Synthetic farm texts 10 / 10 caught, 0 / 10 false alarms; synthetic farm photos 5 / 5 caught, 0 / 5 false alarms.
-- **Judge** (Gemini 4 Argon, live): p50 43 s and $0.043 per run over the 3 runs that reached the judge (31–57 s); the 2 injection inputs were held before any Argon call.
+- **Judge** (Gemini 4 Argon, live): p50 43.5 s and $0.042 per run over 6 runs that reached the judge (31–69 s, one over 60 s; the first 3 alone gave p50 43 s). All 6 ended `published`, the last 2 under the strict figure checker. The 2 injection inputs were held before any Argon call.
 
 ### Limits
 
 - The Monte Carlo does not beat a normal refit, only historical simulation. Nitrogen (AN) breaches cluster in 2021–23 (Christoffersen p ≈ 0.00), and high-side breaches run above 5% for barley, rape and fuel. The Student-t tails and the nitrogen factor were chosen knowing 2022 happened.
 - The whole-farm check (harvests 2019–2025, 0 / 7 outside P5–P95) is n = 7 and descriptive only; Defra has no 2022 East Midlands yield, so the 2022 row is price-only.
 - The farm attack texts were written by an AI subagent (it did not see the screen code). The photo set is n = 10. All farm data, documents and photos are synthetic.
-- Judge timing is 3 live runs; p50 43 s is close to Vercel Hobby's 60 s cap. `/api/judge` asks for 300 s, so it needs Vercel Pro, or run the judge locally with `bun run agent:demo`.
+- Judge timing is 6 live runs; p50 43.5 s is close to Vercel Hobby's 60 s cap and one run took 69 s. `/api/judge` asks for 300 s, so it needs Vercel Pro, or run the judge locally with `bun run agent:demo`.
 - On Vercel, set `AGENT_TABLES=1` and apply `supabase/migrations/0003_agent_runs.sql`: the in-memory agent store does not survive across serverless invocations.
 - Every server action in `lib/data.ts` is public, so in the demo anyone can call `setPaused(false)` and restart a stopped agent. Real authentication is a next step.
 - DSCR leaves out the depreciation add-back, because the profile has no depreciation field.
 - The `backtest_results` table is never written; the backtest output lives in `docs/eval/backtest.json`.
 - The figure checker does not parse spelled-out numbers ("one in four"), so a figure written in words is not checked.
+- The `assessments` columns `run_id`, `status` and `head_hash` are not written; the assessment's run and its current head are resolved when it is read.
+- `/trace` with no run id shows the latest run, which may not be the run behind the assessment on screen.

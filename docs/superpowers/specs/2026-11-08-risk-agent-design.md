@@ -124,7 +124,7 @@ Integrity:
 | Controls firing | `agent_events` `control.*` | Kill switch (where it fired), budget cap, turn cap, proposal cap |
 | Human approvals | `agent_events`, `pending_changes.resolved_by` | Who, what, when |
 
-`verify-chain` recomputes `sha256(prev_hash || body)` over the stored text and compares with `head_hash`. The Trace page shows the result.
+`verify-chain` recomputes `sha256(prev_hash || canonical({seq,type,actor,body}))` over the stored text and compares with `head_hash`. The Trace page shows the result.
 
 ### Regulatory framing
 
