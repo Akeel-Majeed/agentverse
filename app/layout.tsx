@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { ApprovalProvider } from "@/components/headwind/approvals";
+import { Assistant } from "@/components/headwind/assistant";
 import { TopNav } from "@/components/headwind/top-nav";
 import { getAssessmentMeta, getFarm, getPendingChanges } from "@/lib/data";
 import "./globals.css";
@@ -32,6 +33,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <ApprovalProvider initial={pending}>
           <TopNav farmName={farm.name} updatedAt={meta.updatedAt} />
           <div className="lg:pl-[264px]">{children}</div>
+          <Assistant />
         </ApprovalProvider>
       </body>
     </html>

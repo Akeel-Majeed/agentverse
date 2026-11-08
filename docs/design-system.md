@@ -103,4 +103,5 @@ The product UI uses the same system at screen scale. Tokens live in `tailwind.co
 **Components:**
 - **Cards:** `rounded-card` (20px), `bg-card`, `shadow-card` (`0 16px 48px` ink at 7%), no border. Hairlines divide rows inside a card.
 - **Buttons:** pills (`rounded-full`). Primary is ink with paper text; secondary is a card-coloured pill with a hairline. Setup's main action is a large ink pill with →.
+- **Chat:** the "Ask Hedged" panel (bottom right) uses iMessage-style bubbles: grey (`hover` `#E9E8DC`) for the assistant, blue `#1F6FEB` for the farmer, as the deck's chat. That blue is for chat bubbles only.
 - **Mark:** `Wordmark` in `components/headwind/logo.tsx`: a small ink square plus "Hedged".
