@@ -222,6 +222,7 @@ export const FIELDS: FieldDef[] = [
   { key: "fin.lender", section: "finance", label: "Secured lender", type: "text", risks: ["interest_rates"] },
   { key: "fin.overdraft_limit", section: "finance", label: "Overdraft limit", type: "money", risks: ["interest_rates"] },
   { key: "fin.overdraft_peak", section: "finance", label: "Overdraft at its peak", type: "money", risks: ["interest_rates"] },
+  { key: "fin.capital_repayment", section: "finance", label: "Loan capital repaid a year", type: "money", risks: ["interest_rates"], help: "Used for the bank's debt service cover (DSCR)." },
   { key: "fin.hire_purchase", section: "finance", label: "Hire purchase (fixed rate)", type: "money", risks: [] },
   { key: "fin.cash_buffer", section: "finance", label: "Cash kept in reserve", type: "money", risks: [] },
 
