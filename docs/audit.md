@@ -1,6 +1,13 @@
 # Hedged: product audit, 8 Nov 2026
 
-Everything below was checked against the code on `claude/optimistic-cray-ytj349` (commit 61e1693). Checks run: `tsc`, `npm test` (82/82 pass), `npm run lint` (clean), `npm run build` (ok), a script driving `lib/data.ts` on the demo store, and a browser walk-through of every route at desktop and phone width.
+Everything below was checked against the code on `claude/optimistic-cray-ytj349` (commit 61e1693). Checks run: `tsc`, `npm test` (82/82 pass), `npm run lint` (clean), `npm run build` (ok), a script driving `lib/data.ts` on the demo store, and a Playwright walk-through of every route at desktop and phone width (Part C).
+
+**If you only have time for five things:**
+1. Reseed the live demo so the news shows again.
+2. Enforce `ins.max_loss` on screen.
+3. Add plausibility checks that visibly catch a bad input.
+4. Backtest the bad-year figure on held-out price history and put the result in the deck.
+5. Rebuild the risk summary and driver text from the numbers so they never go stale.
 
 The build is solid: it's green, the maths is in code, there's an approval queue and an action log, and the figure checker is a good idea. The problems are mostly where the rubric gives its marks. **Half the score (Testing on unseen data, 25%; Traceable reasoning, 25%) isn't evidenced yet, and the one hard limit the farm profile collects (`ins.max_loss`) is never enforced.**
 
@@ -26,6 +33,15 @@ Rubric weights: (1) Traceable reasoning 25%, (2) Testing on unseen data 25%, (3)
 | 12 | Model upgrades (correlation, fat tails, use yield-swing fields) | 5 | 3+ h | Real gains, but they matter less than evidencing what already exists. Say them as limits in the deck instead. |
 
 Everything in 1–10 must also go into the **pitch deck**: judges score every team from the deck.
+
+### Before anything else: quick wins (under 15 minutes each)
+
+- **Reseed the live Supabase demo, or reset it to snapshot v1.** The live database is at snapshot v3 (taken 8 Nov 00:21). Every signal predates it, so the overview, profile and every risk page show **"No news since the snapshot"**. The whole news → £ impact → alert story is missing from the deployed demo. Pressing "Update risk profile" on stage wipes it the same way. Reseed (`bun run db:seed-sql`, then run `supabase/seed.sql`), and either keep demo signals dated after the snapshot, or show "news before this snapshot" when the list is empty.
+- **Phone: the risk tab bar scrolls the whole page sideways** (+228 px at 390 px). The `sr-only` spans in `ScoreChip` escape the scrolling nav. Add `relative` to the `<nav>` at `app/risks/[id]/page.tsx:17` (confirmed to fix it).
+- **Keep the in-memory store on `globalThis`** (`lib/server/store.ts`, `mockStore`). In dev, a route recompile re-creates it and approvals or new snapshots vanish. Without Supabase on Vercel, the same happens per instance.
+- **Add `app/not-found.tsx` and `app/error.tsx`.** `/risks/does-not-exist` shows Next's bare 404 with no way back, and any Supabase error would show the generic error screen.
+- **Rename "Headwind"** in `README.md`, `package.json` and the `docs/architecture.md` title.
+- **"Ask Hedged" button:** add bottom padding so it doesn't cover "Good year £260k" on the overview at 1440×900.
 
 ### 1. Backtest the bad-year figure (criterion 2)
 
@@ -119,6 +135,13 @@ It's cheap, and it shows "every action logged" and "one control visibly firing".
 - `lib/sim.ts:whatIf` hard-codes `WHEAT_T = 1870`, `OTHER_CROPS_K = 277`, `AN_T = 166`, `VARIABLE_DEBT_K = 840` and `BASE_PROFIT_K = 85`. It ignores the profile and snapshot, so after an approval or update the what-if is out of step with every other page.
 - It also leaves out the **1,028 t of 2026 wheat in store**. A −£4/t wheat move is **−£7.5k** in what-if but **−£11.6k** in the overview's "vs last week" (2,898 t). Build the what-if from `snapshot.exposures[].sensitivities`.
 - `weekMoves` in `lib/profile/fenland-ridge.ts` is a hard-coded `{ wheat −4, AN +18 }`, re-applied on every re-assessment, so "change vs last week" is invented after any update. Derive it from the signals in the last 7 days.
+- **"Today's" price contradicts the news on the same screen.**
+  - The news alert says "Feed wheat down to £172/t", but break-evens, mitigation text ("at today's £178/t"), what-if and the working sheets all use £178.
+  - The AN alert says £522/t; what-if and the working use £504/t.
+  - "Vs last week" says wheat −£4/t, while the news implies −£6/t.
+  - Fix: one `currentPrice(metric)` source (latest signal or `market_data`) used everywhere.
+- The "Dry summer" preset (yield 82%) loses £110k, almost twice weather's own "1-in-20 bad year" (£58k). Either the preset is beyond 1-in-20, or the two models disagree. Say which.
+- "What moved your profit" bars have no £ labels, and the what-if figures aren't clickable working sheets, unlike the rest of the app.
 - There are two different "what changed" numbers (news since snapshot −£28k; vs last week −£15k). Explain how they relate, or keep one.
 - Weather and yield uses `hectares × £78/ha` in the assessment but `£610k of crop revenue` in the risk profile. The `crop.*.yield_sd_t_ha` fields are collected and never used. Use one exposure and drive the SD from the yield-swing fields.
 
@@ -195,6 +218,62 @@ Correlated risks (a covariance matrix, or a joint Monte Carlo over the five driv
 28. No dataset licences and no "how the synthetic data was made" (a brief requirement).
 29. The README's Database steps say to run `0001` and then the seed. The chat migrations `0002` and `0004` are mentioned further down, and `0003` (channel column) isn't mentioned at all. One ordered list ("run every file in `supabase/migrations/` in order") avoids a half-migrated demo.
 
-### UI walk-through findings
+---
 
-See Part C.
+## Part C: UI walk-through (all routes, 1440×900 and 390×844)
+
+**Method:** Playwright run against a copy of the repo on port 3100. Pages were looked at both on the live Supabase project (configured in this environment; read-only, nothing written) and on in-memory demo data (for every interaction that writes).
+
+**Clean results:**
+- no hydration warnings or page errors on any route
+- no user-visible "Headwind" text
+- one `h1` per page and a sensible heading order
+- labelled inputs and sliders
+- body-text contrast of 6.3–6.8:1
+
+### High
+
+1. **No news on the live demo** (see Quick wins).
+2. **Text frozen after "Update risk profile"** (see A4). After an in-memory update, the risk page says £143k and "£762k of crop unsold", but the overview table still says "£793k of wheat, barley and rape unsold". The live DB has the same split today (£771k vs £793k).
+3. **Prices contradict the news** (see A8).
+4. **The two data modes show different figures.** In-memory: output £149k / 175%, £793k unsold. Live Supabase: £145k / 171%, £771k. Within each mode, the figures agree across every page.
+   - The overview's "Farm profit in a bad year −£90k" is the √-combined whole-farm figure, not £85k − £149k. A judge doing the subtraction gets about −£60k. Put "all risks combined, they don't peak together" next to the figure, not only in the sheet.
+5. **What-if runs on a different model** (see A8).
+6. **Phone tab-bar overflow** on `/risks/*` (see Quick wins).
+
+### Medium
+
+7. **`ins.max_loss` never used** (see A2). Bad-year profit of −£90k is past the £60k limit, and nothing warns.
+8. **Onboarding accepts absurd numbers.**
+   - 220,000 ha of wheat on a 450 ha farm is accepted.
+   - "Silty clay loam 60%, sandy loam 40%" typed into wheat area is saved as **60 ha**: the parser takes the first number.
+   - Fix: reject inputs with more than one number (see A3).
+9. **The calendar contradicts the news.** The news says the next SFI offer is expected in June 2027, but the calendar shows "Next SFI window (expected) 11 Jan" and the regulation source says Jan–Mar. The calendar and reminders are fixed mock data.
+10. **The "7-day" column in the risk table** uses the opposite sign colour to the news (−£2k green; news −£17k red). It's fixed mock data, not clickable, and the header wraps to "7-/day". Rename it "Bad year, 7-day change" and derive it from signals.
+11. **The "Ask Hedged" button covers figures** on the overview (desktop) and mid-scroll on phone.
+12. **The simulation chart has no y-axis scale**, and the £0 line is unlabelled. "Year 2 … Year 20" reads like a time series even though the years are sorted worst to best. Use £k ticks and Worst…Best labels (`components/headwind/simulation-bars.tsx`, `<YAxis hide>`).
+13. **The risk page's "Based on your farm profile" card mixes live and snapshot data.** "Profile fields used" shows live values; "At stake in the snapshot" shows frozen ones. After an approval, they disagree. Label the live column "now (not yet in risk profile)" (`getRiskInputs` uses `loadProfileFields`).
+14. **No `not-found`, `error` or `loading` pages** (see Quick wins).
+15. **Not every £ figure opens a working sheet.** The what-if result and drivers, and the profile page's risk table (£771k, £145k), don't. Overview and risk pages do: 15–18 working sheets each, and the arithmetic checks out.
+16. **The in-memory store resets in dev and per serverless instance** (see Quick wins).
+
+### Low and polish
+
+17. **"Top 3 mitigations"** mixes a profit option (lender margin, +£11k/yr, score unchanged) with risk cuts, and repeats itself ("+£11k/yr … profit a year"). All four output-price options say "score 10, unchanged", so scoring looks inert. Show the bad-year £ change as the headline instead.
+18. **Number formatting:** "−£10.0k", "£5.0k" and "50.0%" sit next to "£3k" and "£15k". Drop the trailing ".0" (`lib/format.ts`).
+19. **The profile risk table repeats itself** ("£771k · £771k of crop unsold…"), and its risk order differs from the overview.
+20. **Calendar on phone overflows by 106 px.** `TimelineLegend` is in a `shrink-0` CardHeader action (`components/headwind/card.tsx:44`). On desktop, the "Deadline" and "Next key decision" diamonds look identical, and a long label is truncated.
+21. **Phone layouts:** the overview stacks five 130 px gauges (about 1,700 px of scrolling). On what-if, the profit result is below the sliders, so you can't see it change while dragging. Make the result sticky.
+22. **Assistant with no key:** it shows "Couldn't answer this one." plus a red 503 message. Each attempt saves a failed turn to the shared history. Check availability when the panel opens, and don't log failed turns.
+23. **Small styling and markup issues:**
+    - "Reset to today" is the primary filled button even when nothing changed.
+    - `Disclosure` puts an `<h2>` inside `<summary>`.
+    - `text-sub/70` hint text ("or press Enter") is 3.4:1, below the 4.5:1 minimum.
+
+### What works well (keep, and show in the deck)
+
+- Every overview and risk-page £ figure opens a sheet with formula steps, inputs and dated sources, and the numbers reproduce (793k × 18.8% = 149k; Φ(−85/106) = 21%).
+- The approval queue: approve, edit and reject work. Approved values flow into the next snapshot.
+- Onboarding is smooth, with clear validation messages.
+- Toggling mitigations updates the KPIs and chart with "vs today" deltas.
+- The "options, not advice" disclaimer is consistent throughout.
