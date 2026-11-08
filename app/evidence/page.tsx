@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { Card, CardBody, CardHeader, Disclosure, SourceTag } from "@/components/headwind/card";
 import { PageHeader, PageShell } from "@/components/headwind/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import backtest from "@/docs/eval/backtest.json";
 import screen from "@/docs/eval/screen-eval.json";
+import bench from "@/docs/eval/benchmark.json";
+import benchChart from "@/docs/eval/benchmark-chart.png";
+import forecastChart from "@/docs/eval/forecast-chart.png";
 import { gbp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -442,6 +446,55 @@ export default function EvidencePage() {
 
         <Section
           n={3}
+          eyebrow="Benchmarks, with costs"
+          title="Would the agent's hedge have paid off in past years?"
+          intro={`Harvest years ${bench.hedge.rows[0].harvestYear}–${bench.hedge.rows.at(-1)!.harvestYear}, n = ${bench.hedge.rows.length}, descriptive. The fictional farm sells 50% of its wheat at the August price (our proxy for a forward price: no historical forward curve), pays £3/t, and sells the rest at the next August's price. Real Defra prices and East Midlands yields. Method: docs/eval/benchmark.md.`}
+        >
+          <Card label="Hedge against benchmarks">
+            <Image src={benchChart} alt="Profit by strategy and the 50% forward sale minus doing nothing, each harvest year" className="h-auto w-full border-b border-line" />
+            <div className="overflow-x-auto">
+              <Table className="min-w-[760px]">
+                <TableHeader>
+                  <TableRow className="border-line hover:bg-transparent">
+                    <TableHead className={cn(th, "pl-5")}>Strategy</TableHead>
+                    <TableHead className={cn(th, "text-right")}>Mean profit</TableHead>
+                    <TableHead className={cn(th, "text-right")}>Worst year</TableHead>
+                    <TableHead className={cn(th, "text-right")}>Hedge cost a year</TableHead>
+                    <TableHead className={cn(th, "text-right")}>Gain vs nothing (95% CI)</TableHead>
+                    <TableHead className={cn(th, "pr-5")}>Years it lost money</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bench.hedge.summary.map((s) => (
+                    <TableRow key={s.strategy} className={cn("border-line text-[13px] tabular", s.strategy === "forward_50" && "font-medium")}>
+                      <TableCell className="py-2 pl-5">{s.label}</TableCell>
+                      <TableCell className="py-2 text-right">{gbp(s.meanProfit)}</TableCell>
+                      <TableCell className="py-2 text-right">{gbp(s.worstYear)} ({s.worstYearHarvest})</TableCell>
+                      <TableCell className="py-2 text-right">{gbp(s.hedgeCostPerYear)}</TableCell>
+                      <TableCell className={cn("py-2 text-right", s.meanGainVsNothing < 0 && "text-bad")}>
+                        {s.strategy === "do_nothing" ? "—" : `${gbp(s.meanGainVsNothing)} (${gbp(s.meanGainVsNothingCI[0])} to ${gbp(s.meanGainVsNothingCI[1])})`}
+                      </TableCell>
+                      <TableCell className="py-2 pr-5">{s.strategy === "do_nothing" ? "—" : `${s.yearsWorseThanNothing.length} of ${s.n}: ${s.yearsWorseThanNothing.join(", ")}`}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <CardBody className="border-t border-line text-[13px] text-sub">
+              Plainly: over these years the forward sale cost money on average and made the worst year (2020: poor yield, rising price) worse. It paid off only when prices fell by more than the £3/t cost.
+              This is one price path, not proof the hedge fails to narrow the simulated 1-in-20 year, and it is why the agent presents selling forward as an option to discuss, not advice.
+            </CardBody>
+          </Card>
+          <Card label="Forecast against baselines">
+            <Image src={forecastChart} alt="Whole-farm forecast bands against realised profit, ours and two baselines, harvest years 2018–2026" className="h-auto w-full border-b border-line" />
+            <p className="px-5 py-3 text-[12.5px] text-sub">
+              Whole farm, {bench.forecast.summary[0].n} harvests: all inside our P5–P95, which may mean the band is too wide. Pinball loss at P5 is about a tie with the normal baseline and better than historical simulation, which missed 2023. Only 2025 and 2026 are strictly held out.
+            </p>
+          </Card>
+        </Section>
+
+        <Section
+          n={4}
           eyebrow="Bad and manipulative inputs"
           title="Does the input screen catch injected instructions?"
           intro={
@@ -472,7 +525,7 @@ export default function EvidencePage() {
           </p>
         </Section>
 
-        <Section n={4} eyebrow="Roles and limits" title="Who does what, and what this evidence doesn't show" intro="Every number comes from code. Models read, judge and explain.">
+        <Section n={5} eyebrow="Roles and limits" title="Who does what, and what this evidence doesn't show" intro="Every number comes from code. Models read, judge and explain.">
           <div className="grid gap-5 min-[1000px]:grid-cols-2">
             <Card label="Models">
               <CardHeader title="Models and what they may do" leading={<SourceTag>Permissions in code</SourceTag>} />
