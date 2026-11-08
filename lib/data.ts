@@ -463,6 +463,11 @@ export interface ProfitSimulation extends ProfitDistribution {
   /** The published run these figures belong to, if the assessment has one. */
   runId?: string;
   snapshotVersion: number;
+  /**
+   * Fields the engine needs that this snapshot predates (it was frozen before the field existed),
+   * taken from the current profile instead. Labels, shown on the chart. Empty when the snapshot has everything.
+   */
+  filledFromProfile: string[];
 }
 
 // Deterministic for a snapshot, date and config, so compute once per server instance.
@@ -471,16 +476,21 @@ const simulations = new Map<string, ProfitSimulation>();
 /**
  * Every simulated year of whole-farm profit for the current snapshot, summarised for a chart. Same
  * engine, seed and inputs as the assessment's run (lib/assess/phase-one.ts), so the figures match
- * its trace. Null if the profile is missing something the engine needs.
+ * its trace. A field the snapshot predates comes from the current profile, and the chart says so.
+ * Null if the profile itself is missing something the engine needs.
  */
 export async function getProfitSimulation(): Promise<ProfitSimulation | null> {
-  const [snapshot, { meta }] = await Promise.all([loadSnapshot(), loadAssessment()]);
+  const [snapshot, { meta }, fields] = await Promise.all([loadSnapshot(), loadAssessment(), loadProfileFields()]);
   const run = meta.runId ? await (await getAgentStore()).getRun(meta.runId).catch(() => null) : null;
   const asOf = run?.asOf ?? meta.date;
-  const key = `${snapshot.id}:${asOf}:${configHash(DEFAULT_CONFIG)}`;
+  // Only keys the snapshot lacks altogether are filled; a value the farmer froze always wins.
+  const current = valuesOf(fields);
+  const gaps = farmFromProfile(snapshot.fields, snapshot.market).missing.filter((k) => !(k in snapshot.fields) && current[k] != null);
+  const values = { ...snapshot.fields, ...Object.fromEntries(gaps.map((k) => [k, current[k]])) };
+  const key = `${snapshot.id}:${asOf}:${configHash(DEFAULT_CONFIG)}:${gaps.map((k) => `${k}=${current[k]}`).join(",")}`;
   const cached = simulations.get(key);
   if (cached) return cached;
-  const { farm, missing } = farmFromProfile(snapshot.fields, snapshot.market);
+  const { farm, missing } = farmFromProfile(values, snapshot.market);
   if (missing.length) return null;
   const result: ProfitSimulation = {
     ...summariseProfits(profitPaths(loadHistory(), farm, asOf, DEFAULT_CONFIG)),
@@ -489,6 +499,7 @@ export async function getProfitSimulation(): Promise<ProfitSimulation | null> {
     asOf,
     runId: run?.id,
     snapshotVersion: snapshot.version,
+    filledFromProfile: gaps.map((k) => fieldDef(k)?.label ?? k),
   };
   simulations.set(key, result);
   return result;

@@ -4,17 +4,18 @@ import { PageShell } from "@/components/headwind/page-header";
 import { RiskDetail } from "@/components/headwind/risk-detail";
 import { ScoreChip } from "@/components/headwind/score";
 import { RiskInputsCard } from "@/components/headwind/risk-inputs-card";
-import { getAssessmentMeta, getLossLimit, getRisk, getRiskInputs, getRisks } from "@/lib/data";
+import { getAssessmentMeta, getLossLimit, getProfitSimulation, getRisk, getRiskInputs, getRisks } from "@/lib/data";
 import { longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default async function RiskPage({ params }: { params: { id: string } }) {
-  const [risk, risks, meta, inputs, lossLimit] = await Promise.all([
+  const [risk, risks, meta, inputs, lossLimit, simulation] = await Promise.all([
     getRisk(params.id),
     getRisks(),
     getAssessmentMeta(),
     getRiskInputs(params.id),
     getLossLimit(),
+    getProfitSimulation().catch(() => null),
   ]);
   if (!risk) notFound();
 
@@ -48,6 +49,7 @@ export default async function RiskPage({ params }: { params: { id: string } }) {
           risk={risk}
           typicalProfit={meta.typicalProfit}
           lossLimit={lossLimit.limit}
+          simulation={simulation}
           dateLabel={longDate(meta.date)}
           profile={<RiskInputsCard inputs={inputs} />}
         />

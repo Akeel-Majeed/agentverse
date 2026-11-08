@@ -6,6 +6,7 @@ import { simDetail } from "@/lib/figures";
 import { amount, gbp, gbpK } from "@/lib/format";
 import { scoreFromBadYear } from "@/lib/score";
 import { riskWorking, simulateRisk } from "@/lib/sim";
+import type { ProfitSimulation } from "@/lib/data";
 import type { RiskResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { whatWouldChange } from "@/lib/what-would-change";
@@ -14,9 +15,8 @@ import { KpiCell, KpiStrip } from "./kpi-cell";
 import { MitigationList, MitigationRow } from "./mitigation-row";
 import { MoneyFigure } from "./money-figure";
 import { PageHeader } from "./page-header";
-import { SimulationCheck } from "./simulation-check";
 import { LevelLabel, ScoreRing } from "./score";
-import { SimulationBars } from "./simulation-bars";
+import { RiskDistribution } from "./risk-distribution";
 import { TradeoffTable } from "./tradeoff-table";
 import { Disclaimer, SourcesList, WorkingPanel } from "./working";
 
@@ -26,8 +26,11 @@ export function RiskDetail({
   dateLabel,
   profile,
   lossLimit = null,
+  simulation = null,
 }: {
   risk: RiskResult;
+  /** The 10,000-year Monte Carlo run for the current snapshot (whole farm). */
+  simulation?: ProfitSimulation | null;
   /** The farm's loss limit in £ (ins.max_loss), checked live against the simulated bad year. */
   lossLimit?: number | null;
   typicalProfit: number;
@@ -126,20 +129,12 @@ export function RiskDetail({
         />
       </KpiStrip>
 
-      <Card label="20 simulated years">
-        <CardHeader
-          title="20 simulated years, worst to best"
-          description="Whole-farm profit in each simulated year, with the options you've added."
-        />
-        <CardBody className="pt-6">
-          <SimulationBars bars={sim.bars} ghost={today.bars} />
-        </CardBody>
-      </Card>
+      <RiskDistribution risk={risk} simulation={simulation} today={today} withOptions={changed ? sim : null} />
 
       <Card label="Mitigation options">
         <CardHeader
           title="Mitigation options"
-          description="Add options to the simulation to see their effect above."
+          description="Add options to the hand-checkable model to see their effect on the intervals above."
           action={
             changed ? (
               <>
@@ -219,7 +214,6 @@ export function RiskDetail({
           </Disclosure>
         </div>
       </Card>
-      {risk.simulation ? <SimulationCheck riskId={risk.id} simulation={risk.simulation} /> : null}
       <Disclaimer className="px-1" />
     </div>
   );
