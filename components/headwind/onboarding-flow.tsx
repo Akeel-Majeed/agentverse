@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, Copy, CornerDownLeft, Loader2, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, Check, Copy, Loader2, MessageSquare } from "lucide-react";
 import { finishOnboarding, saveSection, updateRiskProfile } from "@/lib/data";
 import { gbp } from "@/lib/format";
 import { FIELDS, RISKS } from "@/lib/profile/catalogue";
@@ -11,19 +10,11 @@ import { computeExposures } from "@/lib/profile/risk-profile";
 import { parseValue } from "@/lib/profile/values";
 import type { IMessageSetup, MarketBaseline, OnboardingField, OnboardingSection, ProfileValue, RiskId } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { LogoMark } from "./logo";
+import { Wordmark } from "./logo";
 
 type Step = { kind: "welcome" } | { kind: "section"; section: OnboardingSection } | { kind: "review" } | { kind: "imessage" };
 
-const pad = (n: number) => String(n).padStart(2, "0");
 const focus = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
-const mono = "font-mono text-[11px] uppercase tracking-[0.08em]";
-
-/** Unit shown inside the input; values are typed as plain numbers or with their unit. */
-function unitOf(f: OnboardingField): string | null {
-  if (f.type === "money" || f.type === "date" || f.type === "text") return null;
-  return f.unit ?? null;
-}
 
 /** Number and money fields are edited as plain numbers, with the unit shown beside the input. */
 function toInput(f: OnboardingField): string {
@@ -43,82 +34,78 @@ function parsedValues(values: Record<string, string>, fallback: Record<string, P
   );
 }
 
-function FieldRow({ field, value, error, onChange }: { field: OnboardingField; value: string; error?: string; onChange: (v: string) => void }) {
+/** "Output prices (£757k at stake) and Weather and yield (£610k)" */
+function feedsSentence(ids: RiskId[], exposures: ReturnType<typeof computeExposures>): string {
+  const parts = ids.map((id, i) => {
+    const name = RISKS.find((r) => r.id === id)?.name ?? id;
+    const total = exposures.find((e) => e.riskId === id)?.total;
+    return total === undefined ? name : `${name} (${gbp(total)}${i === 0 ? " at stake" : ""})`;
+  });
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0] ?? "";
+}
+
+/** "Assumed · No contracts found" → "Assumed: no contracts found." / "Grain store sheet · Upload" → "From grain store sheet (uploaded)." */
+function sourceText(source: string): string {
+  if (/^assumed/i.test(source)) {
+    const why = source.replace(/^assumed\s*·?\s*/i, "");
+    return why ? `Assumed: ${why.charAt(0).toLowerCase()}${why.slice(1)}.` : "Assumed.";
+  }
+  if (/^not recorded$/i.test(source)) return "Not recorded yet.";
+  const plain = source
+    .replace(/\s*·\s*Upload$/i, " (uploaded)")
+    .replace(/\s*·\s*via MCP$/i, " (via your adviser's agent)")
+    .replace(/\s*·\s*/g, ", ");
+  return `From ${plain}.`;
+}
+
+function Field({ field, value, error, onChange }: { field: OnboardingField; value: string; error?: string; onChange: (v: string) => void }) {
   const id = `ob-${field.id}`;
-  const unit = unitOf(field);
+  const unit = field.type === "number" ? field.unit : null;
   return (
-    <div className="grid gap-x-6 gap-y-1.5 border-b border-line py-4 last:border-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,260px)]">
-      <div className="min-w-0">
-        <label htmlFor={id} className="flex items-center gap-2 text-[14px] font-medium text-ink">
-          {field.label}
-          {field.confidence === "check" ? (
-            <span className="inline-flex items-center gap-1 text-[11.5px] font-normal text-[#B45309]">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
-              please check
-            </span>
-          ) : null}
-        </label>
-        <p className="mt-0.5 text-[12px] text-sub">
-          {field.help ? `${field.help} ` : ""}
-          <span className="font-mono text-[11px]">src: {field.source}</span>
-        </p>
+    <div className="flex flex-col gap-2 text-left">
+      <label htmlFor={id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[17px] font-medium text-ink">
+        {field.label}
+        {field.confidence === "check" ? <span className="text-[13px] font-normal text-warn">Please check</span> : null}
+      </label>
+      <div
+        className={cn(
+          "flex h-14 items-center rounded-2xl border bg-card px-4 transition-colors focus-within:border-ink focus-within:ring-4 focus-within:ring-lime/40",
+          error ? "border-bad" : "border-line-strong"
+        )}
+      >
+        {field.type === "money" ? <span className="mr-1 text-[18px] text-sub">£</span> : null}
+        <input
+          id={id}
+          value={value}
+          placeholder="Not known yet"
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={`${id}-hint`}
+          className="h-full min-w-0 flex-1 bg-transparent text-[18px] tabular text-ink outline-none placeholder:text-sub/50"
+        />
+        {unit ? <span className="ml-2 text-[16px] text-sub">{unit}</span> : null}
       </div>
-      <div className="min-w-0">
-        <div
-          className={cn(
-            "flex h-10 items-center rounded-md border bg-white transition-colors focus-within:border-ink",
-            error ? "border-bad" : "border-line-strong"
-          )}
-        >
-          {field.type === "money" ? <span className="pl-3 font-mono text-[13px] text-sub">£</span> : null}
-          <input
-            id={id}
-            value={value}
-            placeholder="not recorded"
-            onChange={(e) => onChange(e.target.value)}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? `${id}-err` : undefined}
-            className="h-full min-w-0 flex-1 bg-transparent px-3 font-mono text-[13.5px] tabular text-ink outline-none placeholder:text-sub/60"
-          />
-          {unit ? <span className="pr-3 font-mono text-[11px] text-sub">{unit}</span> : null}
-        </div>
-        {error ? (
-          <p id={`${id}-err`} className="mt-1 text-[12px] font-medium text-bad">
-            {error}
-          </p>
-        ) : null}
-      </div>
+      <p id={`${id}-hint`} className={cn("text-[14px] leading-snug", error ? "font-medium text-bad" : "text-sub")}>
+        {error ?? `${field.help ? `${field.help} ` : ""}${sourceText(field.source)}`}
+      </p>
     </div>
   );
 }
 
-/** Live view of what each risk has at stake, recomputed in code from the values on screen. */
-function LivePanel({ exposures, highlight }: { exposures: ReturnType<typeof computeExposures>; highlight: RiskId[] }) {
+function PrimaryButton({ busy, children }: { busy: boolean; children: React.ReactNode }) {
   return (
-    <aside aria-label="Live risk profile" className="rounded-xl border border-line bg-white p-5">
-      <p className={cn(mono, "text-sub")}>Live · at stake</p>
-      <ul className="mt-4 flex flex-col gap-3.5">
-        {RISKS.map((r) => {
-          const e = exposures.find((x) => x.riskId === r.id);
-          const on = highlight.includes(r.id);
-          return (
-            <li key={r.id} className={cn("transition-opacity", highlight.length && !on ? "opacity-40" : "opacity-100")}>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="flex items-center gap-2 text-[13px] font-medium text-ink">
-                  <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", on ? "bg-brand" : "bg-line-strong")} />
-                  {r.name}
-                </span>
-                <span className="font-mono text-[13px] tabular text-ink">{e ? gbp(e.total) : "—"}</span>
-              </div>
-              {on && e ? <p className="mt-1 pl-3.5 text-[11.5px] leading-snug text-sub">{e.summary}</p> : null}
-            </li>
-          );
-        })}
-      </ul>
-      <p className="mt-5 border-t border-line pt-3 text-[11.5px] leading-relaxed text-sub">
-        Worked out in code from your answers at the snapshot&apos;s market prices. No model is involved in these figures.
-      </p>
-    </aside>
+    <button
+      type="submit"
+      disabled={busy}
+      className={cn(
+        "inline-flex h-14 min-w-[220px] items-center justify-center gap-2 rounded-full bg-ink px-8 text-[17px] font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-60",
+        focus
+      )}
+    >
+      {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : null}
+      {children}
+      {!busy ? <span aria-hidden>→</span> : null}
+    </button>
   );
 }
 
@@ -139,12 +126,10 @@ export function OnboardingFlow({
     [initialSections]
   );
   const [index, setIndex] = useState(0);
-  const [done, setDone] = useState<Set<number>>(new Set());
   const [values, setValues] = useState<Record<string, string>>(() => inputValues(initialSections.flatMap((s) => s.fields)));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [snapshot, setSnapshot] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -152,8 +137,8 @@ export function OnboardingFlow({
   const exposures = useMemo(() => computeExposures(parsedValues(values, initialParsed), market), [values, initialParsed, market]);
 
   const step = steps[index];
-  const total = steps.length;
-  const highlight: RiskId[] =
+  const total = steps.length - 1;
+  const feeds: RiskId[] =
     step.kind === "section" ? Array.from(new Set(step.section.fields.flatMap((f) => (f.risks ?? []).map((r) => r.id)))) : [];
 
   useEffect(() => {
@@ -161,12 +146,11 @@ export function OnboardingFlow({
     setMessage("");
   }, [index]);
 
-  const go = (next: number) => {
+  const go = (i: number) => {
     setErrors({});
-    setIndex(Math.max(0, Math.min(total - 1, next)));
-    window.scrollTo({ top: 0 });
+    setIndex(Math.max(0, Math.min(steps.length - 1, i)));
+    document.getElementById("onboarding")?.scrollTo({ top: 0 });
   };
-  const complete = (i: number) => setDone((d) => new Set(d).add(i));
 
   const finish = async () => {
     setBusy(true);
@@ -177,21 +161,17 @@ export function OnboardingFlow({
 
   const next = async () => {
     if (busy) return;
-    if (step.kind === "welcome") {
-      complete(index);
-      return go(index + 1);
-    }
+    if (step.kind === "welcome") return go(index + 1);
     if (step.kind === "section") {
       setBusy(true);
       try {
         const result = await saveSection(step.section.id, Object.fromEntries(step.section.fields.map((f) => [f.id, values[f.id] ?? ""])));
         if (!result.ok) {
           setErrors(result.errors);
-          setMessage("Fix the highlighted values to continue.");
+          setMessage("A value needs fixing before you continue.");
           return;
         }
         setValues((v) => ({ ...v, ...inputValues(result.section.fields) }));
-        complete(index);
         go(index + 1);
       } catch {
         setMessage("Couldn't save. Check your connection and try again.");
@@ -208,8 +188,6 @@ export function OnboardingFlow({
           setMessage(result.error);
           return;
         }
-        setSnapshot(result.version);
-        complete(index);
         go(index + 1);
       } catch {
         setMessage("Couldn't create the risk profile. Try again.");
@@ -218,7 +196,6 @@ export function OnboardingFlow({
       }
       return;
     }
-    complete(index);
     await finish();
   };
 
@@ -236,247 +213,181 @@ export function OnboardingFlow({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const sectionsDone = steps.filter((s, i) => s.kind === "section" && done.has(i)).length;
-  const cta =
-    step.kind === "welcome" ? "Start" : step.kind === "section" ? "Confirm and continue" : step.kind === "review" ? "Create risk profile" : "Go to dashboard";
+  const heading = "mx-auto max-w-[620px] text-balance text-[42px] font-medium leading-[1.05] tracking-[-0.04em] text-ink outline-none sm:text-[56px]";
+  const lead = "mx-auto mt-5 max-w-[540px] text-balance text-[18px] leading-relaxed text-sub sm:text-[19px]";
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-background">
-      {/* Progress */}
-      <div className="sticky top-0 z-10 h-[2px] w-full bg-line">
-        <div className="h-full bg-brand transition-[width] duration-500 ease-out" style={{ width: `${((index + 1) / total) * 100}%` }} />
+    <div
+      id="onboarding"
+      className={cn(
+        "fixed inset-0 z-[60] overflow-y-auto font-sans transition-colors duration-700",
+        step.kind === "welcome" || step.kind === "imessage" ? "bg-sky" : "bg-paper"
+      )}
+    >
+      <div className="fixed inset-x-0 top-0 z-10 h-[3px] bg-ink/5">
+        <div className="h-full bg-lime transition-[width] duration-700 ease-out" style={{ width: `${(index / total) * 100}%` }} />
       </div>
 
-      <div className="mx-auto grid min-h-[calc(100vh-2px)] max-w-[1280px] lg:grid-cols-[248px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)_300px]">
-        {/* Step rail */}
-        <nav aria-label="Setup steps" className="hidden border-r border-line px-5 py-8 lg:flex lg:flex-col">
-          <div className="flex items-center gap-2.5 px-2">
-            <LogoMark className="h-7 w-7" />
-            <span className={cn(mono, "text-sub")}>Setup</span>
-          </div>
-          <ol className="mt-8 flex flex-col gap-0.5">
-            {steps.map((s, i) => {
-              const label = s.kind === "welcome" ? "Welcome" : s.kind === "section" ? s.section.title : s.kind === "review" ? "Risk profile" : "iMessage (optional)";
-              const reachable = i <= index || done.has(i) || done.has(i - 1);
-              return (
-                <li key={i}>
+      <header className="mx-auto flex max-w-[720px] items-center justify-between px-6 pt-8">
+        <Wordmark className="text-[17px]" />
+        <span className="text-[14px] text-sub tabular">{index === 0 ? "" : `Step ${index} of ${total}`}</span>
+        <button type="button" onClick={finish} disabled={busy} className={cn("text-[14px] text-sub hover:text-ink", focus)}>
+          Skip
+        </button>
+      </header>
+
+      <main>
+      <form
+        className="mx-auto flex min-h-[calc(100vh-72px)] max-w-[620px] flex-col justify-center px-6 py-16 text-center"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void next();
+        }}
+      >
+        {step.kind === "welcome" ? (
+          <>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              Let&apos;s set up {farmName}.
+            </h1>
+            <p className={lead}>
+              A few questions about the land, crops, sales, inputs, schemes and money. We&apos;ve filled in what we found in your documents, so mostly
+              you&apos;ll just check it. It takes about five minutes.
+            </p>
+            <p className="mx-auto mt-6 max-w-[480px] text-[15px] leading-relaxed text-sub/80">
+              Every figure is worked out from your answers, and every answer shows where it came from. This is a demo farm with sample data.
+            </p>
+          </>
+        ) : null}
+
+        {step.kind === "section" ? (
+          <>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              {step.section.title}
+            </h1>
+            <p className={lead}>{step.section.agentMessage}</p>
+            <div className="mt-12 flex flex-col gap-8">
+              {step.section.fields.map((f) => (
+                <Field
+                  key={f.id}
+                  field={f}
+                  value={values[f.id] ?? ""}
+                  error={errors[f.id]}
+                  onChange={(v) => {
+                    setValues((prev) => ({ ...prev, [f.id]: v }));
+                    if (errors[f.id]) {
+                      setErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => k !== f.id)));
+                      setMessage("");
+                    }
+                  }}
+                />
+              ))}
+            </div>
+            {feeds.length ? (
+              <p className="mx-auto mt-10 max-w-[520px] text-balance text-[15px] leading-relaxed text-sub" aria-live="polite">
+                These answers feed {feedsSentence(feeds, exposures)}.
+              </p>
+            ) : null}
+          </>
+        ) : null}
+
+        {step.kind === "review" ? (
+          <>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              Here&apos;s what&apos;s at stake.
+            </h1>
+            <p className={lead}>
+              From your answers, at today&apos;s prices. Creating your risk profile saves this as the baseline every price move, policy change and weather
+              outlook is measured against.
+            </p>
+            <ul className="mt-12 divide-y divide-line overflow-hidden rounded-[24px] bg-card text-left shadow-card">
+              {RISKS.map((r) => {
+                const e = exposures.find((x) => x.riskId === r.id);
+                return (
+                  <li key={r.id} className="px-6 py-5">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-[18px] font-medium text-ink">{r.name}</span>
+                      <span className="text-[22px] font-medium tracking-[-0.03em] tabular text-ink">{e ? gbp(e.total) : "—"}</span>
+                    </div>
+                    {e ? <p className="mt-1 text-[15px] leading-snug text-sub">{e.summary}</p> : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : null}
+
+        {step.kind === "imessage" ? (
+          <>
+            <p className="mb-6 inline-flex items-center justify-center gap-2 text-[15px] font-medium text-good">
+              <Check className="h-5 w-5" aria-hidden /> Your risk profile is ready
+            </p>
+            <h1 ref={headingRef} tabIndex={-1} className={heading}>
+              Want answers by text?
+            </h1>
+            <p className={lead}>
+              Ask things like &ldquo;what&apos;s my biggest risk?&rdquo; or &ldquo;what if wheat drops to £160?&rdquo; over iMessage. It reads your risk
+              profile but can&apos;t change anything. This is optional.
+            </p>
+            {imessage.available ? (
+              <div className="mt-12 flex flex-col items-center gap-6">
+                <div>
+                  <p className="text-[15px] text-sub">Text</p>
+                  <p className="mt-1 text-[32px] font-medium tabular tracking-[-0.03em] text-ink">{imessage.number}</p>
+                </div>
+                <div>
+                  <p className="text-[15px] text-sub">with</p>
                   <button
                     type="button"
-                    disabled={!reachable || busy}
-                    onClick={() => go(i)}
-                    aria-current={i === index ? "step" : undefined}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors disabled:cursor-default",
-                      focus,
-                      i === index ? "bg-hover font-medium text-ink" : reachable ? "text-sub hover:text-ink" : "text-sub/50"
-                    )}
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(imessage.connectCommand).catch(() => undefined);
+                      setCopied(true);
+                    }}
+                    className={cn("mt-2 inline-flex items-center gap-3 rounded-full bg-panel px-5 py-3 text-[18px] text-ink hover:bg-hover", focus)}
                   >
-                    <span className="w-5 font-mono text-[11px] tabular">{done.has(i) ? <Check className="h-3.5 w-3.5 text-good" aria-label="done" /> : pad(i)}</span>
-                    <span className="truncate">{label}</span>
+                    {imessage.connectCommand}
+                    <span className="inline-flex items-center gap-1 text-[14px] text-sub">
+                      {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+                      {copied ? "Copied" : "Copy"}
+                    </span>
                   </button>
-                </li>
-              );
-            })}
-          </ol>
-          <button type="button" onClick={finish} disabled={busy} className={cn("mt-auto px-2 pt-8 text-left text-[12.5px] text-sub hover:text-ink", focus)}>
-            Skip setup, open the app →
-          </button>
-        </nav>
-
-        {/* Step */}
-        <main className="px-5 py-8 sm:px-10 sm:py-12 lg:px-14">
-          <form
-            className="mx-auto flex max-w-[680px] flex-col"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void next();
-            }}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <p className={cn(mono, "text-sub")}>
-                {pad(index)} / {pad(total - 1)}
-                {step.kind === "section" ? ` · ${step.section.title}` : ""}
-              </p>
-              <button type="button" onClick={finish} disabled={busy} className={cn("text-[12.5px] text-sub hover:text-ink lg:hidden", focus)}>
-                Skip
-              </button>
-            </div>
-
-            {step.kind === "welcome" ? (
-              <>
-                <h1 ref={headingRef} tabIndex={-1} className="mt-4 text-[34px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink outline-none sm:text-[42px]">
-                  Let&apos;s build {farmName}&apos;s risk profile.
-                </h1>
-                <p className="mt-4 max-w-[560px] text-[15.5px] leading-relaxed text-sub">
-                  Nine short sections on the farm: land, crops, sales, inputs, schemes, finance and costs. We&apos;ve pre-filled what we found in your
-                  documents; you check and confirm. At the end you get a risk profile that every price move, policy change and weather outlook is measured
-                  against.
-                </p>
-                <dl className="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
-                  {[
-                    ["~5 min", "9 sections, about 60 facts. Edit anything."],
-                    ["src:", "Every value shows where it came from."],
-                    ["£ = code", "Figures are computed, never written by the model."],
-                  ].map(([k, v]) => (
-                    <div key={k} className="bg-white p-4">
-                      <dt className="font-mono text-[13px] text-ink">{k}</dt>
-                      <dd className="mt-1.5 text-[12.5px] leading-snug text-sub">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <p className="mt-6 text-[12px] text-sub">Demo farm: all figures are fictional sample data.</p>
-              </>
-            ) : null}
-
-            {step.kind === "section" ? (
-              <>
-                <h1 ref={headingRef} tabIndex={-1} className="mt-4 text-[30px] font-semibold tracking-[-0.025em] text-ink outline-none sm:text-[34px]">
-                  {step.section.title}
-                </h1>
-                <p className="mt-3 flex gap-2.5 text-[14px] leading-relaxed text-sub">
-                  <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
-                  {step.section.agentMessage}
-                </p>
-                <div className="mt-8 rounded-xl border border-line bg-white px-5">
-                  {step.section.fields.map((f) => (
-                    <FieldRow key={f.id} field={f} value={values[f.id] ?? ""} error={errors[f.id]} onChange={(v) => {
-                        setValues((prev) => ({ ...prev, [f.id]: v }));
-                        if (errors[f.id]) {
-                          setErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([k]) => k !== f.id)));
-                          setMessage("");
-                        }
-                      }}
-                    />
-                  ))}
                 </div>
-                <p className="mt-3 text-[12px] text-sub">Type numbers plainly or with units: 1,028 t · £40k · 3.1% · 31 Mar 2027. Leave blank if unknown.</p>
-              </>
-            ) : null}
-
-            {step.kind === "review" ? (
-              <>
-                <h1 ref={headingRef} tabIndex={-1} className="mt-4 text-[30px] font-semibold tracking-[-0.025em] text-ink outline-none sm:text-[34px]">
-                  Your risk profile
-                </h1>
-                <p className="mt-3 text-[14px] leading-relaxed text-sub">
-                  {sectionsDone} of {initialSections.length} sections confirmed. This is what each risk has at stake from your answers. Creating the profile
-                  freezes it as a snapshot: from then on, every piece of news is priced against these figures.
-                </p>
-                <ul className="mt-8 divide-y divide-line rounded-xl border border-line bg-white">
-                  {RISKS.map((r) => {
-                    const e = exposures.find((x) => x.riskId === r.id);
-                    return (
-                      <li key={r.id} className="grid gap-1 px-5 py-4 sm:grid-cols-[180px_minmax(0,1fr)_auto] sm:items-baseline sm:gap-6">
-                        <span className="text-[14px] font-medium text-ink">{r.name}</span>
-                        <span className="text-[12.5px] leading-snug text-sub">{e?.summary}</span>
-                        <span className="font-mono text-[15px] tabular text-ink">{e ? gbp(e.total) : "—"}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="mt-3 font-mono text-[11px] text-sub">at stake = value unsold · inputs unbought · crop revenue · scheme income · variable debt</p>
-              </>
-            ) : null}
-
-            {step.kind === "imessage" ? (
-              <>
-                <p className="mt-4 inline-flex items-center gap-2 text-[13px] font-medium text-good">
-                  <Check className="h-4 w-4" aria-hidden /> Risk profile created{snapshot ? ` · snapshot v${snapshot}` : ""}
-                </p>
-                <h1 ref={headingRef} tabIndex={-1} className="mt-3 text-[30px] font-semibold tracking-[-0.025em] text-ink outline-none sm:text-[34px]">
-                  Ask it by text <span className="text-sub">(optional)</span>
-                </h1>
-                <p className="mt-3 text-[14px] leading-relaxed text-sub">
-                  Text questions like &ldquo;what&apos;s my biggest risk?&rdquo; or &ldquo;what if wheat drops to £160?&rdquo; and get answers with the working,
-                  from the same figures as the dashboard. It can read your risk profile but can&apos;t change anything or move money.
-                </p>
-                {imessage.available ? (
-                  <div className="mt-8 rounded-xl border border-line bg-white p-5">
-                    <ol className="flex flex-col gap-5">
-                      <li className="flex gap-4">
-                        <span className="font-mono text-[11px] text-sub">01</span>
-                        <div className="min-w-0">
-                          <p className="text-[14px] font-medium text-ink">iMessage this number</p>
-                          <p className="mt-1 font-mono text-[20px] tabular text-ink">{imessage.number}</p>
-                        </div>
-                      </li>
-                      <li className="flex gap-4">
-                        <span className="font-mono text-[11px] text-sub">02</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[14px] font-medium text-ink">Send this message to connect</p>
-                          <div className="mt-2 flex items-center justify-between gap-3 rounded-md bg-panel px-3 py-2">
-                            <code className="font-mono text-[13.5px] text-ink">{imessage.connectCommand}</code>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                await navigator.clipboard?.writeText(imessage.connectCommand).catch(() => undefined);
-                                setCopied(true);
-                              }}
-                              className={cn("inline-flex items-center gap-1 text-[12px] text-sub hover:text-ink", focus)}
-                            >
-                              {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
-                              {copied ? "Copied" : "Copy"}
-                            </button>
-                          </div>
-                          <a
-                            href={`sms:${imessage.number}&body=${encodeURIComponent(imessage.connectCommand)}`}
-                            className={cn("mt-3 inline-flex h-9 items-center gap-2 rounded-md border border-line-strong bg-white px-3 text-[13px] font-medium text-ink hover:bg-panel", focus)}
-                          >
-                            <MessageSquare className="h-4 w-4" aria-hidden /> Open in Messages
-                          </a>
-                        </div>
-                      </li>
-                      <li className="flex gap-4">
-                        <span className="font-mono text-[11px] text-sub">03</span>
-                        <p className="text-[14px] text-ink">Ask anything about your risks, options, news or deadlines.</p>
-                      </li>
-                    </ol>
-                    {!imessage.replies ? (
-                      <p className="mt-5 border-t border-line pt-3 text-[12px] text-[#B45309]">
-                        Replies aren&apos;t switched on for this deployment yet (webhook secret or Anthropic key missing), so the assistant won&apos;t answer until
-                        they are.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="mt-8 rounded-xl border border-dashed border-line-strong p-5 text-[13.5px] text-sub">
-                    {imessage.reason} You can connect it later; nothing else depends on it.
-                  </p>
-                )}
-              </>
-            ) : null}
-
-            {/* Footer */}
-            <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
-              <div className="flex items-center gap-3">
-                {index > 0 && step.kind !== "imessage" ? (
-                  <Button type="button" variant="ghost" onClick={() => go(index - 1)} disabled={busy}>
-                    <ArrowLeft aria-hidden /> Back
-                  </Button>
+                <a
+                  href={`sms:${imessage.number}&body=${encodeURIComponent(imessage.connectCommand)}`}
+                  className={cn("inline-flex items-center gap-2 text-[16px] font-medium text-ink underline-offset-4 hover:underline", focus)}
+                >
+                  <MessageSquare className="h-5 w-5" aria-hidden /> Open in Messages
+                </a>
+                {!imessage.replies ? (
+                  <p className="max-w-[460px] text-[14px] text-warn">Replies aren&apos;t switched on for this deployment yet, so it won&apos;t answer until they are.</p>
                 ) : null}
-                {step.kind === "imessage" ? (
-                  <Button type="button" variant="ghost" onClick={finish} disabled={busy}>
-                    Skip for now
-                  </Button>
-                ) : null}
-                <p role="status" className="text-[12.5px] text-bad">
-                  {message}
-                </p>
               </div>
-              <Button type="submit" disabled={busy} className="h-10 px-4">
-                {busy ? <Loader2 className="animate-spin" aria-hidden /> : null}
-                {cta}
-                {!busy ? (step.kind === "imessage" ? <ArrowRight aria-hidden /> : <CornerDownLeft className="opacity-60" aria-hidden />) : null}
-              </Button>
-            </div>
-          </form>
-        </main>
+            ) : (
+              <p className="mx-auto mt-10 max-w-[460px] text-[16px] text-sub">{imessage.reason} You can connect it any time later.</p>
+            )}
+          </>
+        ) : null}
 
-        {/* Live panel */}
-        <div className="hidden px-6 py-12 xl:block">
-          <div className="sticky top-12">{step.kind === "section" ? <LivePanel exposures={exposures} highlight={highlight} /> : null}</div>
+        <div className="mt-14 flex flex-col items-center gap-4">
+          <PrimaryButton busy={busy}>
+            {step.kind === "welcome" ? "Get started" : step.kind === "section" ? "Continue" : step.kind === "review" ? "Create my risk profile" : "Go to my dashboard"}
+          </PrimaryButton>
+          <p role="status" className="min-h-[20px] text-[14px] text-bad">
+            {message}
+          </p>
+          {index > 0 && step.kind !== "imessage" ? (
+            <button type="button" onClick={() => go(index - 1)} disabled={busy} className={cn("-mt-2 inline-flex items-center gap-1.5 text-[15px] text-sub hover:text-ink", focus)}>
+              <ArrowLeft className="h-4 w-4" aria-hidden /> Back
+            </button>
+          ) : step.kind === "imessage" ? (
+            <button type="button" onClick={finish} disabled={busy} className={cn("-mt-2 text-[15px] text-sub hover:text-ink", focus)}>
+              Not now
+            </button>
+          ) : (
+            <p className="-mt-2 text-[13px] text-sub/70">or press Enter</p>
+          )}
         </div>
-      </div>
+      </form>
+      </main>
     </div>
   );
 }

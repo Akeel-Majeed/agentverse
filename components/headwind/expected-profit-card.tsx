@@ -12,7 +12,7 @@ export function ExpectedProfitCard({ summary, harvestYear }: { summary: ProfitSu
       <CardHeader title="Expected profit" description={`${harvestYear} harvest year`} />
       <CardBody className="flex flex-col gap-5">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <MoneyFigure detail={profitDetail(summary, "expected")} className="text-[40px] font-semibold leading-none tracking-tight text-ink">
+          <MoneyFigure detail={profitDetail(summary, "expected")} className="text-[40px] font-medium leading-none tracking-[-0.03em] text-ink">
             {gbp(summary.expected)}
           </MoneyFigure>
           <p className={`text-[13px] font-medium tabular ${deltaTone}`}>

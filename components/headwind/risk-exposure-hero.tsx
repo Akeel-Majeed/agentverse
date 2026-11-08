@@ -19,7 +19,7 @@ export function RiskExposureHero({ risks }: { risks: RiskResult[] }) {
                 className="group flex flex-col items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
               >
                 <ScoreRing score={risk.score} size={132} name={risk.name} />
-                <span className="mt-4 text-[14.5px] font-semibold tracking-tight group-hover:underline group-hover:decoration-line-strong group-hover:underline-offset-4">
+                <span className="mt-4 text-[14.5px] font-medium tracking-[-0.03em] group-hover:underline group-hover:decoration-line-strong group-hover:underline-offset-4">
                   {risk.name}
                 </span>
               </Link>

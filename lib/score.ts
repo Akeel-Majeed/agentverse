@@ -10,10 +10,11 @@ export interface Band {
 }
 
 export const BANDS: Band[] = [
-  { level: "Low", color: "#16A34A", text: "#15803D", range: "1–3" },
-  { level: "Moderate", color: "#D97706", text: "#B45309", range: "4–5" },
-  { level: "High", color: "#EA580C", text: "#C2410C", range: "6–7" },
-  { level: "Severe", color: "#DC2626", text: "#B91C1C", range: "8–10" },
+  // Hedged risk scale. `text` is the same hue darkened to pass 4.5:1 on paper.
+  { level: "Low", color: "#7FA20E", text: "#556F06", range: "1–3" },
+  { level: "Moderate", color: "#D9A800", text: "#8A6A00", range: "4–5" },
+  { level: "High", color: "#D86A1E", text: "#A6500F", range: "6–7" },
+  { level: "Severe", color: "#C8361C", text: "#C8361C", range: "8–10" },
 ];
 
 const THRESHOLDS = [10, 15, 25, 35, 45, 60, 75, 90, 100];

@@ -45,7 +45,7 @@ export function RiskTable({ risks }: { risks: RiskResult[] }) {
               <TableCell className="py-3.5">
                 <Link
                   href={`/risks/${risk.id}`}
-                  className="rounded-sm text-[14px] font-semibold tracking-tight hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded-sm text-[14px] font-medium tracking-[-0.03em] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {risk.name}
                 </Link>

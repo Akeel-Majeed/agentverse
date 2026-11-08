@@ -13,7 +13,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { se
     <PageShell>
       <PageHeader
         title={farm.name}
-        subtitle="Everything Headwind knows about the farm, section by section. Upload documents and the agent fills in what it can; you confirm. Each field shows which risks it feeds."
+        subtitle="Everything Hedged knows about the farm, section by section. Upload documents and the agent fills in what it can; you confirm. Each field shows which risks it feeds."
         actions={
           <Button asChild variant="secondary">
             <Link href="/onboarding">Run setup again</Link>
