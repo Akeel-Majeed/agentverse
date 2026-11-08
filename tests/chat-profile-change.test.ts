@@ -43,6 +43,11 @@ describe("confirmation gate", () => {
   ];
   const jev = (confirms: number, injection = 0.01) => vi.fn(async (_state: string) => ({ confirms, injection }));
 
+  it("refuses when the shown message had the ref but a different value than the stored change", async () => {
+    const misleading: Msg[] = [shown[0], { role: "assistant", content: "Change 2026 wheat unsold in store to 900 t? Reply yes (ref ABC123)." }, shown[2]];
+    expect(await confirmationGate(misleading, change, jev(0.99))).toMatchObject({ ok: false });
+  });
+
   it("accepts a reply in the farmer's own words when Jev is confident", async () => {
     const ask = jev(0.93);
     expect(await confirmationGate(shown, change, ask)).toMatchObject({ ok: true, method: "jev", confirms: 0.93 });
