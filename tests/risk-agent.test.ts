@@ -255,6 +255,10 @@ describe("phase two", () => {
       ["a field key outside the catalogue", (id: string) => ({ ...base(id), field_key: "bank.overdraft_limit" })],
       ["an untraced number in the reason", (id: string) => ({ ...base(id), reason: "Selling 200 t forward saves £999k" })],
       ["a quote shorter than 8 characters", (id: string) => ({ ...base(id), quote: "200 ton" })],
+      ["a proposed value with a multiplier", (id: string) => ({ ...base(id), proposed_value: "200k" })],
+      ["a negative proposed value", (id: string) => ({ ...base(id), proposed_value: "-200" })],
+      ["a proposed value in exponent form", (id: string) => ({ ...base(id), proposed_value: "2e2" })],
+      ["a proposed value with extra digits", (id: string) => ({ ...base(id), proposed_value: "2,000" })],
     ])("rejects %s", async (_label, args) => {
       const { proposals, result } = await propose(args);
       expect(proposals).toHaveLength(0);

@@ -39,7 +39,8 @@ describe("strict figure checker (judge): fails closed", () => {
     dscr: { threshold: 1.25 },
     meta: { paths: 10000, asOf: "2026-08-01" },
   })];
-  const untraced = (text: string) => checkFiguresStrict(text, SRC).untraced;
+  const IDS = ["profit.p5", "option.sell_forward_wheat_50.cost", "sales.wheat_2027_forward_t"];
+  const untraced = (text: string) => checkFiguresStrict(text, SRC, IDS).untraced;
 
   it("passes engine display strings, ids, years, crop years and the 1-in-20 label", () => {
     expect(untraced(
@@ -60,6 +61,10 @@ describe("strict figure checker (judge): fails closed", () => {
     ["a bare rate", "At a rate of 7.25 the loan bites."],
     ["a number glued to a unit", "Spread 17kg of seed."],
     ["a different precision", "Rate 7.30%."],
+    ["full-width digits", "The hit is −£１７k and ２００k more."],
+    ["non-ASCII digits", "Rate ٣ points higher."],
+    ["an unknown dotted id with a digit", "See risk.made_up.p7 for detail."],
+    ["a dotted token hiding a number", "Profit falls to profit.minus40k."],
   ])("flags %s", (_label, text) => {
     expect(untraced(text).length).toBeGreaterThan(0);
   });

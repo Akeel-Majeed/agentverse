@@ -8,9 +8,11 @@ import type { AgentStore } from "../../server/agent-store";
 import type { TraceWriter } from "../../trace/chain";
 import type { Controls, Observation } from "../../trace/types";
 import { fieldDef } from "../../profile/catalogue";
+import { parseValue } from "../../profile/values";
 import type { ProfileFieldValue } from "../../types";
 import { checkFiguresStrict } from "../checker";
 import { JUDGEMENT_JSON_SCHEMA } from "./schema";
+import { knownIds } from "./verify";
 
 export interface ToolContext {
   runId: string;
@@ -103,8 +105,12 @@ const ProposalArgs = z.object({
 });
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-/** Number tokens with thousands commas dropped, so "1,028" in a quote matches a proposed "1028". */
-const numbers = (s: string) => (s.replace(/(\d),(?=\d{3}\b)/g, "$1").match(/\d+(?:\.\d+)?/g) ?? []);
+/** Numbers a quote states, read with sign, thousands separators and k/m/bn: "£40k" → 40000, "-200" → −200. */
+const quoteNumbers = (s: string) =>
+  Array.from(s.normalize("NFKC").matchAll(/(?<![\w.])([−-])?(\d[\d,]*(?:\.\d+)?)\s?(k|m|bn)?(?!\w)/gi), (m) =>
+    (m[1] ? -1 : 1) * Number(m[2].replace(/,/g, "")) * ({ k: 1e3, m: 1e6, bn: 1e9 }[(m[3] ?? "").toLowerCase() as "k"] ?? 1));
+/** Numeric fields take a plain number only, so "200k", "-200", "2e2" or "2,000" cannot ride on a quote saying "200". */
+const PLAIN_NUMBER = /^\d+(?:\.\d+)?$/;
 
 /**
  * Writes only to pending_changes, after code checks: proposal cap, a catalogue field, a document
@@ -128,13 +134,16 @@ export async function proposeChange(ctx: ToolContext, args: Record<string, unkno
     await ctx.trace.append("control.quote_not_verbatim", "code", { observationId: doc.id, quote: a.data.quote });
     return { ok: false, error: "quote must be verbatim text from that document" };
   }
-  const want = numbers(a.data.proposed_value);
-  const have = new Set(numbers(a.data.quote));
-  if (want.length ? !want.every((n) => have.has(n)) : !norm(a.data.quote).includes(norm(a.data.proposed_value))) {
+  const numeric = def.type === "number" || def.type === "money";
+  const parsed = parseValue(def, a.data.proposed_value);
+  const contained = numeric
+    ? PLAIN_NUMBER.test(a.data.proposed_value.trim()) && parsed.ok && quoteNumbers(a.data.quote).some((n) => n === parsed.value)
+    : norm(a.data.quote).includes(norm(a.data.proposed_value));
+  if (!contained) {
     await ctx.trace.append("control.quote_not_verbatim", "code", { observationId: doc.id, quote: a.data.quote, proposedValue: a.data.proposed_value });
     return { ok: false, error: "quote must contain the proposed value" };
   }
-  const reasonCheck = checkFiguresStrict(a.data.reason, [...ctx.outputs, docText]);
+  const reasonCheck = checkFiguresStrict(a.data.reason, [...ctx.outputs, docText], knownIds(ctx.sim));
   if (reasonCheck.untraced.length) {
     await ctx.trace.append("control.untraced_figure", "code", { where: "propose_change.reason", untraced: reasonCheck.untraced });
     return { ok: false, error: `reason has numbers no function result or the document contains: ${reasonCheck.untraced.join(", ")}` };

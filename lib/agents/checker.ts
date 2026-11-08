@@ -61,8 +61,10 @@ export function checkFigures(reply: string, sources: string[]): CheckResult {
  * Strict mode, for the risk judge: fails closed.
  * Every digit in the prose must belong to a figure some source wrote the same way (same unit, same
  * number text, so "£17,000" does not match "£17k" and "31 per cent" does not match "31.0%"), a
- * harmless token (years 2019–2030, crop years like 2026/27, the "1-in-20" label, figure or profile
- * ids like profit.p5 or P95), or it is untraced. Signs count: "+£17k" or "−£17k" must match the
+ * harmless token (years 2019–2030, crop years like 2026/27, the "1-in-20" label, P5/P95/CVaR5, or
+ * an id the caller passes as known, e.g. figure ids and catalogue keys), or it is untraced. Text is
+ * NFKC-normalised first (full-width "２００" reads as "200") and the residual sweep catches any
+ * Unicode digit (\p{Nd}) left over. Signs count: "+£17k" or "−£17k" must match the
  * source's sign, and an unsigned figure that only exists as a negative cannot sit after a word like
  * "gains" or "protects".
  * ponytail: spelled-out numbers ("one in four") are not parsed; the prompt forbids them, add a
@@ -85,17 +87,21 @@ const STRICT: StrictPattern[] = [
   { kind: null, re: /\b(?:2019|202\d|2030)\s?[/–-]\s?\d{2}\b/g },
   { kind: null, re: /\b(?:2019|202\d|2030)\b/g },
   { kind: "num", re: new RegExp(String.raw`${SIGN}${NUM}${MULT}(?!\w)`, "g") },
-  // Figure ids (risk.output_prices.p5_hit), profile keys (sales.wheat_2027_forward_t), P5/P95/CVaR5.
-  { kind: null, re: /\b[a-z][a-z_]*(?:\.(?=[a-z0-9_]*[a-z])[a-z0-9_]+)+\b/g },
-  { kind: null, re: /\b(?:p|cvar)\d{1,2}\b/gi },
+  { kind: null, re: /(?<![\w.])(?:p|cvar)\d{1,2}(?!\w)/gi },
 ];
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 interface StrictFigure { text: string; key: string; sign: -1 | 0 | 1; at: number }
 
-function strictFigures(text: string): { figures: StrictFigure[]; residual: string[] } {
+function strictFigures(text: string, ids: string[] = []): { figures: StrictFigure[]; residual: string[] } {
   let rest = text;
   const figures: StrictFigure[] = [];
-  for (const p of STRICT) {
+  // Known ids (longest first) are whole tokens; any other dotted token with a digit stays residual.
+  const idPattern: StrictPattern[] = ids.length
+    ? [{ kind: null, re: new RegExp(`(?<![\\w.])(?:${[...ids].sort((a, b) => b.length - a.length).map(escapeRe).join("|")})(?![\\w])`, "g") }]
+    : [];
+  for (const p of [...idPattern, ...STRICT]) {
     for (const m of Array.from(rest.matchAll(p.re))) {
       rest = rest.slice(0, m.index) + " ".repeat(m[0].length) + rest.slice(m.index! + m[0].length);
       if (!p.kind) continue;
@@ -110,14 +116,16 @@ function strictFigures(text: string): { figures: StrictFigure[]; residual: strin
       });
     }
   }
-  const residual = Array.from(rest.matchAll(/\S*\d\S*/g)).map((m) => text.slice(m.index, m.index! + m[0].length));
+  const residual = Array.from(rest.matchAll(new RegExp(String.raw`\S*\p{Nd}\S*`, "gu"))).map((m) => text.slice(m.index, m.index! + m[0].length));
   return { figures, residual };
 }
 
 const GAIN_WORD = /\b(gain\w*|sav(e|es|ed|ing|ings)|protect\w*|improv\w*|benefit\w*|boost\w*|adds?)\b/i;
 const zero = (key: string) => /:0(\.0+)?$/.test(key);
 
-export function checkFiguresStrict(reply: string, sources: string[]): CheckResult {
+/** `ids`: tokens that are names, not numbers (figure ids, catalogue keys); only these may carry digits. */
+export function checkFiguresStrict(text: string, sources: string[], ids: string[] = []): CheckResult {
+  const reply = text.normalize("NFKC");
   /** key → signs the sources wrote it with (an unsigned source figure counts as positive). */
   const known = new Map<string, Set<number>>();
   const add = (key: string, sign: number) => {
@@ -125,13 +133,13 @@ export function checkFiguresStrict(reply: string, sources: string[]): CheckResul
     known.get(key)!.add(sign === -1 ? -1 : 1);
   };
   for (const s of sources) {
-    for (const f of strictFigures(s).figures) {
+    for (const f of strictFigures(s.normalize("NFKC")).figures) {
       add(f.key, f.sign);
       // A bare number ("200" as a conflict's document value) traces to the same number text in any unit.
       add(`num:${f.key.slice(f.key.indexOf(":") + 1)}`, f.sign);
     }
   }
-  const { figures, residual } = strictFigures(reply);
+  const { figures, residual } = strictFigures(reply, ids);
   const traced = (f: StrictFigure) => {
     if (zero(f.key)) return true;
     const signs = known.get(f.key);

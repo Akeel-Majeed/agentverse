@@ -1,5 +1,5 @@
 import type { SimResult } from "../../engine/types";
-import { fieldDef } from "../../profile/catalogue";
+import { fieldDef, FIELDS } from "../../profile/catalogue";
 import { checkFiguresStrict } from "../checker";
 import type { Judgement } from "./schema";
 
@@ -13,12 +13,15 @@ const prose = (v: unknown): string[] =>
   : v && typeof v === "object" ? Object.entries(v).flatMap(([k, x]) => (ID_KEYS.has(k) ? [] : prose(x)))
   : [];
 
+/** Names the strict checker may let through with digits in them: figure, option and catalogue ids. */
+export const knownIds = (sim: SimResult): string[] => [...Object.keys(sim.figures), ...sim.options.map((o) => o.id), ...FIELDS.map((f) => f.key)];
+
 /**
  * Hard block: every number in the judgement's prose must appear, written the same way, in a function
  * result (strict checker), and every id it uses must exist in this run. Untraced or unknown → blocked.
  */
 export function verifyOutput(out: Judgement, toolOutputs: string[], sim: SimResult, documentIds: string[]) {
-  const check = checkFiguresStrict(prose(out).join("\n"), toolOutputs);
+  const check = checkFiguresStrict(prose(out).join("\n"), toolOutputs, knownIds(sim));
   const options = new Set(sim.options.map((o) => o.id as string));
   const risks = new Set(sim.risks.map((r) => r.riskId as string));
   const thresholds = new Set(sim.thresholds.map((t) => t.id));
