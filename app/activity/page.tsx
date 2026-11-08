@@ -19,6 +19,7 @@ const SOURCE: Record<PendingChange["source"], string> = {
   mcp: "Adviser agent",
   companies_house: "Companies House",
   agent: "Risk agent",
+  chat: "Ask Hedged chat",
 };
 
 function CheckBadge({ turn }: { turn: ChatTurn }) {

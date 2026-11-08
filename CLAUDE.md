@@ -38,17 +38,17 @@ app/api/mcp             MCP server for outside agents (get_risk_profile, covenan
 
 **Risk profile flow:** farmer edits profile → "Update risk profile" freezes a snapshot → assessment built from it → each signal measured against the snapshot in code → impacts over £5k become alerts.
 
-**Chat agent:** one conversation across iMessage and the in-app panel. Short replies, answers only what was asked, no figures unprompted. Sees shared memory notes + last 24 messages from `chat_turns`. Every figure from a tool; checker forces a rewrite otherwise. No write tools.
+**Chat agent:** one conversation across iMessage and the in-app panel. Short replies, answers only what was asked, no figures unprompted. Sees shared memory notes + last 24 messages from `chat_turns`. Every figure from a tool; checker forces a rewrite otherwise. Its only write: propose a profile change (`propose_profile_change`), applied by `confirm_profile_change` only after the farmer's plain YES, checked in code (`lib/agents/chat/confirm.ts`).
 
 ## Status and next steps
 
 Done: data layer + Supabase, profile/onboarding UI, risk profile + snapshots, approval queue, what-if, iMessage chat agent with memory, live data adapters.
-Next, in order: real engine + `/api/assess` (replace `lib/profile/assess.ts`) → writer agent → onboarding agent (documents → `pending_changes`) → iMessage alerts and chat-proposed changes → MCP server → wire `lib/live.ts` into cron jobs.
+Next, in order: real engine + `/api/assess` (replace `lib/profile/assess.ts`) → writer agent → onboarding agent (documents → `pending_changes`) → iMessage alerts → MCP server → wire `lib/live.ts` into cron jobs.
 
 ## Rules
 
 - **Numbers come from code, never the LLM.** Claude extracts, explains and ranks.
-- **Only the farmer changes the profile.** Agents, iMessage and MCP write only to `pending_changes`.
+- **Only the farmer changes the profile.** Agents, iMessage and MCP write only to `pending_changes`. The chat agent applies a change only after the farmer's plain YES to that exact change, shown in an earlier message; this is checked in code (`lib/agents/chat/confirm.ts`), never left to the model.
 - **Don't change UI types or layout** unless asked. Components import data only from `lib/data.ts`.
 - **Secrets server-side only** (`SUPABASE_SECRET_KEY`, `ANTHROPIC_API_KEY`, Inkbox keys). Never `NEXT_PUBLIC_`.
 - **Runs without keys:** fall back to demo data.

@@ -55,7 +55,8 @@ export interface Store {
   getSignals(since: string): Promise<Signal[]>;
   getPendingChanges(): Promise<PendingChange[]>;
   updatePendingChange(id: string, status: PendingChange["status"], proposedValue?: string): Promise<PendingChange | null>;
-  insertPendingChange(c: Omit<PendingChange, "id" | "receivedAt">): Promise<void>;
+  /** Returns the new change's id. */
+  insertPendingChange(c: Omit<PendingChange, "id" | "receivedAt">): Promise<string>;
   /** Start logging a chat turn. False if this inbound message was already taken (a webhook retry). */
   claimChatTurn(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question" | "channel">): Promise<boolean>;
   /** The most recent chat turns from every channel, oldest first. */
@@ -141,7 +142,9 @@ function createMockStore(): Store {
       return structuredClone(item);
     },
     insertPendingChange: async (c) => {
-      state.pending.unshift({ ...structuredClone(c), id: crypto.randomUUID(), receivedAt: receivedLabel(new Date().toISOString()) });
+      const id = crypto.randomUUID();
+      state.pending.unshift({ ...structuredClone(c), id, receivedAt: receivedLabel(new Date().toISOString()) });
+      return id;
     },
     claimChatTurn: async (turn) => {
       if (state.chat.some((t) => t.inboundMessageId === turn.inboundMessageId)) return false;
@@ -332,7 +335,7 @@ function createSupabaseStore(db: SupabaseClient): Store {
       return data ? toPending(data) : null;
     },
     async insertPendingChange(c) {
-      const { error } = await db.from("pending_changes").insert({
+      const row = {
         farm_id: farm,
         field_key: c.fieldKey ?? null,
         field_label: c.field,
@@ -341,8 +344,14 @@ function createSupabaseStore(db: SupabaseClient): Store {
         source: c.source,
         reason: c.reason,
         status: c.status,
-      });
-      if (error) throw new Error(`Supabase: insert pending change: ${error.message}`);
+      };
+      let { data, error } = await db.from("pending_changes").insert(row).select("id").single();
+      // Before migration 0006 the source check doesn't allow 'chat': record it as a message instead.
+      if (error && c.source === "chat" && /check/i.test(error.message)) {
+        ({ data, error } = await db.from("pending_changes").insert({ ...row, source: "imessage" }).select("id").single());
+      }
+      if (error || !data) throw new Error(`Supabase: insert pending change: ${error?.message ?? "no id returned"}`);
+      return String((data as Row).id);
     },
     async claimChatTurn(turn) {
       const row = {

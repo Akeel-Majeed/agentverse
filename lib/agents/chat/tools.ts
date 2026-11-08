@@ -1,8 +1,9 @@
 /**
  * Read-only tools for the chat agent. Each one wraps code that already computes the figure
  * (lib/data.ts, lib/sim.ts, the Monte Carlo engine's stored result), so every number the agent
- * quotes comes from code. There is no write tool: the agent cannot change the profile, approve
- * changes or move money.
+ * quotes comes from code. The only writes are profile-change proposals: the agent proposes, and a
+ * change is applied only after the farmer's plain YES to that exact change, checked in code
+ * (profile-changes.ts, confirm.ts). It cannot move money.
  */
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
@@ -25,7 +26,9 @@ import {
 } from "../../data";
 import backtest from "../../../docs/eval/backtest.json";
 import screenEval from "../../../docs/eval/screen-eval.json";
+import { changeRef } from "./confirm";
 import { documentsView, engineResult, evaluationView, judgementView, simulationView, type BacktestFile, type ScreenFile } from "./engine-views";
+import { cancelProfileChange, confirmProfileChange, proposeProfileChange, type ChangeContext } from "./profile-changes";
 import { amount, gbp, gbpK, gbpPerT } from "../../format";
 import { riskName } from "../../profile/catalogue";
 import { bandFor } from "../../score";
@@ -102,7 +105,7 @@ function lossLimitView(l: LossLimit) {
 }
 
 /** Build the tool set. Every call is recorded in `calls` for the figure checker and the action log. */
-export function createTools(calls: ToolCall[]) {
+export function createTools(calls: ToolCall[], change: ChangeContext = { channel: "web", messages: [] }) {
   const tool = <S extends z.ZodType>(def: { name: string; description: string; inputSchema: S; run: (input: z.infer<S>) => Promise<unknown> }) =>
     betaZodTool({
       name: def.name,
@@ -306,6 +309,7 @@ export function createTools(calls: ToolCall[]) {
           section: s.title,
           status: s.status,
           fields: s.fields.map((f) => ({
+            key: f.id,
             label: f.label,
             value: f.value || "not recorded",
             source: f.source,
@@ -362,7 +366,7 @@ export function createTools(calls: ToolCall[]) {
       run: async () =>
         (await getPendingChanges())
           .filter((p) => p.status === "pending")
-          .map((p) => ({ field: p.field, current: p.currentValue, proposed: p.proposedValue, reason: p.reason, received: p.receivedAt })),
+          .map((p) => ({ ref: changeRef(p.id), field: p.field, current: p.currentValue, proposed: p.proposedValue, reason: p.reason, received: p.receivedAt })),
     }),
     tool({
       name: "get_simulation",
@@ -402,6 +406,30 @@ export function createTools(calls: ToolCall[]) {
         const docs = documentsView(await getDocuments());
         return docs.length ? docs : { documents: [], note: "No documents added yet." };
       },
+    }),
+    tool({
+      name: "propose_profile_change",
+      description:
+        "Propose changing one farm profile value, e.g. after the farmer says they sold grain, bought fertiliser or their loan changed. Nothing changes yet: it goes to the approval queue and you must show the farmer the exact change with its ref and ask them to reply YES. Use the field key from get_profile; give the value as the farmer stated it.",
+      inputSchema: z.object({
+        field_key: z.string().describe("Profile field key from get_profile, e.g. sales.wheat_2026_unsold_t"),
+        value: z.string().min(1).describe("New value, e.g. 828 or 828 t or 31 Mar 2027"),
+        reason: z.string().describe("One short sentence: what the farmer said"),
+      }),
+      run: async (input) => proposeProfileChange(input, change),
+    }),
+    tool({
+      name: "confirm_profile_change",
+      description:
+        "Apply a change the farmer has just confirmed. Only call it when the farmer's latest message is a plain YES to a change you showed them earlier with its ref. Code checks this and refuses otherwise.",
+      inputSchema: z.object({ ref: z.string().describe("The change's ref, e.g. 3F9A2C") }),
+      run: async (input) => confirmProfileChange(input, change),
+    }),
+    tool({
+      name: "cancel_profile_change",
+      description: "Cancel a change proposed in chat when the farmer says no or corrects it. The profile keeps its current value.",
+      inputSchema: z.object({ ref: z.string() }),
+      run: async (input) => cancelProfileChange(input),
     }),
   ];
 }
