@@ -170,6 +170,8 @@ const toPending = (r: Row): PendingChange => ({
   reason: String(r.reason),
   status: r.status as PendingChange["status"],
   receivedAt: receivedLabel(String(r.received_at)),
+  runId: (r.run_id as string | null) ?? undefined,
+  evidence: (r.evidence as PendingChange["evidence"] | null) ?? undefined,
 });
 
 const toSnapshot = (r: Row): ProfileSnapshot => ({
@@ -297,6 +299,8 @@ function createSupabaseStore(db: SupabaseClient): Store {
     async updatePendingChange(id, status, proposedValue) {
       const patch: Row = { status, resolved_at: status === "pending" ? null : new Date().toISOString() };
       if (proposedValue !== undefined) patch.proposed_value = proposedValue;
+      // resolved_by exists only once migration 0003 is applied (AGENT_TABLES=1).
+      if (process.env.AGENT_TABLES === "1") patch.resolved_by = status === "pending" ? null : "farmer";
       const { data, error } = await db.from("pending_changes").update(patch).eq("farm_id", farm).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(`Supabase: update pending change: ${error.message}`);
       return data ? toPending(data) : null;
