@@ -88,6 +88,8 @@ export interface RiskResult {
   sources: Source[];
   mitigations: Mitigation[];
   model: ExposureModel;
+  /** Monte Carlo result for this risk, shown beside the hand-checkable working. */
+  simulation?: { runId: string; p5Hit: number; p5HitDisplay: string; score: number; seed: number; paths: number; configHash: string };
 }
 
 export type PendingSource = "onboarding" | "freshness" | "imessage" | "mcp" | "companies_house" | "agent";
@@ -151,6 +153,10 @@ export interface AssessmentMeta {
   updatedAt: string;
   harvestYear: number;
   typicalProfit: number;
+  /** Agent run behind this assessment (phase one), its status and trace head hash. */
+  runId?: string;
+  runStatus?: string;
+  headHash?: string;
 }
 
 export interface Reminder {

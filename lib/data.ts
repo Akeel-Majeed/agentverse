@@ -5,16 +5,24 @@
  * on the server. Reads come from Supabase when it is configured and seeded, otherwise from the
  * demo data (see lib/server/store.ts).
  */
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { cache } from "react";
+import { ACCEPTED_MIME, extractorFromEnv } from "./agents/documents/extract";
+import { runPhaseOne, type PhaseOneInput } from "./assess/phase-one";
 import { londonDay, londonTime } from "./format";
 import * as mock from "./mock";
 import { reassess } from "./profile/assess";
-import { weekMoves } from "./profile/fenland-ridge";
+import { FARM_ID, weekMoves } from "./profile/fenland-ridge";
 import { FIELDS, SECTIONS, fieldDef, riskName, RISKS } from "./profile/catalogue";
 import { makeSnapshot, measureSignals, profileChanges } from "./profile/risk-profile";
 import { addDays, formatValue, parseValue } from "./profile/values";
+import { jevFromEnv } from "./screen/screen";
+import { createSupabaseAgentStore, getAgentStore, type AgentStore } from "./server/agent-store";
 import { getStore, type Assessment, type Store } from "./server/store";
+import { canonical, GENESIS, nextHash, verifyChain } from "./trace/chain";
+import type { Actor, AgentRun, Controls, Observation, TraceEvent } from "./trace/types";
 import type {
   AssessmentMeta,
   BreakEven,
@@ -288,15 +296,41 @@ export async function getRiskInputs(riskId: string): Promise<RiskInputs> {
   };
 }
 
+/** Phase one (read, screen, simulate, trace) on the snapshot's frozen profile and market figures. */
+async function phaseOne(trigger: AgentRun["trigger"], snapshot: ProfileSnapshot, now: Date, document?: PhaseOneInput["document"]) {
+  const fields: ProfileFieldValue[] = Object.entries(snapshot.fields).map(([key, value]) => ({
+    key, value, source: `Risk profile v${snapshot.version}`, confidence: "high", confirmedAt: snapshot.takenAt, validUntil: null,
+  }));
+  return runPhaseOne({
+    store: await getAgentStore(), farmId: FARM_ID, trigger, fields, market: snapshot.market, now, document,
+    jev: jevFromEnv(), extract: extractorFromEnv(), geminiAvailable: Boolean(process.env.GEMINI_API_KEY),
+  });
+}
+
 /**
- * Store a new assessment built from `snapshot`. Until the engine exists, exposures and the
- * figures that follow from them are recomputed; agent-written text is carried over.
+ * Store a new assessment built from `snapshot`. Exposures and the figures that follow from them
+ * are recomputed, agent-written text is carried over, and phase one adds the Monte Carlo beside them.
  */
-async function assess(store: Store, snapshot: ProfileSnapshot, assessment: Assessment, now: Date): Promise<AssessmentMeta> {
+async function assess(store: Store, snapshot: ProfileSnapshot, assessment: Assessment, now: Date, trigger: AgentRun["trigger"]): Promise<AssessmentMeta> {
   const typicalProfit = Number(snapshot.fields["pnl.typical_profit"] ?? assessment.meta.typicalProfit) || assessment.meta.typicalProfit;
   const hectares = Number(snapshot.fields["land.area_ha"] ?? 0);
-  const { risks, profit } = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit, weekMoves);
+  const reassessed = reassess(assessment.risks, assessment.profit, snapshot.exposures, hectares, typicalProfit, weekMoves);
+  const { profit } = reassessed;
+  let { risks } = reassessed;
   const meta: AssessmentMeta = { ...assessment.meta, date: today(), updatedAt: londonTime(now), typicalProfit };
+  // The app keeps working without the simulation: publish the assessment without it.
+  try {
+    const { run, sim, headHash } = await phaseOne(trigger, snapshot, now);
+    risks = risks.map((risk) => {
+      const r = sim.risks.find((x) => x.riskId === risk.id);
+      if (!r) return risk;
+      const { seed, paths, configHash } = sim.meta;
+      return { ...risk, simulation: { runId: run.id, p5Hit: r.p5Hit.value, p5HitDisplay: r.p5Hit.display, score: r.score.value, seed, paths, configHash } };
+    });
+    Object.assign(meta, { runId: run.id, runStatus: run.status, headHash });
+  } catch (e) {
+    console.error("[data] Phase one failed; publishing the assessment without the simulation", e);
+  }
   await store.insertAssessment(
     { snapshotId: snapshot.id, meta, profit, breakEvens: assessment.breakEvens, topMitigationIds: assessment.topMitigationIds, risks },
     now.toISOString()
@@ -328,7 +362,7 @@ export async function updateRiskProfile(
   }
   let meta: AssessmentMeta;
   try {
-    meta = await assess(store, snapshot, assessment, now);
+    meta = await assess(store, snapshot, assessment, now, "update_profile");
   } catch (e) {
     await store.deleteSnapshot(snapshot.id).catch((d) => console.error(`[data] Couldn't remove snapshot ${snapshot.id} after a failed assessment`, d));
     throw e;
@@ -341,9 +375,98 @@ export async function updateRiskProfile(
 export async function rerunAssessment(): Promise<AssessmentMeta> {
   const store = await getStore();
   const [snapshot, assessment] = await Promise.all([store.getSnapshot(), store.getAssessment()]);
-  const meta = await assess(store, snapshot, assessment, new Date());
+  const meta = await assess(store, snapshot, assessment, new Date(), "rerun");
   refresh();
   return meta;
+}
+
+/* ---------- Risk agent: trace, kill switch, documents ---------- */
+
+/** Latest run for the farm when no id is given. `verify` recomputes the hash chain. */
+export async function getTrace(runId?: string): Promise<{
+  run: AgentRun;
+  events: TraceEvent[];
+  observations: Observation[];
+  verify: { ok: boolean; head: string; brokenAt?: number };
+} | null> {
+  const store = await getAgentStore();
+  const run = runId ? await store.getRun(runId) : await store.latestRun(FARM_ID);
+  if (!run) return null;
+  const [events, observations] = await Promise.all([store.getEvents(run.id), store.getObservations(run.id)]);
+  return { run, events, observations, verify: verifyChain(events) };
+}
+
+export async function getControls(): Promise<Controls> {
+  return (await getAgentStore()).getControls();
+}
+
+/** The risk_agent database role can't write controls, so a human toggle goes through the secret-key store. */
+async function controlStore(): Promise<AgentStore> {
+  if (process.env.RISK_AGENT_DATABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SECRET_KEY) return createSupabaseAgentStore();
+  return getAgentStore();
+}
+
+// ponytail: one-off append to an existing run's chain; Task 10's TraceWriter.resume can replace it.
+async function appendEvent(store: AgentStore, runId: string, type: string, actor: Actor, payload: unknown): Promise<void> {
+  const last = (await store.getEvents(runId)).at(-1);
+  const prevHash = last?.hash ?? GENESIS;
+  const body = canonical(payload);
+  await store.insertEvent({ runId, seq: (last?.seq ?? 0) + 1, type, actor, body, prevHash, hash: nextHash(prevHash, body), createdAt: new Date().toISOString() });
+}
+
+/** The farmer's kill switch. Logged on the latest run's trace as a human event. */
+export async function setPaused(paused: boolean): Promise<Controls> {
+  const store = await controlStore();
+  await store.setPaused(paused, "farmer");
+  const run = await store.latestRun(FARM_ID);
+  if (run) {
+    await appendEvent(store, run.id, "control.paused", "human", { paused, by: "farmer" }).catch((e) =>
+      console.error(`[data] Couldn't log the kill switch on run ${run.id}`, e)
+    );
+  }
+  refresh();
+  return store.getControls();
+}
+
+async function runDocument(document: NonNullable<PhaseOneInput["document"]>): Promise<{ runId: string; status: string }> {
+  const snapshot = await (await getStore()).getSnapshot();
+  const { run } = await phaseOne("document", snapshot, new Date(), document);
+  refresh();
+  return { runId: run.id, status: run.status };
+}
+
+/** A pasted document: screened by Jev before any model judges it. */
+export async function addDocument(name: string, text: string): Promise<{ runId: string; status: string }> {
+  return runDocument({ name, text });
+}
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/** An uploaded PDF or photo (form field "file"): read by Gemini 3.8 Flash, then screened. */
+export async function addDocumentFile(form: FormData): Promise<{ runId: string; status: string }> {
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a PDF or photo to upload.");
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error("That file is over 10 MB. Upload a smaller PDF or photo.");
+  if (!ACCEPTED_MIME.includes(file.type)) throw new Error("Upload a PDF or a photo (JPEG, PNG, WebP or HEIC).");
+  const data = Buffer.from(await file.arrayBuffer()).toString("base64");
+  return runDocument({ name: file.name, file: { data, mimeType: file.type } });
+}
+
+const DEMO_DOCUMENTS = {
+  "fertiliser-contract.txt": "text/plain",
+  "merchant-email-injection.txt": "text/plain",
+  "forward-contract.png": "image/png",
+  "forward-contract.pdf": "application/pdf",
+  "injection-contract.png": "image/png",
+} as const;
+
+/** One of the demo files in data/demo (fixed names only, never a path from the client). */
+export async function addDemoDocument(name: keyof typeof DEMO_DOCUMENTS): Promise<{ runId: string; status: string }> {
+  if (!Object.hasOwn(DEMO_DOCUMENTS, name)) throw new Error("Unknown demo document.");
+  const mimeType = DEMO_DOCUMENTS[name];
+  const file = path.join(process.cwd(), "data", "demo", name);
+  if (mimeType === "text/plain") return runDocument({ name, text: await readFile(file, "utf8") });
+  return runDocument({ name, file: { data: (await readFile(file)).toString("base64"), mimeType } });
 }
 
 /* ---------- Not in the database yet: calendar, reminders, what-if ---------- */
