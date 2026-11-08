@@ -169,12 +169,28 @@ export function simulate(h: History, farm: FarmInputs, asOf: string, cfg: SimCon
     return slope === 0 ? NaN : today - at(today) / slope;
   };
   const dscrAt = (d: number) => farmPnl(farm, { bank_rate: d }).dscr;
-  let lo = -10, hi = 20;
+  const LO = -10, HI = 20;
+  let lo = LO, hi = HI;
   for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (dscrAt(mid) > cfg.dscrThreshold) lo = mid; else hi = mid; }
+  // Only a crossing inside the searched range is a threshold; otherwise the bisection edge would pose as one.
+  const rateNa = !farm.loanVariable ? "the loan rate is fixed, so Bank Rate does not move DSCR"
+    : dscrAt(HI) > cfg.dscrThreshold ? `DSCR stays above ${cfg.dscrThreshold} even at Bank Rate +${HI} points`
+    : dscrAt(LO) <= cfg.dscrThreshold ? `DSCR is at or below ${cfg.dscrThreshold} even at Bank Rate ${LO} points`
+    : null;
+  const breakeven = (k: PriceFactor, formula: string) => {
+    const v = solveLinear(k);
+    return { v, formula: Number.isFinite(v) ? formula : `not applicable: profit does not move with the ${k} price` };
+  };
+  const wheatBe = breakeven("wheat", "solve profit(wheat price) = 0, other factors at today's level");
+  const anBe = breakeven("an", "solve profit(AN price) = 0");
   const thresholds = [
-    add(figure("threshold.wheat_breakeven", "Wheat price at which the farm breaks even", solveLinear("wheat"), "gbp_t", "solve profit(wheat price) = 0, other factors at today's level", ["profit.mean"])),
-    add(figure("threshold.an_breakeven", "Nitrogen price at which the farm breaks even", solveLinear("an"), "gbp_t", "solve profit(AN price) = 0", [])),
-    add(figure("threshold.rate_dscr", `Bank Rate at which DSCR reaches ${cfg.dscrThreshold}`, farm.bankRatePct + lo, "pct", "bisection on Bank Rate change", ["fin.loan", "fin.loan_margin_pct"])),
+    add(figure("threshold.wheat_breakeven", "Wheat price at which the farm breaks even", wheatBe.v, "gbp_t", wheatBe.formula, ["profit.mean"])),
+    add(figure("threshold.an_breakeven", "Nitrogen price at which the farm breaks even", anBe.v, "gbp_t", anBe.formula, [])),
+    add(figure(
+      "threshold.rate_dscr", `Bank Rate at which DSCR reaches ${cfg.dscrThreshold}`,
+      rateNa ? NaN : farm.bankRatePct + lo, "pct",
+      rateNa ? `not applicable: ${rateNa}` : "bisection on Bank Rate change", ["fin.loan", "fin.loan_margin_pct"],
+    )),
   ];
 
   return {

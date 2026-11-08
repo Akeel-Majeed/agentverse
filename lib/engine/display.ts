@@ -2,6 +2,8 @@ import { gbpK, gbpPerT } from "../format";
 import type { Figure, FigureUnit } from "./types";
 
 export function display(value: number, unit: FigureUnit): string {
+  // A threshold the farm cannot reach is NaN by design: say so, never "£NaN/t".
+  if (!Number.isFinite(value)) return "not applicable";
   switch (unit) {
     case "gbp": return gbpK(value / 1000);
     case "gbp_t": return gbpPerT(value);

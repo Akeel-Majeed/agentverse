@@ -83,3 +83,28 @@ describe("simulate", () => {
     expect(performance.now() - t).toBeLessThan(2000);
   });
 });
+
+describe("thresholds that do not apply", () => {
+  const h = loadHistory();
+  const cfg = { ...DEFAULT_CONFIG, paths: 500 };
+  it("says not applicable for the DSCR rate when the loan is fixed, never a bisection edge", () => {
+    const f = simulate(h, { ...tiny, loanVariable: false }, "2026-08-01", cfg).figures["threshold.rate_dscr"];
+    expect(Number.isNaN(f.value)).toBe(true);
+    expect(f.display).toBe("not applicable");
+    expect(f.formula).toMatch(/fixed/);
+  });
+  it("says not applicable when DSCR never reaches the threshold in the searched range", () => {
+    const f = simulate(h, { ...tiny, loan: 1_000, capitalRepayment: 0 }, "2026-08-01", cfg).figures["threshold.rate_dscr"];
+    expect(f.display).toBe("not applicable");
+  });
+  it("says not applicable for a break-even the farm has no exposure to, never £NaN/t", () => {
+    const noWheat = { ...tiny, crops: { ...tiny.crops, wheat: { areaHa: 0, yieldTHa: 0, forwardT: 0 } } };
+    const f = simulate(h, noWheat, "2026-08-01", cfg).figures["threshold.wheat_breakeven"];
+    expect(f.display).toBe("not applicable");
+    expect(f.formula).toMatch(/not applicable/);
+  });
+  it("keeps the demo farm's thresholds numeric", () => {
+    const { farm } = farmFromProfile(valuesOf(demo.profileFields), demo.market);
+    for (const t of simulate(h, farm, "2026-08-01", cfg).thresholds) expect(t.display).not.toBe("not applicable");
+  });
+});
