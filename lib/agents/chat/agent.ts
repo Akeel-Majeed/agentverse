@@ -50,13 +50,19 @@ Style
 export interface ChatResult {
   text: string;
   calls: ToolCall[];
-  /** Figures in the final reply, any still untraced, and the ones the checker caught first time. */
-  check: CheckResult & { flagged: string[]; rewritten: boolean };
+  /**
+   * Figures in the final reply, any still untraced, the ones the checker caught first time, and
+   * whether the reply was held back because a figure still couldn't be traced after the rewrite.
+   */
+  check: CheckResult & { flagged: string[]; rewritten: boolean; blocked?: boolean };
   model: string;
 }
 
 const REFUSAL_TEXT = "Sorry, I can't help with that one. Ask me about the farm's risks, profit, options, news or deadlines.";
 const UNFINISHED_TEXT = "I couldn't finish working that out. Could you ask a narrower question?";
+/** Sent instead of a reply whose figures still can't be traced after one rewrite: the check fails closed. */
+export const BLOCKED_TEXT =
+  "I couldn't check every figure in that answer against the farm's data, so I've held it back. Try asking about one risk or one figure at a time.";
 
 function textOf(message: Anthropic.Beta.BetaMessage): string {
   return message.content
@@ -122,18 +128,19 @@ export async function runChatAgent(messages: Anthropic.Beta.BetaMessageParam[], 
       { role: "assistant", content: first.text },
       {
         role: "user",
-        content: `[Figure check, not from the farmer] These figures in your last reply don't appear in any tool result: ${check.untraced.join(", ")}. Rewrite the reply so every figure comes from a tool result (call tools if you need to), or leave the figure out. Reply with the rewritten message only.`,
+        content: `[Figure check, not from the farmer] These figures in your last reply don't appear in any tool result, or go the opposite way to it: ${check.untraced.join(", ")}. Rewrite the reply so every figure comes from a tool result exactly, with the right direction (call tools if you need to), or leave the figure out. Write figures as digits, not words. Reply with the rewritten message only.`,
       },
     ],
     calls,
     context
   );
   const recheck = checkFigures(retry.text, sources());
-  if (recheck.untraced.length) console.warn(`[chat] figures still untraced after rewrite: ${recheck.untraced.join(", ")}`);
+  const blocked = recheck.untraced.length > 0 && retry.final.stop_reason !== "refusal";
+  if (blocked) console.warn(`[chat] reply held back: figures still untraced after rewrite: ${recheck.untraced.join(", ")}`);
   return {
-    text: retry.text,
+    text: blocked ? BLOCKED_TEXT : retry.text,
     calls,
-    check: { figures: recheck.figures, untraced: recheck.untraced, flagged: check.untraced, rewritten: true },
+    check: { figures: recheck.figures, untraced: recheck.untraced, flagged: check.untraced, rewritten: true, blocked },
     model: retry.final.model,
   };
 }

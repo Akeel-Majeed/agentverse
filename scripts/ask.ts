@@ -33,14 +33,16 @@ function grade(c: Case, r: ChatResult) {
   const refused = c.kind !== "refuse" || REFUSAL.test(r.text);
   const tooLong = r.text.length > (c.maxChars ?? DEFAULT_MAX_CHARS);
   const tooManyFigures = c.maxFigures !== undefined && r.check.figures.length > c.maxFigures;
-  const pass = !missingFigures.length && !missingText.length && refused && !tooLong && !tooManyFigures && !r.check.untraced.length;
+  const pass = !missingFigures.length && !missingText.length && refused && !tooLong && !tooManyFigures && !r.check.untraced.length && !r.check.blocked;
   return { pass, missingFigures, missingText, refused, tooLong, tooManyFigures };
 }
 
 function show(r: ChatResult) {
   console.log(`\n${r.text}\n`);
   console.log(`tools: ${r.calls.map((c) => `${c.name}(${JSON.stringify(c.input)})`).join(", ") || "none"}`);
-  console.log(`figure check: ${r.check.flagged.length ? `caught ${r.check.flagged.join(", ")}, rewritten` : "all figures traced"}${r.check.untraced.length ? `; still untraced: ${r.check.untraced.join(", ")}` : ""}`);
+  console.log(
+    `figure check: ${r.check.flagged.length ? `caught ${r.check.flagged.join(", ")}, rewritten` : "all figures traced"}${r.check.untraced.length ? `; still untraced: ${r.check.untraced.join(", ")}` : ""}${r.check.blocked ? "; reply held back" : ""}`
+  );
   console.log(`model: ${r.model}`);
 }
 

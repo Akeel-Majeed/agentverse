@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it, vi } from "vitest";
-import { ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
+import { BLOCKED_TEXT, ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
 import { checkFigures, extractFigures } from "@/lib/agents/checker";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
@@ -13,8 +13,22 @@ describe("figure checker", () => {
     expect(keys).toEqual(["gbp:149000", "gbp/t:178", "pct:175", "in20:4", "score:10", "t:2898", "ha:450"]);
   });
 
-  it("treats £11k and £11,000 as the same figure, and ignores sign", () => {
+  it("treats £11k and £11,000 as the same figure, and accepts the right direction", () => {
     expect(checkFigures("It costs £11,000, down £17k", ['{"a":"£11k","b":"−£17k"}']).untraced).toEqual([]);
+  });
+
+  it("flags the right number pointing the wrong way", () => {
+    expect(checkFigures("Profit rose £17k this week", ['{"change":"−£17k"}']).untraced).toEqual(["£17k"]);
+    expect(checkFigures("Profit is up +£17k", ['{"change":"−£17k"}']).untraced).toEqual(["+£17k"]);
+    // A source without a direction allows either.
+    expect(checkFigures("It cuts the hit by £31k", ['{"effect":"cuts the bad-year hit by £31k"}']).untraced).toEqual([]);
+  });
+
+  it("catches money without a £ sign, diesel prices, rate points, litres and numbers in words", () => {
+    const src = ['{"debt":"£840k","diesel":"68p/L","rates":"+1.5 points","litres":"22,800 L"}'];
+    expect(checkFigures("Rates on 840k could rise 1.5 points; diesel 68p/L on 22,800 L", src).untraced).toEqual([]);
+    expect(checkFigures("Rates on 900k could rise 2.5 points; diesel 75p/L on 2,000 L", src).untraced).toEqual(["900k", "75p/L", "2,000 L", "2.5 points"]);
+    expect(checkFigures("about a hundred and fifty thousand pounds", src).untraced).toEqual(["a hundred and fifty thousand pounds"]);
   });
 
   it("flags figures no source contains", () => {
@@ -65,6 +79,17 @@ describe("chat agent", () => {
     expect(out.text).toContain("£11k");
     const lastMessages = requests[2].messages as { role: string; content: string }[];
     expect(lastMessages.at(-1)?.content).toContain("£9k");
+  });
+
+  it("holds the reply back when a figure still can't be traced after the rewrite", async () => {
+    const { client } = fakeClient([
+      { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tu_1", name: "get_risk", input: { risk_id: "interest_rates" } } as never] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "Fixing half would save you £9k a year.", citations: null } as never] },
+      { stop_reason: "end_turn", content: [{ type: "text", text: "Fixing half saves about £7.3k a year.", citations: null } as never] },
+    ]);
+    const out = await runChatAgent(ask("Should I fix my loan?"), client);
+    expect(out.text).toBe(BLOCKED_TEXT);
+    expect(out.check).toMatchObject({ flagged: ["£9k"], untraced: ["£7.3k"], rewritten: true, blocked: true });
   });
 
   it("sends the conversation context after the cached rules", async () => {

@@ -112,7 +112,7 @@ export async function handleIMessage(payload: IMessageWebhookPayload, deps: IMes
       status: "answered",
       answer: result.text,
       tools: result.calls.map(({ name, input, ms }) => ({ name, input, ms })),
-      checker: { flagged: result.check.flagged, untraced: result.check.untraced, rewritten: result.check.rewritten },
+      checker: { flagged: result.check.flagged, untraced: result.check.untraced, rewritten: result.check.rewritten, blocked: result.check.blocked },
       model: result.model,
     });
     await deps

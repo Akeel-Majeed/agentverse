@@ -83,7 +83,7 @@ export async function askFromWeb(raw: string, deps: WebDeps): Promise<ChatTurn> 
       status: "answered",
       answer: result.text,
       tools: result.calls.map(({ name, input, ms }) => ({ name, input, ms })),
-      checker: { flagged: result.check.flagged, untraced: result.check.untraced, rewritten: result.check.rewritten },
+      checker: { flagged: result.check.flagged, untraced: result.check.untraced, rewritten: result.check.rewritten, blocked: result.check.blocked },
       model: result.model,
     };
     await finish({ status: done.status, answer: done.answer, tools: done.tools, checker: done.checker, model: done.model });

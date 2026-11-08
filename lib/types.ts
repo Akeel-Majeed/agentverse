@@ -368,7 +368,7 @@ export interface ChatTurn {
   status: "answering" | "answered" | "failed";
   answer?: string;
   tools?: { name: string; input: unknown; ms: number }[];
-  checker?: { flagged: string[]; untraced: string[]; rewritten: boolean };
+  checker?: { flagged: string[]; untraced: string[]; rewritten: boolean; blocked?: boolean };
   model?: string;
   error?: string;
 }
