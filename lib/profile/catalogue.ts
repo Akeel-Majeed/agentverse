@@ -13,6 +13,20 @@ export const RISKS: { id: RiskId; name: string }[] = [
   { id: "interest_rates", name: "Interest rates" },
 ];
 
+/** Plain words on why each risk hits a UK arable farm. No figures here: numbers come from the engine. */
+export const RISK_WHY: Record<RiskId, string> = {
+  output_prices:
+    "Most of your income is grain and oilseed sold after harvest. Any tonnes not yet sold forward are paid at whatever the market price is then, so a price fall cuts revenue directly.",
+  input_prices:
+    "Fertiliser, diesel and sprays are your biggest variable costs. Anything not yet bought is priced on the day you buy it, so a price rise comes straight off your margin.",
+  weather_yield:
+    "A dry spring or a wet harvest cuts tonnes per hectare across all your crops at once. Fewer tonnes means less to sell, while most costs are already spent.",
+  regulation:
+    "Support-scheme payments are part of your income, and rules on nitrates and pesticides shape what you can grow and spend. A change to either can move income and costs.",
+  interest_rates:
+    "On a variable-rate loan, a rise in Bank Rate raises your interest bill. That also squeezes the debt-cover covenant your bank checks each year.",
+};
+
 export const riskName = (id: RiskId) => RISKS.find((r) => r.id === id)?.name ?? id;
 
 export interface SectionDef {
