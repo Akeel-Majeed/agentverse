@@ -71,8 +71,18 @@ export async function getFarm(): Promise<Farm> {
   return loadFarm();
 }
 
+/** The assessment's run as it stands now: phase 2 moves its status and head after the assessment is stored. */
+const loadRunState = cache(async (runId: string) => {
+  const store = await getAgentStore();
+  const [run, events] = await Promise.all([store.getRun(runId), store.getEvents(runId)]);
+  return run ? { runStatus: run.status, headHash: verifyChain(events).head } : null;
+});
+
+/** Run status and head hash are read from the agent store at read time; the stored values are phase one's, kept as a fallback. */
 export async function getAssessmentMeta(): Promise<AssessmentMeta> {
-  return (await loadAssessment()).meta;
+  const { meta } = await loadAssessment();
+  const live = meta.runId ? await loadRunState(meta.runId).catch(() => null) : null;
+  return live ? { ...meta, ...live } : meta;
 }
 
 export async function getRisks(): Promise<RiskResult[]> {

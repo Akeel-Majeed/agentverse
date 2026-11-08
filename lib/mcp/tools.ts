@@ -1,19 +1,27 @@
 import "server-only";
 import { getAssessmentMeta, getRisks, getTrace } from "../data";
 
+/** The run the latest assessment points to, with its chain verified now (phase 2 may have extended it). */
+async function assessmentTrace() {
+  const { runId } = await getAssessmentMeta();
+  return runId ? getTrace(runId) : null;
+}
+
 export async function riskProfileTool() {
-  const [meta, risks] = await Promise.all([getAssessmentMeta(), getRisks()]);
+  const [meta, risks, trace] = await Promise.all([getAssessmentMeta(), getRisks(), assessmentTrace()]);
   return {
     farm: "Fenland Ridge Farm Ltd (fictional demo farm)",
     runId: meta.runId ?? null,
-    headHash: meta.headHash ?? null,
+    runStatus: trace?.run.status ?? meta.runStatus ?? null,
+    headHash: trace?.verify.head ?? meta.headHash ?? null,
+    chainIntact: trace?.verify.ok ?? null,
     risks: risks.map((r) => ({ id: r.id, name: r.name, score: r.score, badYear: r.badYear, simulation: r.simulation ?? null })),
     note: "Synthetic farm, real Defra and Bank of England history. Options are for discussion with the farmer, not advice.",
   };
 }
 
 export async function covenantViewTool() {
-  const trace = await getTrace();
+  const trace = await assessmentTrace();
   if (!trace) return { available: false as const, reason: "No run yet" };
   const engine = trace.events.find((e) => e.type === "engine.result");
   if (!engine) return { available: false as const, reason: "Run has no engine result" };

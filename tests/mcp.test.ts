@@ -27,6 +27,27 @@ describe("MCP tools", () => {
     }
   });
 
+  it("both tools and the assessment report the assessment's run at its current head, after phase 2", async () => {
+    const data = await import("@/lib/data");
+    const { covenantViewTool, riskProfileTool } = await import("@/lib/mcp/tools");
+    const { getAgentStore } = await import("@/lib/server/agent-store");
+    const { TraceWriter, verifyChain } = await import("@/lib/trace/chain");
+    const { meta } = (await data.updateRiskProfile("test")) as { meta: { runId: string; headHash: string } };
+    // Phase 2 extends the assessment's run after the assessment was stored.
+    const store = await getAgentStore();
+    const last = (await store.getEvents(meta.runId)).at(-1)!;
+    await TraceWriter.resume(meta.runId, store, last.seq, last.hash).append("run.end", "code", { status: "published" });
+    await store.updateRun(meta.runId, { status: "published" });
+    // A later document run must not be what the bank sees.
+    await data.addDocument("note.txt", "Wheat sold forward: 200 t.");
+    const head = verifyChain(await store.getEvents(meta.runId)).head;
+    expect(head).not.toBe(meta.headHash);
+    const [cov, profile, now] = await Promise.all([covenantViewTool(), riskProfileTool(), data.getAssessmentMeta()]);
+    expect(cov).toMatchObject({ available: true, runId: meta.runId, headHash: head, chainIntact: true });
+    expect(profile).toMatchObject({ runId: meta.runId, headHash: head, chainIntact: true, runStatus: "published" });
+    expect(now).toMatchObject({ runId: meta.runId, headHash: head, runStatus: "published" });
+  });
+
   it("says no run yet before any assessment", async () => {
     const { covenantViewTool } = await import("@/lib/mcp/tools");
     expect(await covenantViewTool()).toEqual({ available: false, reason: "No run yet" });
