@@ -13,8 +13,8 @@ import {
 import { gbpK } from "@/lib/format";
 
 const config = {
-  after: { label: "With options", color: "#2F5BEA" },
-  before: { label: "Today", color: "#9A9891" },
+  after: { label: "With options", color: "#121611" },
+  before: { label: "Today", color: "#8E9386" },
 } satisfies ChartConfig;
 
 /** 20 simulated years of farm profit (£k), worst to best: "with options" over a "today" ghost series. */
@@ -43,7 +43,7 @@ export function SimulationBars({ bars, ghost, height = 260 }: { bars: number[]; 
               <stop offset="95%" stopColor="var(--color-before)" stopOpacity={0.1} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="#E9E8E4" />
+          <CartesianGrid vertical={false} stroke="#E6E5DA" />
           <XAxis
             dataKey="year"
             tickLine={false}
@@ -53,7 +53,7 @@ export function SimulationBars({ bars, ghost, height = 260 }: { bars: number[]; 
             tickFormatter={(v: number) => `Year ${v}`}
           />
           <YAxis hide domain={[lo, hi]} />
-          <ReferenceLine y={0} stroke="#1C1C1A" strokeWidth={1} strokeDasharray="3 3" />
+          <ReferenceLine y={0} stroke="#121611" strokeWidth={1} strokeDasharray="3 3" />
           <ChartTooltip
             cursor={false}
             content={

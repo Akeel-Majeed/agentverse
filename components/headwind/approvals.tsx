@@ -101,7 +101,7 @@ export function ApprovalQueueItem({
         {item.receivedAt ? <span className="text-[12px] text-sub tabular">{item.receivedAt}</span> : null}
       </div>
       <div>
-        <p className="text-[14px] font-semibold tracking-tight">{item.field}</p>
+        <p className="text-[14px] font-medium tracking-[-0.03em]">{item.field}</p>
         <p className="mt-1 text-[12.5px] tabular">
           {isFreshness ? (
             <span>

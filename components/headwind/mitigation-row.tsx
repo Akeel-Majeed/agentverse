@@ -40,7 +40,7 @@ export function MitigationRow({
     <li className="flex flex-wrap items-center gap-x-6 gap-y-3 py-4 first:pt-0 last:pb-0">
       <div className="min-w-[16rem] flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-[14px] font-semibold tracking-tight">{m.title}</h3>
+          <h3 className="text-[14px] font-medium tracking-[-0.03em]">{m.title}</h3>
           {m.status === "planned" || m.status === "done" ? <SourceTag>{m.status}</SourceTag> : null}
         </div>
         <p className="mt-0.5 text-[13px] text-sub">{m.description}</p>
@@ -74,7 +74,7 @@ export function TopMitigationItem({ item, risk }: { item: TopMitigation; risk: R
         {item.rank}
       </span>
       <div className="min-w-[14rem] flex-1">
-        <h3 className="text-[14px] font-semibold tracking-tight">
+        <h3 className="text-[14px] font-medium tracking-[-0.03em]">
           <span className="sr-only">{item.rank}. </span>
           {m.title}
         </h3>

@@ -16,11 +16,11 @@ const fieldValues = (sections: OnboardingSection[]) => Object.fromEntries(sectio
 
 function ConfidenceTag({ confidence }: { confidence: Confidence }) {
   return confidence === "high" ? (
-    <span className="inline-flex items-center gap-1 rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-1.5 py-0.5 text-[11.5px] font-medium text-good">
+    <span className="inline-flex items-center gap-1 rounded-md border border-[#CBD99A] bg-[#EEF2D6] px-1.5 py-0.5 text-[11.5px] font-medium text-good">
       <Check className="h-3 w-3" aria-hidden /> Looks right
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 rounded-md border border-[#FDE68A] bg-[#FFFBEB] px-1.5 py-0.5 text-[11.5px] font-medium text-[#B45309]">
+    <span className="inline-flex items-center gap-1 rounded-md border border-[#E8D58A] bg-[#FAF3D6] px-1.5 py-0.5 text-[11.5px] font-medium text-[#8A6A00]">
       <AlertCircle className="h-3 w-3" aria-hidden /> Please check
     </span>
   );
@@ -47,7 +47,7 @@ function Field({
         </label>
         <span className="flex items-center gap-1.5">
           {field.stale ? (
-            <span className="inline-flex items-center gap-1 rounded-md border border-[#FDE68A] bg-[#FFFBEB] px-1.5 py-0.5 text-[11.5px] font-medium text-[#B45309]">
+            <span className="inline-flex items-center gap-1 rounded-md border border-[#E8D58A] bg-[#FAF3D6] px-1.5 py-0.5 text-[11.5px] font-medium text-[#8A6A00]">
               <Clock className="h-3 w-3" aria-hidden /> Out of date
             </span>
           ) : null}
@@ -222,7 +222,7 @@ export function OnboardingPanel({ sections: initial, initialSectionId }: { secti
                     aria-hidden
                     className={cn(
                       "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
-                      s.status === "confirmed" || isCurrent ? "bg-ink text-white" : "border border-line-strong bg-white text-sub"
+                      s.status === "confirmed" || isCurrent ? "bg-ink text-white" : "border border-line-strong bg-card text-sub"
                     )}
                   >
                     {s.status === "confirmed" ? <Check className="h-3.5 w-3.5" /> : String(i + 1).padStart(2, "0")}
@@ -231,7 +231,7 @@ export function OnboardingPanel({ sections: initial, initialSectionId }: { secti
                   <span className="sr-only">
                     {s.status === "confirmed" ? "confirmed" : s.status === "review" ? "needs review" : "to do"}
                   </span>
-                  {s.status === "review" ? <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#D97706]" /> : null}
+                  {s.status === "review" ? <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#D9A800]" /> : null}
                 </button>
               </li>
             );
@@ -248,7 +248,7 @@ export function OnboardingPanel({ sections: initial, initialSectionId }: { secti
         <CardBody className="flex flex-col gap-6">
           <div className="rounded-lg bg-panel p-4">
             <div>
-              <SectionLabel>Headwind agent</SectionLabel>
+              <SectionLabel>Hedged agent</SectionLabel>
               <p className="mt-1 text-[14px] leading-relaxed">{current.agentMessage}</p>
             </div>
           </div>

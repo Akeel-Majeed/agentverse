@@ -10,7 +10,7 @@ import { computeExposures } from "@/lib/profile/risk-profile";
 import { parseValue } from "@/lib/profile/values";
 import type { IMessageSetup, MarketBaseline, OnboardingField, OnboardingSection, ProfileValue, RiskId } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { LogoMark } from "./logo";
+import { Wordmark } from "./logo";
 
 type Step = { kind: "welcome" } | { kind: "section"; section: OnboardingSection } | { kind: "review" } | { kind: "imessage" };
 
@@ -65,11 +65,11 @@ function Field({ field, value, error, onChange }: { field: OnboardingField; valu
     <div className="flex flex-col gap-2 text-left">
       <label htmlFor={id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[17px] font-medium text-ink">
         {field.label}
-        {field.confidence === "check" ? <span className="text-[13px] font-normal text-[#B45309]">Please check</span> : null}
+        {field.confidence === "check" ? <span className="text-[13px] font-normal text-warn">Please check</span> : null}
       </label>
       <div
         className={cn(
-          "flex h-14 items-center rounded-xl border bg-white px-4 transition-colors focus-within:border-ink focus-within:ring-4 focus-within:ring-ink/5",
+          "flex h-14 items-center rounded-2xl border bg-card px-4 transition-colors focus-within:border-ink focus-within:ring-4 focus-within:ring-lime/40",
           error ? "border-bad" : "border-line-strong"
         )}
       >
@@ -98,12 +98,13 @@ function PrimaryButton({ busy, children }: { busy: boolean; children: React.Reac
       type="submit"
       disabled={busy}
       className={cn(
-        "inline-flex h-14 min-w-[220px] items-center justify-center gap-2 rounded-full bg-ink px-8 text-[17px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60",
+        "inline-flex h-14 min-w-[220px] items-center justify-center gap-2 rounded-full bg-ink px-8 text-[17px] font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-60",
         focus
       )}
     >
       {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : null}
       {children}
+      {!busy ? <span aria-hidden>→</span> : null}
     </button>
   );
 }
@@ -212,17 +213,23 @@ export function OnboardingFlow({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const heading = "mx-auto max-w-[620px] text-balance text-[40px] font-semibold leading-[1.08] tracking-[-0.035em] text-ink outline-none sm:text-[52px]";
+  const heading = "mx-auto max-w-[620px] text-balance text-[42px] font-medium leading-[1.05] tracking-[-0.04em] text-ink outline-none sm:text-[56px]";
   const lead = "mx-auto mt-5 max-w-[540px] text-balance text-[18px] leading-relaxed text-sub sm:text-[19px]";
 
   return (
-    <div id="onboarding" className="fixed inset-0 z-[60] overflow-y-auto bg-background font-sans">
-      <div className="fixed inset-x-0 top-0 z-10 h-[3px] bg-line/70">
-        <div className="h-full bg-ink transition-[width] duration-700 ease-out" style={{ width: `${(index / total) * 100}%` }} />
+    <div
+      id="onboarding"
+      className={cn(
+        "fixed inset-0 z-[60] overflow-y-auto font-sans transition-colors duration-700",
+        step.kind === "welcome" || step.kind === "imessage" ? "bg-sky" : "bg-paper"
+      )}
+    >
+      <div className="fixed inset-x-0 top-0 z-10 h-[3px] bg-ink/5">
+        <div className="h-full bg-lime transition-[width] duration-700 ease-out" style={{ width: `${(index / total) * 100}%` }} />
       </div>
 
       <header className="mx-auto flex max-w-[720px] items-center justify-between px-6 pt-8">
-        <LogoMark className="h-7 w-7" />
+        <Wordmark className="text-[17px]" />
         <span className="text-[14px] text-sub tabular">{index === 0 ? "" : `Step ${index} of ${total}`}</span>
         <button type="button" onClick={finish} disabled={busy} className={cn("text-[14px] text-sub hover:text-ink", focus)}>
           Skip
@@ -292,14 +299,14 @@ export function OnboardingFlow({
               From your answers, at today&apos;s prices. Creating your risk profile saves this as the baseline every price move, policy change and weather
               outlook is measured against.
             </p>
-            <ul className="mt-12 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white text-left">
+            <ul className="mt-12 divide-y divide-line overflow-hidden rounded-[24px] bg-card text-left shadow-card">
               {RISKS.map((r) => {
                 const e = exposures.find((x) => x.riskId === r.id);
                 return (
                   <li key={r.id} className="px-6 py-5">
                     <div className="flex items-baseline justify-between gap-4">
                       <span className="text-[18px] font-medium text-ink">{r.name}</span>
-                      <span className="text-[20px] font-semibold tabular text-ink">{e ? gbp(e.total) : "—"}</span>
+                      <span className="text-[22px] font-medium tracking-[-0.03em] tabular text-ink">{e ? gbp(e.total) : "—"}</span>
                     </div>
                     {e ? <p className="mt-1 text-[15px] leading-snug text-sub">{e.summary}</p> : null}
                   </li>
@@ -325,7 +332,7 @@ export function OnboardingFlow({
               <div className="mt-12 flex flex-col items-center gap-6">
                 <div>
                   <p className="text-[15px] text-sub">Text</p>
-                  <p className="mt-1 text-[32px] font-semibold tabular tracking-tight text-ink">{imessage.number}</p>
+                  <p className="mt-1 text-[32px] font-medium tabular tracking-[-0.03em] text-ink">{imessage.number}</p>
                 </div>
                 <div>
                   <p className="text-[15px] text-sub">with</p>
@@ -351,7 +358,7 @@ export function OnboardingFlow({
                   <MessageSquare className="h-5 w-5" aria-hidden /> Open in Messages
                 </a>
                 {!imessage.replies ? (
-                  <p className="max-w-[460px] text-[14px] text-[#B45309]">Replies aren&apos;t switched on for this deployment yet, so it won&apos;t answer until they are.</p>
+                  <p className="max-w-[460px] text-[14px] text-warn">Replies aren&apos;t switched on for this deployment yet, so it won&apos;t answer until they are.</p>
                 ) : null}
               </div>
             ) : (

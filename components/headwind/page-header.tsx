@@ -19,7 +19,7 @@ export function PageHeader({
       <div className="flex min-w-0 items-center gap-5">
         {leading}
         <div className="min-w-0">
-          <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em]">{title}</h1>
+          <h1 className="text-[32px] font-medium leading-[1.05] tracking-[-0.04em]">{title}</h1>
           {subtitle ? <div className="mt-1.5 max-w-[70ch] text-[14.5px] leading-relaxed text-sub">{subtitle}</div> : null}
           {meta ? <div className="mt-2 text-[13px] text-sub">{meta}</div> : null}
         </div>

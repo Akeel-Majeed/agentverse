@@ -1,6 +1,6 @@
-# Farm risk agent
+# Hedged
 
-AI risk agent for UK arable farms (hackathon project, no product name yet: don't invent one in code or UI). It builds a risk profile of a farm from its own documents, tracks crop prices, fertiliser, weather, interest rates and policy, and shows in pounds what each risk could cost and which options would reduce it.
+Risk intelligence for UK farmers (hackathon project). The product is called **Hedged**; use that name in the UI. Look and feel: `docs/design-system.md` (tokens in `tailwind.config.ts` and `app/globals.css`). It builds a risk profile of a farm from its own documents, tracks crop prices, fertiliser, weather, interest rates and policy, and shows in pounds what each risk could cost and which options would reduce it.
 
 ## Goal for the demo
 

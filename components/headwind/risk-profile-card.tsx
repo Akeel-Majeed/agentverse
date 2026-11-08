@@ -36,14 +36,14 @@ export function RiskProfileCard({
         action={<UpdateRiskProfileButton reason={pending ? `${pending} profile change${pending > 1 ? "s" : ""}` : "Refreshed to today's prices"} variant={pending ? "default" : "secondary"} />}
       />
       {pending ? (
-        <div className="border-b border-line bg-[#FFFBEB] px-5 py-3 text-[13px] text-[#92400E]" role="status">
+        <div className="border-b border-line bg-[#FAF3D6] px-5 py-3 text-[13px] text-[#6B5200]" role="status">
           <p className="font-medium">
             {pending} change{pending > 1 ? "s" : ""} since this snapshot, not in your risk figures yet.
           </p>
           <ul className="mt-1 flex flex-col gap-0.5 text-[12.5px]">
             {status.changes.slice(0, 4).map((c) => (
               <li key={c.key}>
-                {c.label}: <span className="line-through decoration-[#D97706]/60">{c.before}</span> → <span className="font-medium">{c.after}</span>
+                {c.label}: <span className="line-through decoration-[#D9A800]/60">{c.before}</span> → <span className="font-medium">{c.after}</span>
               </li>
             ))}
             {pending > 4 ? <li>and {pending - 4} more</li> : null}
@@ -64,7 +64,7 @@ export function RiskProfileCard({
             {rows.map((r) => (
               <tr key={r.riskId} className="border-b border-line align-top last:border-0 hover:bg-panel">
                 <td className="py-3.5 pl-5">
-                  <Link href={`/risks/${r.riskId}`} className="flex items-center gap-2.5 rounded-sm text-[14px] font-semibold tracking-tight hover:underline">
+                  <Link href={`/risks/${r.riskId}`} className="flex items-center gap-2.5 rounded-sm text-[14px] font-medium tracking-[-0.03em] hover:underline">
                     <ScoreChip score={r.score} />
                     {r.name}
                   </Link>

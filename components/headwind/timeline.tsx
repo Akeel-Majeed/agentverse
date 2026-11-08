@@ -98,7 +98,7 @@ export function Timeline({ items, start, months = 12, today }: { items: Calendar
                         title={`${item.label}: ${shortDate(item.start)} – ${shortDate(item.end ?? item.start)}`}
                         className={cn(
                           "absolute flex h-6 items-center overflow-hidden rounded-md border px-2 text-[12px]",
-                          warn ? "border-[#FCA5A5] bg-[#FEE2E2] text-bad" : "border-[#E2E2E2] bg-[#F0F0F0] text-ink"
+                          warn ? "border-[#E9B3A6] bg-[#F8E3DD] text-bad" : "border-[#DFDFD6] bg-[#EFEEE2] text-ink"
                         )}
                         style={{ left: `${left}%`, width: `${width}%`, top: 10 + row * PERIOD_ROW }}
                       >
@@ -162,7 +162,7 @@ export function TimelineLegend() {
   return (
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-sub">
       <li className="flex items-center gap-2">
-        <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#E2E2E2] bg-[#F0F0F0]" /> Period
+        <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#DFDFD6] bg-[#EFEEE2]" /> Period
       </li>
       <li className="flex items-center gap-2">
         <Diamond kind="deadline" /> Deadline
@@ -174,7 +174,7 @@ export function TimelineLegend() {
         <span aria-hidden className="h-4 border-l-[1.5px] border-dashed border-ink/50" /> Today
       </li>
       <li className="flex items-center gap-2">
-        <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#FCA5A5] bg-[#FEE2E2]" /> Overdraft peak
+        <span aria-hidden className="h-3 w-6 rounded-[4px] border border-[#E9B3A6] bg-[#F8E3DD]" /> Overdraft peak
       </li>
     </ul>
   );
