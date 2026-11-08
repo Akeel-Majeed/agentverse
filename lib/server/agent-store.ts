@@ -26,6 +26,8 @@ export interface AgentStore extends EventSink {
   updateRun(id: string, patch: Partial<AgentRun>): Promise<void>;
   getRun(id: string): Promise<AgentRun | null>;
   latestRun(farmId: string): Promise<AgentRun | null>;
+  /** The farm's runs, newest first. */
+  listRuns(farmId: string, limit?: number): Promise<AgentRun[]>;
   /** Atomically moves the oldest queued run to running. */
   claimQueuedRun(): Promise<AgentRun | null>;
   /** Atomically moves this run from queued to running; null if it isn't queued (or doesn't exist). */
@@ -64,6 +66,9 @@ export function createMemoryAgentStore(onProposal?: (p: AgentProposal & { farmId
     async getRun(id) { return runs.get(id) ?? null; },
     async latestRun(farmId) {
       return Array.from(runs.values()).filter((r) => r.farmId === farmId).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null;
+    },
+    async listRuns(farmId, limit = 50) {
+      return Array.from(runs.values()).filter((r) => r.farmId === farmId).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, limit);
     },
     async claimQueuedRun() {
       const r = Array.from(runs.values()).filter((x) => x.status === "queued").sort((a, b) => a.startedAt.localeCompare(b.startedAt))[0];
@@ -232,6 +237,10 @@ export function createSupabaseAgentStore(): AgentStore {
       );
       return row ? toRun(row) : null;
     },
+    async listRuns(farmId, limit = 50) {
+      const rows = check(await db.from("agent_runs").select().eq("farm_id", farmId).order("started_at", { ascending: false }).limit(limit), "list runs");
+      return (rows ?? []).map(toRun);
+    },
     async claimQueuedRun() {
       // ponytail: select then conditional update; an empty update means another worker took it. The postgres store does it in one statement.
       const candidate = check(
@@ -307,6 +316,9 @@ export async function createPostgresAgentStore(url: string): Promise<AgentStore>
     async latestRun(farmId) {
       const [row] = await sql`select * from agent_runs where farm_id = ${farmId} order by started_at desc limit 1`;
       return row ? toRun(row) : null;
+    },
+    async listRuns(farmId, limit = 50) {
+      return (await sql`select * from agent_runs where farm_id = ${farmId} order by started_at desc limit ${limit}`).map(toRun);
     },
     async claimQueuedRun() {
       const [row] = await sql`

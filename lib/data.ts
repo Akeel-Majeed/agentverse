@@ -427,6 +427,34 @@ export async function getTrace(runId?: string): Promise<{
   return { run, events, observations, verify: verifyChain(events) };
 }
 
+export interface RunSummary {
+  run: AgentRun;
+  proposals: number;
+  controlsFired: number;
+  /** From the checker.result event: null if the judge never reached the checker. */
+  checker: { untraced: number } | null;
+  verify: { ok: boolean; head: string; brokenAt?: number };
+}
+
+/** Every agent run for the farm, newest first, with what it decided. One getEvents per run (≤50). */
+export async function getRuns(): Promise<RunSummary[]> {
+  const store = await getAgentStore();
+  const runs = await store.listRuns(FARM_ID);
+  return Promise.all(
+    runs.map(async (run) => {
+      const events = await store.getEvents(run.id);
+      const checkerEvent = events.find((e) => e.type === "checker.result");
+      return {
+        run,
+        proposals: events.filter((e) => e.type === "proposal.queued_for_farmer").length,
+        controlsFired: events.filter((e) => e.type.startsWith("control.")).length,
+        checker: checkerEvent ? { untraced: (JSON.parse(checkerEvent.body).untraced as string[]).length } : null,
+        verify: verifyChain(events),
+      };
+    })
+  );
+}
+
 export async function getControls(): Promise<Controls> {
   return (await getAgentStore()).getControls();
 }

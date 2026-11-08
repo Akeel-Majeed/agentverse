@@ -15,7 +15,7 @@ const LINKS = [
   { href: "/calendar", label: "Calendar", match: "/calendar", icon: CalendarDays },
   { href: "/profile", label: "Profile", match: "/profile", icon: Tractor },
   { href: "/documents", label: "Documents", match: "/documents", icon: FileText },
-  { href: "/trace", label: "Trace", match: "/trace", icon: ScrollText },
+  { href: "/trace", label: "Agent runs", match: "/trace", icon: ScrollText },
   { href: "/evidence", label: "Evidence", match: "/evidence", icon: FlaskConical },
 ];
 

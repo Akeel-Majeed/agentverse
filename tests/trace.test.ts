@@ -12,6 +12,20 @@ describe("canonical JSON", () => {
 });
 
 describe("trace", () => {
+  it("lists a farm's runs newest first, capped by limit", async () => {
+    const store = createMemoryAgentStore();
+    const make = async (farmId: string, startedAt: string) => {
+      const r = await store.createRun({ farmId, trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+      await store.updateRun(r.id, { startedAt });
+      return r.id;
+    };
+    const a = await make("f", "2026-11-08T09:00:00.000Z");
+    const c = await make("f", "2026-11-08T11:00:00.000Z");
+    const b = await make("f", "2026-11-08T10:00:00.000Z");
+    await make("other", "2026-11-08T12:00:00.000Z");
+    expect((await store.listRuns("f")).map((r) => r.id)).toEqual([c, b, a]);
+    expect((await store.listRuns("f", 2)).map((r) => r.id)).toEqual([c, b]);
+  });
   it("chains hashes and verifies", async () => {
     const store = createMemoryAgentStore();
     const run = await store.createRun({ farmId: "f", trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
