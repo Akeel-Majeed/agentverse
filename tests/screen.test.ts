@@ -34,4 +34,9 @@ describe("screenNumber", () => {
     expect(r.status).toBe("review");
     expect(r.checks[0].actor).toBe("code");
   });
+  it("fails closed on a bad value or too little history", () => {
+    expect(screenNumber(0, [100, 101, 102], 4).status).toBe("review");
+    expect(screenNumber(Number.NaN, [100, 101, 102], 4).status).toBe("review");
+    expect(screenNumber(101, [100], 4).status).toBe("review");
+  });
 });

@@ -72,6 +72,8 @@ export function screenNumber(value: number, history: number[], zThreshold: numbe
   const m = changes.reduce((s, c) => s + c, 0) / changes.length;
   const sd = Math.sqrt(changes.reduce((s, c) => s + (c - m) ** 2, 0) / (changes.length - 1)) || 1e-9;
   const z = (Math.log(value / history[history.length - 1]) - m) / sd;
-  const fired = Math.abs(z) > zThreshold;
+  // Fail closed: a bad value or too little history (z not finite) goes to review, never passes.
+  const valid = history.length >= 3 && [value, ...history].every((v) => Number.isFinite(v) && v > 0);
+  const fired = !valid || !Number.isFinite(z) || Math.abs(z) > zThreshold;
   return { status: fired ? "review" : "passed", checks: [{ name: "z_score", actor: "code", value: z, threshold: zThreshold, fired }] };
 }
