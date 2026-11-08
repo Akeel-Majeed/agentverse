@@ -12,6 +12,7 @@ import { KpiCell, KpiStrip } from "./kpi-cell";
 import { MitigationList, MitigationRow } from "./mitigation-row";
 import { MoneyFigure } from "./money-figure";
 import { PageHeader } from "./page-header";
+import { SimulationCheck } from "./simulation-check";
 import { LevelLabel, ScoreRing } from "./score";
 import { SimulationBars } from "./simulation-bars";
 import { TradeoffTable } from "./tradeoff-table";
@@ -173,6 +174,7 @@ export function RiskDetail({
           </Disclosure>
         </div>
       </Card>
+      {risk.simulation ? <SimulationCheck riskId={risk.id} simulation={risk.simulation} /> : null}
       <Disclaimer className="px-1" />
     </div>
   );

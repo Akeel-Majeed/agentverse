@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Gauge, LayoutGrid, SlidersHorizontal, Tractor } from "lucide-react";
+import { CalendarDays, FileText, FlaskConical, Gauge, LayoutGrid, ScrollText, SlidersHorizontal, Tractor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "./logo";
 
@@ -12,6 +12,9 @@ const LINKS = [
   { href: "/what-if", label: "What-if", match: "/what-if", icon: SlidersHorizontal },
   { href: "/calendar", label: "Calendar", match: "/calendar", icon: CalendarDays },
   { href: "/profile", label: "Profile", match: "/profile", icon: Tractor },
+  { href: "/documents", label: "Documents", match: "/documents", icon: FileText },
+  { href: "/trace", label: "Trace", match: "/trace", icon: ScrollText },
+  { href: "/evidence", label: "Evidence", match: "/evidence", icon: FlaskConical },
 ];
 
 const focus = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";

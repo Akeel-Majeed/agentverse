@@ -31,7 +31,8 @@ export interface AgentStore extends EventSink {
   insertObservation(o: Omit<Observation, "id">): Promise<Observation>;
   getObservations(runId: string): Promise<Observation[]>;
   /** Passed documents for the farm across runs, newest first. */
-  getDocuments(farmId: string): Promise<Observation[]>;
+  /** Passed documents only (what the judge may read), unless `includeHeld` (the documents page). */
+  getDocuments(farmId: string, includeHeld?: boolean): Promise<Observation[]>;
   getEvents(runId: string): Promise<TraceEvent[]>;
   getControls(): Promise<Controls>;
   setPaused(paused: boolean, by: string): Promise<void>;
@@ -75,8 +76,8 @@ export function createMemoryAgentStore(onProposal?: (p: AgentProposal & { farmId
       return obs;
     },
     async getObservations(runId) { return observations.filter((o) => o.runId === runId); },
-    async getDocuments(farmId) {
-      return observations.filter((o) => o.farmId === farmId && o.kind === "document" && o.screenStatus === "passed").reverse();
+    async getDocuments(farmId, includeHeld = false) {
+      return observations.filter((o) => o.farmId === farmId && o.kind === "document" && (includeHeld || o.screenStatus === "passed")).reverse();
     },
     async insertEvent(e) {
       if (events.some((x) => x.runId === e.runId && x.seq === e.seq)) throw new Error("duplicate seq");
@@ -240,15 +241,10 @@ export function createSupabaseAgentStore(): AgentStore {
     async getObservations(runId) {
       return (check(await db.from("observations").select().eq("run_id", runId), "observations") ?? []).map(toObservation);
     },
-    async getDocuments(farmId) {
+    async getDocuments(farmId, includeHeld = false) {
+      const q = db.from("observations").select().eq("farm_id", farmId).eq("kind", "document");
       const rows = check(
-        await db
-          .from("observations")
-          .select()
-          .eq("farm_id", farmId)
-          .eq("kind", "document")
-          .eq("screen_status", "passed")
-          .order("fetched_at", { ascending: false }),
+        await (includeHeld ? q : q.eq("screen_status", "passed")).order("fetched_at", { ascending: false }),
         "documents"
       );
       return (rows ?? []).map(toObservation);
@@ -313,10 +309,10 @@ export async function createPostgresAgentStore(url: string): Promise<AgentStore>
     async getObservations(runId) {
       return (await sql`select * from observations where run_id = ${runId}`).map(toObservation);
     },
-    async getDocuments(farmId) {
+    async getDocuments(farmId, includeHeld = false) {
       const rows = await sql`
         select * from observations
-        where farm_id = ${farmId} and kind = 'document' and screen_status = 'passed'
+        where farm_id = ${farmId} and kind = 'document' ${includeHeld ? sql`` : sql`and screen_status = 'passed'`}
         order by fetched_at desc`;
       return rows.map(toObservation);
     },

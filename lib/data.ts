@@ -419,13 +419,20 @@ export async function setPaused(paused: boolean): Promise<Controls> {
   const store = await controlStore();
   await store.setPaused(paused, "farmer");
   const run = await store.latestRun(FARM_ID);
-  if (run) {
+  // A running judge owns its run's chain and logs control.kill_switch itself; a second writer would
+  // collide on seq. ponytail: the ms between the judge reading a queued run and marking it running is unguarded.
+  if (run && run.status !== "running") {
     await appendEvent(store, run.id, "control.paused", "human", { paused, by: "farmer" }).catch((e) =>
       console.error(`[data] Couldn't log the kill switch on run ${run.id}`, e)
     );
   }
   refresh();
   return store.getControls();
+}
+
+/** Every document the farmer added, newest first, including ones the screen held back. */
+export async function getDocuments(): Promise<Observation[]> {
+  return (await getAgentStore()).getDocuments(FARM_ID, true);
 }
 
 async function runDocument(document: NonNullable<PhaseOneInput["document"]>): Promise<{ runId: string; status: string }> {
