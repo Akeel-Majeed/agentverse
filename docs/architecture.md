@@ -472,7 +472,7 @@ Packages: `@anthropic-ai/sdk @opentelemetry/sdk-node @langfuse/otel @langfuse/tr
 ### 6.5 Runtime notes
 
 - Vercel Cron on Hobby fires once a day with up to 59 minutes of drift, so `0 6 * * *` lands between 06:00 and 06:59. Fallback: a GitHub Actions schedule hitting `/api/refresh` with the `CRON_SECRET` bearer token.
-- Storage: Neon Postgres (free 512 MB, Vercel Marketplace, does not pause). Supabase's free project pauses after 7 idle days, which is a demo-day risk. Tables: `farm`, `source_snapshot`, `assessment` (with `trace_id`), `pending_change`.
+- Storage: Supabase, as built (Postgres + Storage, server-side access only; agent tables in migration `0003_agent_runs.sql`).
 - Human in the loop needs no durable-execution library. The proposer writes `pending_change` rows; the approval route flips `status`; the next refresh reads approved rows. The agent run ends after proposing.
 
 ## 7. Hackathon scope

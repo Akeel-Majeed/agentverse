@@ -18,8 +18,7 @@ Frontend (Next.js App Router) ── reads only through lib/data.ts
         │
 Server actions + API routes (Vercel)
  ├─ lib/engine/        simulation engine: scenarios → risk modules → aggregation (pure TypeScript, no LLM)
- ├─ lib/agents/        Claude agents: writer (explains + ranks), onboarding (reads documents),
- │                     chat (iMessage replies with tools), checker (blocks untraceable numbers)
+ ├─ lib/agents/        writer/judge (Gemini 4 Argon), document reader (Gemini 3.8 Flash), chat (Claude, iMessage), checker
  ├─ /api/assess        run the engine, store a new assessment version
  ├─ /api/documents     document → extracted fields → approval queue
  ├─ /api/inkbox/*      iMessage in/out via Inkbox
@@ -64,11 +63,11 @@ INKBOX_WEBHOOK_SECRET=
 ## Build order
 
 1. Database + data layer: schema, seed, `lib/data.ts` reads Supabase
-2. Engine + `/api/assess`
+2. Engine + `/api/assess`. Done: `lib/engine/` Monte Carlo (10k paths, seed 42) run by `assess()` in `lib/data.ts` through phase one (`lib/assess/phase-one.ts`), judged by `/api/judge/[runId]`
 3. Writer agent + checker
 4. Onboarding agent (documents)
 5. iMessage chat agent + alerts (Inkbox). Chat agent done (`lib/agents/chat/`, `/api/inkbox/webhook`, read-only); alerts and chat replies that propose profile changes still to do
-6. MCP server
+6. MCP server. Done: `/api/mcp` (`get_risk_profile`, `covenant_view`, bearer `MCP_TOKEN`, read-only)
 7. Data fetchers + cron jobs
 
 ## Judging criteria
