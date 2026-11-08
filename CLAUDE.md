@@ -5,7 +5,7 @@ Risk intelligence for UK farmers (hackathon project). The product is called **He
 ## Codebase
 
 ```
-app/                    pages: onboarding (setup flow), overview, risks, risks/[id], what-if, profile, calendar
+app/                    pages: onboarding (setup flow), overview, risks, risks/[id], what-if, profile, calendar, activity (action log)
                         api/inkbox/webhook   iMessage in → chat agent → reply
                         api/assistant        in-app "Ask Hedged" panel, same agent
 components/headwind/    app components; ui/ = shadcn
@@ -15,6 +15,10 @@ lib/profile/            catalogue (field → risks), risk-profile (exposure × n
                         assess (stand-in engine: rescales the demo assessment to a new snapshot)
 lib/sim.ts, score.ts    simulation, what-if and 1–10 scoring maths
 lib/figures.ts          the working behind every clickable £ figure
+lib/limits.ts           the farm's loss limit (ins.max_loss) checked in code
+lib/what-would-change.ts   exposure at which a risk's score moves or the farm is back inside its limit
+lib/profile/checks.ts   cross-field input checks; block saves, approvals and snapshots
+middleware.ts           optional HEDGED_PASSWORD for a deployed demo
 lib/live.ts             live market/rate/weather adapters (not wired in yet; check: bun scripts/live-check.ts)
 lib/agents/checker.ts   blocks reply figures no tool or user message contains
 lib/agents/chat/        iMessage agent: tools (read-only), agent (prompt + checker retry),

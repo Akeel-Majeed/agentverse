@@ -1,5 +1,33 @@
 # Hedged: product audit, 8 Nov 2026
 
+## Status (updated after the fixes)
+
+**Fixed on this branch:**
+- Quick wins: phone tab-bar overflow, persistent demo store, 404 and error pages, Hedged naming, Ask button padding.
+- A2: loss limit enforced in code; it fires on the overview and live on risk pages.
+- A3: input checks (bounds, UK dates, one number per field, cross-field) on saves, approvals and snapshots.
+- A5: "What would change this" on every risk page and in `get_risk`.
+- A6: figure checker covers direction and more units, and fails closed.
+- A7: `/activity` action log.
+- A8 (code parts): what-if built from the snapshot, including the wheat in store; what-if figures are clickable and the bars carry their £ values.
+- A10: README (controls, data, limits, migrations); architecture doc marked built vs planned.
+- A11: optional `HEDGED_PASSWORD`, iMessage sender allow-list, shared rate limit.
+- Part B #3–6, #9, #10, #14, #16–19, #24, #26–29.
+- Part C: #6, #11–14, #16, #18–23, and the code side of #15 and #17.
+
+**Left to the risk agents (data and engine), as agreed:**
+- A1: the evaluation. It belongs with the real engine; backtesting the stand-in in `lib/profile/assess.ts` would be thrown away.
+- A4: stale summary, driver and reasoning text, and mitigations after an update.
+- A8 (data parts): "today's" prices vs the news, the hard-coded `weekMoves`, calendar vs news.
+- A9: ranking the top 3 mitigations in code.
+- The live database showing no news since snapshot v3.
+- Part B #1, #2, #7, #8, #11 (the "20% of 2026 wheat" mitigation text) and #12, plus #13 and #15 (agent text and news text count as checker sources).
+- Model upgrades (A12, Part B #21–23).
+
+**Not done:** the chat memory race (Part B #20; low impact).
+
+---
+
 Everything below was checked against the code on `claude/optimistic-cray-ytj349` (commit 61e1693). Checks run: `tsc`, `npm test` (82/82 pass), `npm run lint` (clean), `npm run build` (ok), a script driving `lib/data.ts` on the demo store, and a Playwright walk-through of every route at desktop and phone width (Part C).
 
 **If you only have time for five things:**

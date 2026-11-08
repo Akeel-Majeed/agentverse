@@ -2,6 +2,8 @@
 
 Status: draft for the AgentVerse build, 7-8 Nov 2026. Fictional farm, real data sources.
 
+> **Built vs planned.** This document describes the target design. Built: the deterministic risk engine (`lib/sim.ts`, `lib/score.ts`, `lib/profile/`), onboarding and the approval queue, the iMessage and in-app chat agent with read-only tools and the figure checker, the loss limit and input checks, the action log (`/activity`), Supabase storage, and live data adapters (`lib/live.ts`, not yet feeding the figures). **Planned, not built:** the verifier agent, the daily `/api/refresh` cron, the extractor agent for documents, MCP adviser agents, Langfuse/OpenTelemetry traces. The database is Supabase Postgres, not Neon.
+
 Hedged turns a UK arable farm's position (tonnes unsold, nitrogen unbought, debt unfixed, scheme agreements expiring) plus live market, weather and policy data into one number per risk: the £ hit in a 1-in-20 bad year, as a share of a typical year's profit. It then proposes mitigations, and nothing about the farm's record changes without the farmer approving it.
 
 ## 1. End-to-end process
