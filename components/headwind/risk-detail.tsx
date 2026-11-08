@@ -8,6 +8,7 @@ import { scoreFromBadYear } from "@/lib/score";
 import { riskWorking, simulateRisk } from "@/lib/sim";
 import type { RiskResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { whatWouldChange } from "@/lib/what-would-change";
 import { Card, CardBody, CardHeader, Counter, Disclosure } from "./card";
 import { KpiCell, KpiStrip } from "./kpi-cell";
 import { MitigationList, MitigationRow } from "./mitigation-row";
@@ -43,6 +44,10 @@ export function RiskDetail({
   const hitDelta = sim.hitK - today.hitK;
   const profitDelta = sim.badYearProfitK - today.badYearProfitK;
   const exposureDelta = sim.exposure - today.exposure;
+  const changePoints = useMemo(
+    () => whatWouldChange({ ...risk.model, exposure: sim.exposure, meanK: sim.meanK }, typicalProfit, lossLimit),
+    [risk, sim, typicalProfit, lossLimit]
+  );
   const pastLimit = (s: { badYearProfitK: number }) => lossLimit !== null && -s.badYearProfitK * 1000 > lossLimit;
 
   const toggle = (id: string) =>
@@ -151,6 +156,30 @@ export function RiskDetail({
               <MitigationRow key={m.id} risk={risk} mitigation={m} active={activeIds.includes(m.id)} onToggle={() => toggle(m.id)} />
             ))}
           </MitigationList>
+        </CardBody>
+      </Card>
+
+      <Card label="What would change this">
+        <CardHeader
+          title="What would change this"
+          description={
+            changed
+              ? "Calculated from the exposure left after the options you've added."
+              : "Calculated from the same model as the figures above: how far the exposure has to move to change the picture."
+          }
+        />
+        <CardBody>
+          <ul className="flex flex-col gap-3">
+            {changePoints.map((p) => (
+              <li key={p.text} className="flex gap-3 text-[14px] leading-relaxed">
+                <span aria-hidden className={cn("mt-2 h-2 w-2 shrink-0 rounded-full", p.direction === "better" ? "bg-good" : "bg-bad")} />
+                <span className="min-w-0">
+                  {p.text}
+                  <span className="mt-0.5 block break-words font-mono text-[12px] text-sub">{p.working}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </CardBody>
       </Card>
 

@@ -24,6 +24,7 @@ import { amount, gbp, gbpK, gbpPerT } from "../../format";
 import { riskName } from "../../profile/catalogue";
 import { bandFor } from "../../score";
 import { simulateRisk, whatIf } from "../../sim";
+import { whatWouldChange } from "../../what-would-change";
 import type { LossLimit } from "../../limits";
 import type { Mitigation, RiskResult, SignalImpact } from "../../types";
 
@@ -144,13 +145,14 @@ export function createTools(calls: ToolCall[]) {
     tool({
       name: "get_risk",
       description:
-        "Everything about one risk: score, bad-year hit, share of profit, 7-day change, the agent's reasoning, the step-by-step working, sources and the exposure model.",
+        "Everything about one risk: score, bad-year hit, share of profit, 7-day change, what would change the score (calculated), the agent's reasoning, the step-by-step working, sources and the exposure model.",
       inputSchema: z.object({ risk_id: riskId }),
       run: async ({ risk_id }) => {
-        const r = await getRisk(risk_id);
+        const [r, meta, lossLimit] = await Promise.all([getRisk(risk_id), getAssessmentMeta(), getLossLimit()]);
         if (!r) return { error: `Unknown risk ${risk_id}` };
         return {
           ...riskView(r),
+          what_would_change: whatWouldChange(r.model, meta.typicalProfit, lossLimit.limit).map((p) => p.text),
           summary: r.summary,
           reasoning: r.reasoning,
           working: r.working,
