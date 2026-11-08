@@ -62,6 +62,10 @@ export function TraceTimeline({ events, observations, judgeModel }: { events: Tr
   const engineResult = events.find((e) => e.type === "engine.result");
   const figures: Record<string, Figure> = engineResult ? (bodies.get(engineResult.seq).sim as SimResult).figures : {};
   const resultEvent = events.find((e) => e.type === "tool.result" && bodies.get(e.seq).tool === "get_engine_results");
+  // Fail closed: the judge's prose shows only after a checker verdict with nothing untraced.
+  const checker = events.find((e) => e.type === "checker.result");
+  const untraced: string[] | null = checker ? bodies.get(checker.seq).untraced ?? [] : null;
+  const verified = untraced !== null && untraced.length === 0;
 
   const inputHref = (input: string): string | null => {
     if (figures[input]) return `#${input}`;
@@ -149,6 +153,15 @@ export function TraceTimeline({ events, observations, judgeModel }: { events: Tr
           </span>
         );
       case "judge.output":
+        if (!verified) {
+          return (
+            <span className="text-bad">
+              Explanation withheld:{" "}
+              {untraced?.length ? <>the figure checker could not trace {untraced.join(", ")}.</> : "no clean figure check for it."}{" "}
+              The raw event stays on the chain for audit.
+            </span>
+          );
+        }
         return (
           <span className="flex flex-col gap-1.5">
             {b.ranked_options.map((o: Body) => (
@@ -198,7 +211,9 @@ export function TraceTimeline({ events, observations, judgeModel }: { events: Tr
               <FigureTable figures={Object.values(figures)} inputHref={inputHref} resultSeq={resultEvent?.seq} missing={b.missing} />
             ) : (
               <details className="mt-1.5 pl-11">
-                <summary className="cursor-pointer text-[12px] text-sub hover:text-ink">Body · hash {short(e.hash)}</summary>
+                <summary className={cn("cursor-pointer text-[12px] hover:text-ink", e.actor === "gemini" && !verified ? "text-bad" : "text-sub")}>
+                  {e.actor === "gemini" && !verified ? "Raw event (unverified, withheld)" : "Body"} · hash {short(e.hash)}
+                </summary>
                 <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-panel p-3 font-mono text-[11px] leading-relaxed">{JSON.stringify(b, null, 2)}</pre>
               </details>
             )}

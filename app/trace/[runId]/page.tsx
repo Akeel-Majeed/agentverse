@@ -41,7 +41,7 @@ export default async function TraceRunPage({ params }: { params: { runId: string
   const { run, events, observations, verify } = trace;
   const untraced = (() => {
     const e = events.find((x) => x.type === "checker.result");
-    return e ? (JSON.parse(e.body).untraced as string[]).length : 0;
+    return e ? (JSON.parse(e.body).untraced as string[]) : [];
   })();
   const facts: [string, string][] = [
     ["Trigger", run.trigger],
@@ -80,7 +80,9 @@ export default async function TraceRunPage({ params }: { params: { runId: string
       <KillSwitch paused={controls.paused} />
 
       {run.status === "blocked" ? (
-        <p className="text-[14px] font-medium text-bad">Explanation withheld: {untraced} figures could not be traced to the engine.</p>
+        <p className="text-[14px] font-medium text-bad">
+          Explanation withheld: the figure checker could not trace {untraced.join(", ") || "its figures"} to a function result.
+        </p>
       ) : null}
       {run.status === "held" ? <p className="text-[14px] font-medium text-brand-label">Needs the farmer.</p> : null}
       {run.error ? <p className="text-[13px] text-bad">{run.error}</p> : null}

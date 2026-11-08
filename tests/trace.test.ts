@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TraceTimeline } from "@/components/headwind/trace-timeline";
 import { canonical, GENESIS, TraceWriter, verifyChain } from "@/lib/trace/chain";
 import { createMemoryAgentStore, toControls } from "@/lib/server/agent-store";
 
@@ -53,5 +56,38 @@ describe("trace", () => {
   it("fails closed when the database has no controls row", () => {
     expect(toControls(null).paused).toBe(true);
     expect(toControls(undefined).updatedBy).toMatch(/missing/i);
+  });
+});
+
+describe("trace timeline", () => {
+  const judgement = {
+    ranked_options: [{ option_id: "fix_rate", rank: 1, reason: "SECRET-REASON gains £999k", cites: [] }],
+    risks: [{ risk_id: "output_prices", explanation: "SECRET-EXPLANATION", cites: [] }],
+    change_my_mind: [{ threshold_id: "threshold.rate_dscr", statement: "SECRET-STATEMENT" }],
+    conflicts: [], hold_for_human: false, hold_reason: null,
+  };
+  async function render(untraced: string[] | null) {
+    const store = createMemoryAgentStore();
+    const run = await store.createRun({ farmId: "f", trigger: "demo", asOf: "2026-11-08", seed: 42, engineVersion: "1", configHash: "c" });
+    const w = new TraceWriter(run.id, store);
+    if (untraced) await w.append("checker.result", "code", { figures: ["£999k"], untraced });
+    await w.append("judge.output", "gemini", judgement);
+    const events = await store.getEvents(run.id);
+    const html = renderToStaticMarkup(createElement(TraceTimeline, { events, observations: [], judgeModel: "gemini-4-argon" }));
+    // The default view: everything outside the collapsed raw-event toggles.
+    return { html, visible: html.replace(/<details[\s\S]*?<\/details>/g, "") };
+  }
+  it("withholds the judge's prose when the checker blocked it, and lists what was untraced", async () => {
+    const { html, visible } = await render(["£999k"]);
+    expect(visible).not.toMatch(/SECRET/);
+    expect(visible).toMatch(/withheld/i);
+    expect(visible).toContain("£999k");
+    expect(html).toMatch(/<summary[^>]*>[^<]*unverified/i);
+  });
+  it("withholds the prose when no checker verdict exists", async () => {
+    expect((await render(null)).visible).not.toMatch(/SECRET/);
+  });
+  it("shows the prose after a clean check", async () => {
+    expect((await render([])).visible).toMatch(/SECRET-EXPLANATION/);
   });
 });
