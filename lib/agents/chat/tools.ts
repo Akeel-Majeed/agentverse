@@ -9,6 +9,7 @@ import {
   getAssessmentMeta,
   getBreakEvens,
   getCalendar,
+  getLossLimit,
   getOnboarding,
   getPendingChanges,
   getProfitSummary,
@@ -23,6 +24,7 @@ import { amount, gbp, gbpK, gbpPerT } from "../../format";
 import { riskName } from "../../profile/catalogue";
 import { bandFor } from "../../score";
 import { simulateRisk, whatIf } from "../../sim";
+import type { LossLimit } from "../../limits";
 import type { Mitigation, RiskResult, SignalImpact } from "../../types";
 
 export const RISK_IDS = ["output_prices", "input_prices", "weather_yield", "regulation", "interest_rates"] as const;
@@ -81,6 +83,17 @@ function impactView(i: SignalImpact) {
   };
 }
 
+function lossLimitView(l: LossLimit) {
+  return {
+    limit: l.limit === null ? "not recorded" : gbp(l.limit),
+    confirmed_by_farmer: l.confirmed,
+    farm_loss_in_bad_year: gbp(l.farmLoss),
+    past_limit: l.limit === null ? "can't check: no limit recorded" : l.breached,
+    risks_past_limit_on_their_own: l.risksOver.map((r) => ({ risk: r.name, loss: gbp(r.loss) })),
+    note: l.confirmed ? undefined : "The farmer hasn't confirmed this limit yet: ask them to confirm it in their farm profile.",
+  };
+}
+
 /** Build the tool set. Every call is recorded in `calls` for the figure checker and the action log. */
 export function createTools(calls: ToolCall[]) {
   const tool = <S extends z.ZodType>(def: { name: string; description: string; inputSchema: S; run: (input: z.infer<S>) => Promise<unknown> }) =>
@@ -108,7 +121,7 @@ export function createTools(calls: ToolCall[]) {
         "The farm's risk profile: the snapshot it is based on, and for each of the five risks its score, bad-year hit, what the farm has at stake and the total effect of news since the snapshot. Start here for any broad question.",
       inputSchema: z.object({}),
       run: async () => {
-        const [{ snapshot, rows, impacts }, meta] = await Promise.all([getRiskProfile(), getAssessmentMeta()]);
+        const [{ snapshot, rows, impacts }, meta, lossLimit] = await Promise.all([getRiskProfile(), getAssessmentMeta(), getLossLimit()]);
         return {
           assessed: day(meta.date),
           snapshot: { version: snapshot.version, taken: day(snapshot.takenAt), reason: snapshot.reason },
@@ -123,6 +136,7 @@ export function createTools(calls: ToolCall[]) {
             news_since_snapshot: r.newsMeasured ? gbp(r.newsDelta, { sign: true }) : r.newsCount ? "no £ figure yet" : "none",
           })),
           news_items_since_snapshot: impacts.length,
+          loss_limit: lossLimitView(lossLimit),
           note: "Bad years don't add up across risks: they rarely all peak in the same year.",
         };
       },
@@ -235,10 +249,10 @@ export function createTools(calls: ToolCall[]) {
     }),
     tool({
       name: "get_profit_summary",
-      description: "Expected profit for the harvest year, bad and good years, chance of a loss, weekly change, and each crop's price against its break-even.",
+      description: "Expected profit for the harvest year, bad and good years, chance of a loss, weekly change, the farm's loss limit check, and each crop's price against its break-even.",
       inputSchema: z.object({}),
       run: async () => {
-        const [p, breakEvens, meta] = await Promise.all([getProfitSummary(), getBreakEvens(), getAssessmentMeta()]);
+        const [p, breakEvens, meta, lossLimit] = await Promise.all([getProfitSummary(), getBreakEvens(), getAssessmentMeta(), getLossLimit()]);
         return {
           harvest_year: meta.harvestYear,
           expected_profit: gbp(p.expected),
@@ -248,6 +262,7 @@ export function createTools(calls: ToolCall[]) {
           loss_making_years: `${p.lossYearsOf20} in 20`,
           change_vs_last_week: gbp(p.deltaWeek, { sign: true }),
           working: p.working,
+          loss_limit: lossLimitView(lossLimit),
           break_evens: breakEvens.map((b) => ({
             crop: b.crop,
             price: gbpPerT(b.price),

@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { londonDay, londonTime } from "./format";
+import { checkLossLimit, type LossLimit } from "./limits";
 import * as mock from "./mock";
 import { reassess } from "./profile/assess";
 import { weekMoves } from "./profile/fenland-ridge";
@@ -96,6 +97,20 @@ export async function getProfitSummary(): Promise<ProfitSummary> {
 
 export async function getBreakEvens(): Promise<BreakEven[]> {
   return (await loadAssessment()).breakEvens;
+}
+
+/** The farm's loss limit checked against the latest assessment (see lib/limits.ts). */
+export async function getLossLimit(): Promise<LossLimit> {
+  const [fields, { risks, profit, meta }] = await Promise.all([loadProfileFields(), loadAssessment()]);
+  const field = fields.find((f) => f.key === "ins.max_loss");
+  const limit = field?.value === null || field?.value === undefined || field.value === "" ? null : Number(field.value);
+  return checkLossLimit({
+    limit: Number.isFinite(limit) ? limit : null,
+    confirmed: Boolean(field?.confirmedAt) && field?.confidence === "high",
+    profit,
+    risks,
+    typicalProfit: meta.typicalProfit,
+  });
 }
 
 /* ---------- Approval queue ---------- */

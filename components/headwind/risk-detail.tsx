@@ -3,10 +3,11 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { simDetail } from "@/lib/figures";
-import { amount, gbpK } from "@/lib/format";
+import { amount, gbp, gbpK } from "@/lib/format";
 import { scoreFromBadYear } from "@/lib/score";
 import { riskWorking, simulateRisk } from "@/lib/sim";
 import type { RiskResult } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Card, CardBody, CardHeader, Counter, Disclosure } from "./card";
 import { KpiCell, KpiStrip } from "./kpi-cell";
 import { MitigationList, MitigationRow } from "./mitigation-row";
@@ -22,8 +23,11 @@ export function RiskDetail({
   typicalProfit,
   dateLabel,
   profile,
+  lossLimit = null,
 }: {
   risk: RiskResult;
+  /** The farm's loss limit in £ (ins.max_loss), checked live against the simulated bad year. */
+  lossLimit?: number | null;
   typicalProfit: number;
   dateLabel: string;
   /** Where the figures come from in the farm profile, shown before the working. */
@@ -39,6 +43,7 @@ export function RiskDetail({
   const hitDelta = sim.hitK - today.hitK;
   const profitDelta = sim.badYearProfitK - today.badYearProfitK;
   const exposureDelta = sim.exposure - today.exposure;
+  const pastLimit = (s: { badYearProfitK: number }) => lossLimit !== null && -s.badYearProfitK * 1000 > lossLimit;
 
   const toggle = (id: string) =>
     setActiveIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
@@ -81,11 +86,22 @@ export function RiskDetail({
             />
           }
           sub={
-            changed && Math.round(profitDelta) !== 0 ? (
-              <span className={profitDelta > 0 ? "text-good" : "text-bad"}>{gbpK(profitDelta, { sign: true })} vs today</span>
-            ) : (
-              `Expected ${gbpK(sim.meanK)}`
-            )
+            <>
+              {changed && Math.round(profitDelta) !== 0 ? (
+                <span className={profitDelta > 0 ? "text-good" : "text-bad"}>{gbpK(profitDelta, { sign: true })} vs today</span>
+              ) : (
+                `Expected ${gbpK(sim.meanK)}`
+              )}
+              {lossLimit !== null ? (
+                <span className={cn("mt-0.5 block font-medium", pastLimit(sim) ? "text-bad" : "text-good")}>
+                  {pastLimit(sim)
+                    ? `Past your ${gbp(lossLimit)} loss limit`
+                    : pastLimit(today)
+                      ? `Back inside your ${gbp(lossLimit)} limit`
+                      : `Inside your ${gbp(lossLimit)} limit`}
+                </span>
+              ) : null}
+            </>
           }
         />
         <KpiCell
