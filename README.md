@@ -20,7 +20,7 @@ An arable farmer's profit swings with crop prices, fertiliser and fuel, weather,
 
 ## Impact
 
-Each risk is shown as the £ hit in a 1-in-20 bad year, with options priced in code. In a live run on the demo farm the agent recommended **"sell half the unsold wheat forward": +£30k on the 1-in-20 bad year for £2.8k a year**, and flagged two other options as making the bad year worse (shown in the infographic below; the hedge is picked in code from the engine's `p5_gain`, `lib/trace/decision.ts`). The farmer then taps "discuss" or "not now", and that choice is recorded on the run's trace.
+Each risk is shown as the £ hit in a 1-in-20 bad year, with options priced in code. In a live run on the demo farm the agent recommended **"sell half the unsold wheat forward": +£30k on the 1-in-20 bad year for £2.8k a year**, and flagged two other options as making the bad year worse (shown in the infographic below; the hedge is picked in code from the engine's `p5_gain`, `lib/trace/decision.ts`). The farmer then taps "discuss" or "not now", and that choice is recorded on the run's trace. That +£30k is from simulated years; on 10 real price years the same hedge lost money in 7 (see Testing below), which is why the farmer, not the agent, decides.
 
 Options are to discuss with your merchant, adviser or bank, not advice.
 
@@ -52,6 +52,10 @@ The same pattern fits any business with commodity, input-cost, weather or rate e
 
 All farm data is synthetic; the market history is real. Nothing here is real-world trading or lending performance. Full write-up: [docs/eval/README.md](docs/eval/README.md).
 
+![Hedge backtest: selling half the wheat forward lost money in 7 of 10 years](docs/eval/benchmark-chart.png)
+
+- **The hedge, backtested with costs** ([benchmark.md](docs/eval/benchmark.md)): sell 50% of expected wheat forward at £3/t vs do nothing and vs sell 100%, walk-forward harvests 2017–2026 (n = 10, descriptive; 2025–26 strictly held out). **It lost:** mean profit −£9k a year vs doing nothing (95% CI −£28k to £12k), worse in 7 of 10 years, and the worst year got worse (−£73k vs −£46k, 2020). It narrowed the spread (SD £71k vs £82k). Main limit: forward price = August spot, as we have no historical forward curve.
+- **Whole-farm forecast** vs a normal model on the same calibration and historical simulation: 9 of 9 harvests inside our P5–P95 (Wilson 70%–100%); historical simulation missed 2023. Pinball loss at P5 was lower than both baselines in 9 of 9 years, by a mean of £286 vs normal (small) and £2280 vs historical simulation.
 - **Simulation backtest** ([backtest.md](docs/eval/backtest.md)): one-month-ahead 5th/95th percentiles, walk-forward 2017–2026 on Defra and Bank of England history, 115 forecasts per series, origins from 2024 held out (n = 31). Kupiec does not reject the Monte Carlo for any series, but **it does not beat a normal distribution refitted each month** (pinball loss about equal); it beats historical simulation on every series.
 - **Losses:** nitrogen breaches cluster in 2021–23 (Christoffersen p ≈ 0.00), so the model misses regime shifts. The Student-t tails and nitrogen factor were chosen knowing 2022 happened.
 - **Input screen** ([screen-eval.md](docs/eval/screen-eval.md)): 61 / 75 injections caught (81.3%, 95% CI 71.1%–88.5%), 0 / 71 false alarms, on 146 inputs including the public deepset/prompt-injections test split. All 14 misses are listed.
@@ -97,7 +101,7 @@ Limits are enforced in code, not the prompt. Scripted-client tests: `tests/risk-
 ## Limits
 
 - The Monte Carlo does not beat a normal refit; high-side breaches run above 5% for barley, rape and fuel. Regulation is not backtested, and the backtest checks each factor's tails, not their joint structure.
-- The whole-farm check is n = 7 harvests and descriptive only.
+- The hedge backtest and whole-farm forecast are n = 9–10 years (2 held out), descriptive only, with forward price proxied by spot.
 - Farm attack texts were written by an AI subagent; the photo set is n = 10. Jev catches injected instructions, not a forged figure with no instruction (the quote check and farmer approval cover those).
 - In live agent runs only the kill switch and the screen hold have fired; the other agent controls fire only in scripted tests.
 - p50 judge time (43.5 s) is close to Vercel Hobby's 60 s cap; the judge route needs Vercel Pro or `bun run agent:demo` locally.
