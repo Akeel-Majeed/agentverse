@@ -77,5 +77,5 @@ Gemini 4 Argon, `thinking_level: medium`, live calls, cost computed in code from
 - The figure checker does not parse spelled-out numbers ("one in four").
 - The `assessments` columns `run_id`, `status` and `head_hash` are not written; the run and its current head are resolved when the assessment is read.
 - `/trace` with no run id shows the latest run, which may not be the run behind the assessment on screen.
-- On Vercel the agent tables must be in Supabase (`AGENT_TABLES=1`, migration `0003_agent_runs.sql` applied): the in-memory agent store does not survive across serverless invocations.
+- On Vercel the agent tables must be in Supabase (`AGENT_TABLES=1`, migration `0005_agent_runs.sql` applied): the in-memory agent store does not survive across serverless invocations.
 - The monthly backtest checks each factor's tails, not their joint structure. Regulation is not backtested.

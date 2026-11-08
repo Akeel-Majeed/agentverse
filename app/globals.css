@@ -4,26 +4,31 @@
 
 @layer base {
   :root {
-    --background: 40 14% 98%;
-    --foreground: 60 4% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 60 4% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 60 4% 11%;
-    --primary: 60 4% 11%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 40 14% 95%;
-    --secondary-foreground: 60 4% 11%;
-    --muted: 40 14% 96%;
-    --muted-foreground: 50 3% 43%;
-    --accent: 40 14% 95%;
-    --accent-foreground: 60 4% 11%;
-    --destructive: 0 72% 42%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 45 10% 90%;
-    --input: 45 8% 82%;
-    --ring: 226 82% 55%;
-    --radius: 0.5rem;
+    --nav-w: 264px; /* sidebar width; the page padding follows it */
+    /* Hedged: ink on paper (docs/design-system.md) */
+    --background: 54 36% 95%; /* paper #F6F5EC */
+    --foreground: 108 13% 8%; /* ink #121611 */
+    --card: 60 54% 98%; /* card #FDFDF8 */
+    --card-foreground: 108 13% 8%;
+    --popover: 60 54% 98%;
+    --popover-foreground: 108 13% 8%;
+    --primary: 108 13% 8%;
+    --primary-foreground: 54 36% 95%;
+    --secondary: 56 28% 91%;
+    --secondary-foreground: 108 13% 8%;
+    --muted: 56 28% 91%;
+    --muted-foreground: 90 7% 34%; /* muted #565C50 */
+    --accent: 56 28% 91%;
+    --accent-foreground: 108 13% 8%;
+    --destructive: 9 75% 45%; /* risk red #C8361C */
+    --destructive-foreground: 60 54% 98%;
+    --border: 60 12% 86%; /* hairline */
+    --input: 53 9% 80%;
+    --ring: 108 13% 8%;
+    --radius: 0.75rem;
+  }
+  :root[data-nav="collapsed"] {
+    --nav-w: 72px;
   }
 }
 
@@ -34,26 +39,31 @@
   body {
     @apply bg-background font-sans text-ink antialiased;
     font-feature-settings: "ss01", "cv11";
+    /* Faint lime glow top right, and a fine grain, as on the deck's content slides. */
+    background-image:
+      radial-gradient(56rem 36rem at 100% -8%, rgba(201, 219, 106, 0.2), transparent 62%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .07 0 0 0 0 .09 0 0 0 0 .07 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-attachment: fixed;
   }
   h1,
   h2,
   h3 {
-    @apply tracking-tight;
+    @apply font-medium tracking-[-0.03em];
   }
   ::selection {
-    background: #dfe6ff;
-    color: #1c1c1a;
+    background: #e4ecb0;
+    color: #121611;
   }
   input,
   textarea {
-    caret-color: #2f5bea;
+    caret-color: #121611;
   }
   ::-webkit-scrollbar {
     height: 10px;
     width: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #d6d5cf;
+    background: #d2d1c9;
     border: 3px solid transparent;
     background-clip: padding-box;
     border-radius: 999px;
@@ -64,6 +74,14 @@
 }
 
 @layer utilities {
+  /* Sky gradient: cover, statement and closing screens. */
+  .bg-sky {
+    background-color: #f6f5ec;
+    background-image:
+      radial-gradient(40rem 18rem at 20% 18%, rgba(255, 255, 255, 0.55), transparent 70%),
+      radial-gradient(36rem 16rem at 82% 30%, rgba(255, 255, 255, 0.45), transparent 70%),
+      linear-gradient(180deg, #c4d865 0%, #d9e48e 26%, #ecefc4 55%, #f6f5ec 82%);
+  }
   .text-balance {
     text-wrap: balance;
   }

@@ -7,8 +7,8 @@ import { gbpK } from "@/lib/format";
 
 const SCALE_K = 150;
 const ROW_H = 36;
-const GOOD = "#15803D";
-const BAD = "#B91C1C";
+const GOOD = "#556F06";
+const BAD = "#C8361C";
 
 const config = { valueK: { label: "Change" } } satisfies ChartConfig;
 
@@ -25,9 +25,9 @@ export function ImpactBars({ items }: { items: { id: string; label: string; valu
           tickLine={false}
           axisLine={false}
           interval={0}
-          tick={{ fontSize: 13, fill: "#1C1C1A" }}
+          tick={{ fontSize: 13, fill: "#121611" }}
         />
-        <ReferenceLine x={0} stroke="#1C1C1A" strokeWidth={1} strokeDasharray="3 3" />
+        <ReferenceLine x={0} stroke="#121611" strokeWidth={1} strokeDasharray="3 3" />
         <ChartTooltip
           cursor={false}
           content={

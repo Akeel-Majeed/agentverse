@@ -11,6 +11,7 @@ import * as demo from "../profile/fenland-ridge";
 import { makeSnapshot } from "../profile/risk-profile";
 import type {
   AssessmentMeta,
+  ChatMemory,
   ChatTurn,
   BreakEven,
   Farm,
@@ -54,8 +55,13 @@ export interface Store {
   updatePendingChange(id: string, status: PendingChange["status"], proposedValue?: string): Promise<PendingChange | null>;
   insertPendingChange(c: Omit<PendingChange, "id" | "receivedAt">): Promise<void>;
   /** Start logging a chat turn. False if this inbound message was already taken (a webhook retry). */
-  claimChatTurn(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<boolean>;
+  claimChatTurn(turn: Pick<ChatTurn, "inboundMessageId" | "conversationId" | "question" | "channel">): Promise<boolean>;
+  /** The most recent chat turns from every channel, oldest first. */
+  listChatTurns(limit: number): Promise<ChatTurn[]>;
   finishChatTurn(inboundMessageId: string, result: Omit<ChatTurn, "inboundMessageId" | "conversationId" | "question">): Promise<void>;
+  /** The chat agent's running notes on the farm's conversation, or null if there are none yet. */
+  getChatMemory(): Promise<ChatMemory | null>;
+  saveChatMemory(memory: ChatMemory): Promise<void>;
 }
 
 /* ---------- In-memory demo store ---------- */
@@ -86,6 +92,7 @@ function createMockStore(): Store {
     ] as Assessment[],
     pending: structuredClone(mock.pendingChanges),
     chat: [] as ChatTurn[],
+    memory: null as ChatMemory | null,
   };
 
   return {
@@ -131,12 +138,17 @@ function createMockStore(): Store {
     },
     claimChatTurn: async (turn) => {
       if (state.chat.some((t) => t.inboundMessageId === turn.inboundMessageId)) return false;
-      state.chat.push({ ...turn, status: "answering" });
+      state.chat.push({ channel: "imessage", ...turn, status: "answering", createdAt: new Date().toISOString() });
       return true;
     },
+    listChatTurns: async (limit) => structuredClone(state.chat.slice(-limit)),
     finishChatTurn: async (id, result) => {
       const turn = state.chat.find((t) => t.inboundMessageId === id);
       if (turn) Object.assign(turn, structuredClone(result));
+    },
+    getChatMemory: async () => structuredClone(state.memory),
+    saveChatMemory: async (memory) => {
+      state.memory = structuredClone(memory);
     },
   };
 }
@@ -299,7 +311,7 @@ function createSupabaseStore(db: SupabaseClient): Store {
     async updatePendingChange(id, status, proposedValue) {
       const patch: Row = { status, resolved_at: status === "pending" ? null : new Date().toISOString() };
       if (proposedValue !== undefined) patch.proposed_value = proposedValue;
-      // resolved_by exists only once migration 0003 is applied (AGENT_TABLES=1).
+      // resolved_by exists only once migration 0005 is applied (AGENT_TABLES=1).
       if (process.env.AGENT_TABLES === "1") patch.resolved_by = status === "pending" ? null : "farmer";
       const { data, error } = await db.from("pending_changes").update(patch).eq("farm_id", farm).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(`Supabase: update pending change: ${error.message}`);
@@ -319,15 +331,44 @@ function createSupabaseStore(db: SupabaseClient): Store {
       if (error) throw new Error(`Supabase: insert pending change: ${error.message}`);
     },
     async claimChatTurn(turn) {
-      const { error } = await db.from("chat_turns").insert({
+      const row = {
         farm_id: farm,
         inbound_message_id: turn.inboundMessageId,
         conversation_id: turn.conversationId,
         question: turn.question,
-      });
+        channel: turn.channel ?? "imessage",
+      };
+      let { error } = await db.from("chat_turns").insert(row);
+      // Before migration 0003 the table has no channel column: log without it.
+      if (error && /channel/i.test(error.message)) {
+        const { channel: _channel, ...withoutChannel } = row;
+        void _channel;
+        ({ error } = await db.from("chat_turns").insert(withoutChannel));
+      }
       if (!error) return true;
       if (error.code === "23505") return false; // unique violation: already answered or answering
       throw new Error(`Supabase: log chat turn: ${error.message}`);
+    },
+    async listChatTurns(limit) {
+      const rows = must(
+        await db.from("chat_turns").select("*").eq("farm_id", farm).order("created_at", { ascending: false }).limit(limit),
+        "chat turns"
+      );
+      return rows.reverse().map(
+        (r: Row): ChatTurn => ({
+          inboundMessageId: String(r.inbound_message_id),
+          conversationId: String(r.conversation_id),
+          question: String(r.question),
+          channel: (r.channel as ChatTurn["channel"]) ?? "imessage",
+          createdAt: String(r.created_at),
+          status: r.status as ChatTurn["status"],
+          answer: (r.answer as string | null) ?? undefined,
+          tools: (r.tools as ChatTurn["tools"]) ?? [],
+          checker: (r.checker as ChatTurn["checker"]) ?? undefined,
+          model: (r.model as string | null) ?? undefined,
+          error: (r.error as string | null) ?? undefined,
+        })
+      );
     },
     async finishChatTurn(id, result) {
       const { error } = await db
@@ -343,6 +384,20 @@ function createSupabaseStore(db: SupabaseClient): Store {
         })
         .eq("inbound_message_id", id);
       if (error) throw new Error(`Supabase: finish chat turn: ${error.message}`);
+    },
+    async getChatMemory() {
+      const { data, error } = await db.from("chat_memory").select("*").eq("farm_id", farm).maybeSingle();
+      if (error) throw new Error(`Supabase: chat memory: ${error.message}`);
+      return data ? { notes: data.notes, turns: data.turns, updatedAt: data.updated_at } : null;
+    },
+    async saveChatMemory(memory) {
+      const { error } = await db.from("chat_memory").upsert({
+        farm_id: farm,
+        notes: memory.notes,
+        turns: memory.turns,
+        updated_at: memory.updatedAt,
+      });
+      if (error) throw new Error(`Supabase: save chat memory: ${error.message}`);
     },
   };
 }

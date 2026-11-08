@@ -8,6 +8,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { cache } from "react";
 import { ACCEPTED_MIME, extractorFromEnv } from "./agents/documents/extract";
 import { runPhaseOne, type PhaseOneInput } from "./assess/phase-one";
@@ -28,6 +29,7 @@ import type {
   BreakEven,
   CalendarItem,
   Farm,
+  IMessageSetup,
   MarketBaseline,
   OnboardingField,
   OnboardingSection,
@@ -530,4 +532,37 @@ export async function getWhatIfConfig(): Promise<{
   sliders: WhatIfSlider[];
 }> {
   return structuredClone({ baseline: mock.whatIfBaseline, presets: mock.whatIfPresets, sliders: mock.whatIfSliders });
+}
+
+/* ---------- Onboarding ---------- */
+
+const ONBOARDED_COOKIE = "onboarded";
+
+/** Market figures the risk profile is worked out at, so onboarding can preview exposures live. */
+export async function getMarketBaseline(): Promise<MarketBaseline> {
+  return (await loadSnapshot()).market;
+}
+
+/** The shared Inkbox iMessage number and connect command for the agent, if Inkbox is configured. */
+export async function getIMessageSetup(): Promise<IMessageSetup> {
+  if (!process.env.INKBOX_API_KEY) return { available: false, reason: "iMessage isn't configured on this deployment yet." };
+  try {
+    const { Inkbox } = await import("@inkbox/sdk");
+    const { agentHandle } = await import("./agents/chat/inkbox");
+    const router = await new Inkbox().imessages.getTriageNumber();
+    return {
+      available: true,
+      number: router.number,
+      connectCommand: `connect @${agentHandle()}`,
+      replies: Boolean(process.env.INKBOX_WEBHOOK_SECRET && process.env.ANTHROPIC_API_KEY),
+    };
+  } catch (err) {
+    console.warn("[data] couldn't load the Inkbox iMessage number", err);
+    return { available: false, reason: "Couldn't reach Inkbox right now." };
+  }
+}
+
+/** Mark setup as done for this browser, so the app opens on the overview from now on. */
+export async function finishOnboarding(): Promise<void> {
+  cookies().set(ONBOARDED_COOKIE, "1", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true });
 }

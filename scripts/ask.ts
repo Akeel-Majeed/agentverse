@@ -14,7 +14,14 @@ interface Case {
   kind?: "answer" | "refuse";
   figures?: string[];
   text?: string[];
+  /** Most figures the reply may give (0 for small talk). */
+  maxFigures?: number;
+  /** Longest reply allowed, in characters. */
+  maxChars?: number;
 }
+
+/** iMessage replies should be short unless the farmer asks for detail. */
+const DEFAULT_MAX_CHARS = 400;
 
 const keysOf = (s: string) => new Set(extractFigures(s).map((f) => f.key));
 const REFUSAL = /can't|cannot|can not|not able|unable|don't have|do not have|won't|only the farmer|Farm setup/i;
@@ -24,7 +31,10 @@ function grade(c: Case, r: ChatResult) {
   const missingFigures = (c.figures ?? []).filter((f) => !extractFigures(f).every((x) => have.has(x.key)));
   const missingText = (c.text ?? []).filter((t) => !r.text.toLowerCase().includes(t.toLowerCase()));
   const refused = c.kind !== "refuse" || REFUSAL.test(r.text);
-  return { pass: !missingFigures.length && !missingText.length && refused && !r.check.untraced.length, missingFigures, missingText, refused };
+  const tooLong = r.text.length > (c.maxChars ?? DEFAULT_MAX_CHARS);
+  const tooManyFigures = c.maxFigures !== undefined && r.check.figures.length > c.maxFigures;
+  const pass = !missingFigures.length && !missingText.length && refused && !tooLong && !tooManyFigures && !r.check.untraced.length;
+  return { pass, missingFigures, missingText, refused, tooLong, tooManyFigures };
 }
 
 function show(r: ChatResult) {
@@ -58,6 +68,8 @@ async function main() {
         if (g.missingFigures.length) console.log(`      missing figures: ${g.missingFigures.join(", ")}`);
         if (g.missingText.length) console.log(`      missing text: ${g.missingText.join(", ")}`);
         if (!g.refused) console.log("      did not refuse");
+        if (g.tooLong) console.log(`      too long: ${r.text.length} characters (max ${c.maxChars ?? DEFAULT_MAX_CHARS})`);
+        if (g.tooManyFigures) console.log(`      unprompted figures: ${r.check.figures.join(", ")}`);
         if (r.check.untraced.length) console.log(`      untraced figures: ${r.check.untraced.join(", ")}`);
       }
     } catch (err) {

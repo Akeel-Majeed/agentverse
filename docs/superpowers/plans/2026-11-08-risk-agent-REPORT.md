@@ -10,7 +10,7 @@ Branch `feat/risk-agent`, not pushed, not deployed. Plan: `2026-11-08-risk-agent
 | 1 | Engine and trace contracts, dependencies (`@google/genai` 3.0.0) | ae0e110 |
 | 2 | Seeded PRNG and Student-t draws, Ledoit-Wolf shrunk correlation, quantile / Wilson / Kupiec / Christoffersen / pinball | 11bf53d |
 | 3 | Real history (Defra price index, Defra East Midlands yields, BoE Bank Rate) downloaded, hashed, committed as `data/history.json` | 2f77fa0 |
-| 4 | Migration 0003: agent run tables, append-only trace triggers, restricted `risk_agent` role; fix so the role can create runs but not touch controls | 4e6b316, dddf3dc |
+| 4 | Migration 0005 (was 0003 before the master merge): agent run tables, append-only trace triggers, restricted `risk_agent` role; fix so the role can create runs but not touch controls | 4e6b316, dddf3dc |
 | 5 | Input screen: Jev for text, z-score for numbers; number screen fails closed | 62784af, 5154f1a |
 | 6 | Calibration, profile → farm inputs, 10,000-path Monte Carlo with options, DSCR and thresholds (32 figures) | 86ca887 |
 | 7 | Hash-chained trace writer and verifier; agent store (memory, Supabase, Postgres role) | c2d847c |
@@ -75,7 +75,7 @@ Over the six runs that reached the judge: p50 43.5 s (31–69 s), p50 cost $0.04
 - The `assessments` columns `run_id`, `status` and `head_hash` are not written; the run and its current head are resolved when the assessment is read.
 - `/trace` with no run id shows the latest run.
 - `/api/judge` asks for 300 s: Vercel Pro, or run the judge locally with `bun run agent:demo`.
-- On Vercel, `AGENT_TABLES=1` with migration 0003 applied is required: the in-memory agent store does not survive across serverless invocations.
+- On Vercel, `AGENT_TABLES=1` with migration 0005 applied is required: the in-memory agent store does not survive across serverless invocations.
 
 ## Whole-branch review
 
@@ -103,7 +103,7 @@ Not fixed, stated as limits in the README and `docs/eval/README.md`: the `assess
 ## Human steps for Akeel
 
 - [ ] Review this report and the branch. Judge p50 is 43.5 s over 6 runs but one took 69 s: decide whether to set `RISK_AGENT_MODEL=gemini-3.8-flash` for the live demo (the README would then say so).
-- [ ] Supabase SQL editor: run `supabase/migrations/0003_agent_runs.sql`, then `alter role risk_agent with login password '<strong password>';`. Check that `update agent_events set type='x'` fails with "append-only".
+- [ ] Supabase SQL editor: run `supabase/migrations/0005_agent_runs.sql`, then `alter role risk_agent with login password '<strong password>';`. Check that `update agent_events set type='x'` fails with "append-only".
 - [ ] Vercel env: `GEMINI_API_KEY`, `AGENT_TABLES=1`, `TYPESAFE_API_KEY`, `MCP_TOKEN`, `RISK_AGENT_MODEL` (if changing). Optional: `RISK_AGENT_DATABASE_URL=postgresql://risk_agent.<project-ref>:<password>@<pooler-host>:5432/postgres`. Hobby caps a route at 60 s; `/api/judge` needs Pro, or use the local runner (`bun run agent:demo`) for the demo.
 - [ ] Dry-run the 3-minute demo on the deployed app: `/documents` → "Forward contract (photo)" → trace → "Run judgement" → approval queue (`/profile#approvals`) → kill switch mid-run on a second run. Keep a screen recording as the Wi-Fi backup.
 - [ ] Push the branch, open a PR, deploy with `! vercel --prod`.

@@ -7,7 +7,7 @@ let db: PGlite;
 
 beforeAll(async () => {
   db = new PGlite();
-  for (const f of ["0001_risk_profile.sql", "0002_chat_log.sql", "0003_agent_runs.sql"]) await db.exec(sql(f));
+  for (const f of ["0001_risk_profile.sql", "0002_chat_log.sql", "0003_chat_channel.sql", "0004_chat_memory.sql", "0005_agent_runs.sql"]) await db.exec(sql(f));
   await db.exec(`insert into farms (id, name, hectares, location) values ('f1', 'Test', 1, 'X');`);
   await db.exec(`insert into agent_runs (id, farm_id, trigger, as_of, seed, engine_version, config_hash)
                  values ('00000000-0000-0000-0000-000000000001', 'f1', 'demo', '2026-11-08', 42, '1.0.0', 'abc');`);
@@ -15,7 +15,7 @@ beforeAll(async () => {
                  values ('00000000-0000-0000-0000-000000000001', 1, 'run.start', 'code', '{}', '0', 'h1');`);
 }, 30_000);
 
-describe("migration 0003", () => {
+describe("migration 0005", () => {
   it("rejects UPDATE, DELETE and TRUNCATE on agent_events", async () => {
     await expect(db.exec(`update agent_events set type = 'x'`)).rejects.toThrow(/append-only/);
     await expect(db.exec(`delete from agent_events`)).rejects.toThrow(/append-only/);

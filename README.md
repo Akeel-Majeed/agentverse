@@ -36,7 +36,8 @@ Routes: `/overview`, `/risks/[id]`, `/what-if`, `/calendar`, `/profile`, `/docum
 A chat agent that answers the farmer's questions about the risk profile, exposures, mitigations, news, profit and deadlines over iMessage.
 
 - `lib/agents/chat/tools.ts`: read-only tools over the data layer and simulation code. Every figure is computed by code; there is no write tool.
-- `lib/agents/chat/agent.ts`: Anthropic SDK tool runner (model from `ANTHROPIC_MODEL`).
+- `lib/agents/chat/agent.ts`: Anthropic SDK tool runner (model from `ANTHROPIC_MODEL`). Short text-message replies; it answers only what was asked and gives no figures unprompted.
+- `lib/agents/chat/memory.ts`: long-term memory. After each answered message the model folds the exchange into short running notes per farm, shared by iMessage and the in-app assistant (`chat_memory`, run `supabase/migrations/0004_chat_memory.sql`). The agent sees the notes plus the last 24 messages verbatim. Notes hold no figures from past replies and never count as a source for the figure checker.
 - `lib/agents/checker.ts`: every figure in a reply must appear in a tool result or the farmer's message, or the agent rewrites the reply.
 - `app/api/inkbox/webhook/route.ts`: verifies the Inkbox signature, then answers in the same conversation. Every turn is logged in `chat_turns` (run `supabase/migrations/0002_chat_log.sql`).
 
@@ -44,7 +45,7 @@ Environment (server-only): `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` (default `clau
 
 ```bash
 bun run ask "What's my biggest risk?"   # ask from the terminal, no iMessage needed
-bun run ask --eval                      # run the question set in tests/chat-questions.json
+bun run ask --eval                      # run the question set in tests/chat-questions.json (figures, length, nothing unprompted)
 bun run inkbox:setup https://your-app.vercel.app
 ```
 
@@ -89,7 +90,7 @@ Full write-up with links: [`docs/eval/README.md`](docs/eval/README.md). The thre
 - The whole-farm check (harvests 2019–2025, 0 / 7 outside P5–P95) is n = 7 and descriptive only; Defra has no 2022 East Midlands yield, so the 2022 row is price-only.
 - The farm attack texts were written by an AI subagent (it did not see the screen code). The photo set is n = 10. All farm data, documents and photos are synthetic.
 - Judge timing is 6 live runs; p50 43.5 s is close to Vercel Hobby's 60 s cap and one run took 69 s. `/api/judge` asks for 300 s, so it needs Vercel Pro, or run the judge locally with `bun run agent:demo`.
-- On Vercel, set `AGENT_TABLES=1` and apply `supabase/migrations/0003_agent_runs.sql`: the in-memory agent store does not survive across serverless invocations.
+- On Vercel, set `AGENT_TABLES=1` and apply `supabase/migrations/0005_agent_runs.sql`: the in-memory agent store does not survive across serverless invocations.
 - Every server action in `lib/data.ts` is public, so in the demo anyone can call `setPaused(false)` and restart a stopped agent. Real authentication is a next step.
 - DSCR leaves out the depreciation add-back, because the profile has no depreciation field.
 - The `backtest_results` table is never written; the backtest output lives in `docs/eval/backtest.json`.

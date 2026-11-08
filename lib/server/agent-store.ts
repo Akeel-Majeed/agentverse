@@ -2,7 +2,7 @@ import "server-only";
 /**
  * Agent runs, observations, trace events and controls.
  * - memory: default, and always in tests
- * - supabase (secret key): only when AGENT_TABLES=1 (migration 0003 applied)
+ * - supabase (secret key): only when AGENT_TABLES=1 (migration 0005 applied)
  * - postgres as risk_agent: when RISK_AGENT_DATABASE_URL is set (restricted role, no profile writes)
  */
 import { createClient } from "@supabase/supabase-js";
@@ -113,7 +113,7 @@ export async function getAgentStore(): Promise<AgentStore> {
   })));
 }
 
-/* ---------- Database stores (column names from supabase/migrations/0003_agent_runs.sql) ---------- */
+/* ---------- Database stores (column names from supabase/migrations/0005_agent_runs.sql) ---------- */
 
 type Row = Record<string, unknown>;
 
