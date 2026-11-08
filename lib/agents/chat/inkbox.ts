@@ -29,6 +29,6 @@ export const liveDeps: IMessageDeps = {
     await (await inkboxIdentity()).sendIMessage({ conversationId, text, idempotencyKey });
   },
   recall: async () => (await getStore()).getChatMemory(),
-  answer: (messages, context) => runChatAgent(messages, { context }),
+  answer: (messages, context) => runChatAgent(messages, { context, channel: "imessage" }),
   remember: async (previous, exchange) => (await getStore()).saveChatMemory(await nextMemory(previous, exchange)),
 };

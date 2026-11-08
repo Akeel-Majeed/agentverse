@@ -1,13 +1,13 @@
+
+
+https://github.com/user-attachments/assets/c16de515-408a-48a2-a10e-edf9e9498124
+
 # Hedged
 
 A risk agent for UK arable farmers: it shows in £ what each risk could cost the farm and which options would reduce it. Numbers come from code, judgement from Gemini, decisions from the farmer.
 
 Live demo: https://agentverse-green.vercel.app (demo farm: Fenland Ridge Farm Ltd, fictional, 450 ha near Sleaford, Lincolnshire).
 
-<!-- Akeel: GitHub only plays inline video uploaded through the web editor. To get an inline player,
-     edit this README on github.com and drag docs/media/hedged-explainer.mp4 into the editor here;
-     GitHub replaces it with a user-attachments link. The image below links to the file meanwhile. -->
-[![Hedged explainer video (2 min 17 s): click to play](docs/media/hedged-explainer-poster.jpg)](docs/media/hedged-explainer.mp4)
 
 ## Problem
 
