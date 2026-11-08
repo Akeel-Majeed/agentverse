@@ -9,7 +9,10 @@ export interface ProfitDistribution {
   paths: number;
   mean: number;
   p5: number;
+  /** Quartiles: the middle 50% of simulated years lies between p25 and p75. */
+  p25: number;
   p50: number;
+  p75: number;
   p95: number;
   /** Share of simulated years with a loss, 0–1. */
   lossProb: number;
@@ -32,7 +35,9 @@ export function summariseProfits(profits: ArrayLike<number>, binCount = 36): Pro
     paths: n,
     mean: mean(s),
     p5: quantile(s, 0.05),
+    p25: quantile(s, 0.25),
     p50: quantile(s, 0.5),
+    p75: quantile(s, 0.75),
     p95: quantile(s, 0.95),
     lossProb: s.filter((v) => v < 0).length / n,
     bins,

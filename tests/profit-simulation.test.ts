@@ -35,4 +35,22 @@ describe("the overview's Monte Carlo chart", () => {
     expect(s!.p50).toBeLessThan(s!.p95);
     console.log("MC", JSON.stringify({ mean: s!.mean, p5: s!.p5, p95: s!.p95, loss: s!.lossProb, asOf: s!.asOf }));
   });
+
+  it("fills a field the snapshot predates from the current profile, and says so", async () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.SUPABASE_SECRET_KEY;
+    vi.resetModules();
+    const store = await (await import("@/lib/server/store")).getStore();
+    const snap = await store.getSnapshot();
+    // A snapshot frozen before capital repayments were part of the profile.
+    const { "fin.capital_repayment": dropped, ...older } = snap.fields;
+    expect(dropped).not.toBeUndefined();
+    await store.insertSnapshot({ ...snap, id: "snap-older-fields", version: snap.version + 1, fields: older });
+    const s = await (await import("@/lib/data")).getProfitSimulation();
+    expect(s).not.toBeNull();
+    expect(s!.snapshotVersion).toBe(snap.version + 1);
+    expect(s!.filledFromProfile).toHaveLength(1);
+    expect(s!.p25).toBeLessThan(s!.p50);
+    expect(s!.p50).toBeLessThan(s!.p75);
+  });
 });
