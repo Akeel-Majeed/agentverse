@@ -91,7 +91,7 @@ export default async function TraceRunPage({ params }: { params: { runId: string
       {run.status === "held" ? <p className="text-[14px] font-medium text-brand-label">Needs the farmer.</p> : null}
       {run.error ? <p className="text-[13px] text-bad">{run.error}</p> : null}
 
-      {decision ? <HedgeDecisionCard runId={run.id} decision={decision} canDecide={run.status === "published"} /> : null}
+      {decision ? <HedgeDecisionCard runId={run.id} model={run.model ? modelName(run.model) : "the judge"} decision={decision} canDecide={run.status === "published"} /> : null}
       <ToolFlow events={events} />
 
       <Card label="Run">

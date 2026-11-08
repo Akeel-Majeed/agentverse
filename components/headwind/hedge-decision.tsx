@@ -32,7 +32,7 @@ const Cites = ({ ids }: { ids: string[] }) => (
  * The run's hedge: the judge ranks, code checks it protects the 1-in-20 year (p5_gain > 0) and works
  * out the bad year after it. The farmer's answer is logged on the chain; nothing moves money.
  */
-export function HedgeDecisionCard({ runId, decision, canDecide }: { runId: string; decision: HedgeDecision; canDecide: boolean }) {
+export function HedgeDecisionCard({ runId, decision, canDecide, model }: { runId: string; decision: HedgeDecision; canDecide: boolean; model: string }) {
   const { hedge, badYearBefore, badYearAfter, ruledOut, changeMyMind, farmerDecision } = decision;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -152,7 +152,7 @@ export function HedgeDecisionCard({ runId, decision, canDecide }: { runId: strin
           </div>
         ) : null}
 
-        <p className="text-[12px] text-sub">Ranked by Gemini 4 Argon · protection checked in code</p>
+        <p className="text-[12px] text-sub">Ranked by {model} · protection checked in code</p>
       </CardBody>
     </Card>
   );
