@@ -12,6 +12,11 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { ACCEPTED_MIME, extractorFromEnv } from "./agents/documents/extract";
 import { runPhaseOne, type PhaseOneInput } from "./assess/phase-one";
+import { summariseProfits, type ProfitDistribution } from "./engine/distribution";
+import { farmFromProfile } from "./engine/farm";
+import { loadHistory } from "./engine/history";
+import { configHash, profitPaths } from "./engine/simulate";
+import { DEFAULT_CONFIG } from "./engine/types";
 import { londonDay, londonTime } from "./format";
 import { checkLossLimit, type LossLimit } from "./limits";
 import * as mock from "./mock";
@@ -446,6 +451,46 @@ export async function rerunAssessment(): Promise<AssessmentMeta> {
   const meta = await assess(store, snapshot, assessment, new Date(), "rerun");
   refresh();
   return meta;
+}
+
+/* ---------- Monte Carlo: the whole-farm profit distribution ---------- */
+
+export interface ProfitSimulation extends ProfitDistribution {
+  seed: number;
+  configHash: string;
+  asOf: string;
+  /** The published run these figures belong to, if the assessment has one. */
+  runId?: string;
+  snapshotVersion: number;
+}
+
+// Deterministic for a snapshot, date and config, so compute once per server instance.
+const simulations = new Map<string, ProfitSimulation>();
+
+/**
+ * Every simulated year of whole-farm profit for the current snapshot, summarised for a chart. Same
+ * engine, seed and inputs as the assessment's run (lib/assess/phase-one.ts), so the figures match
+ * its trace. Null if the profile is missing something the engine needs.
+ */
+export async function getProfitSimulation(): Promise<ProfitSimulation | null> {
+  const [snapshot, { meta }] = await Promise.all([loadSnapshot(), loadAssessment()]);
+  const run = meta.runId ? await (await getAgentStore()).getRun(meta.runId).catch(() => null) : null;
+  const asOf = run?.asOf ?? meta.date;
+  const key = `${snapshot.id}:${asOf}:${configHash(DEFAULT_CONFIG)}`;
+  const cached = simulations.get(key);
+  if (cached) return cached;
+  const { farm, missing } = farmFromProfile(snapshot.fields, snapshot.market);
+  if (missing.length) return null;
+  const result: ProfitSimulation = {
+    ...summariseProfits(profitPaths(loadHistory(), farm, asOf, DEFAULT_CONFIG)),
+    seed: DEFAULT_CONFIG.seed,
+    configHash: configHash(DEFAULT_CONFIG),
+    asOf,
+    runId: run?.id,
+    snapshotVersion: snapshot.version,
+  };
+  simulations.set(key, result);
+  return result;
 }
 
 /* ---------- Risk agent: trace, kill switch, documents ---------- */

@@ -57,21 +57,36 @@ export function drawShocks(cal: Calibrated, cfg: SimConfig): Float64Array {
 const sorted = (a: Float64Array) => Float64Array.from(a).sort();
 const cvar5 = (s: Float64Array) => mean(s.subarray(0, Math.max(1, Math.floor(s.length * 0.05))));
 
-export function simulate(h: History, farm: FarmInputs, asOf: string, cfg: SimConfig = DEFAULT_CONFIG): SimResult {
+/** Calibration, the correlated shocks and the scheme-cut draws: shared by every scenario so they see the same simulated years. */
+function setup(h: History, asOf: string, cfg: SimConfig) {
   const cal = calibrate(h, asOf, cfg);
   const shocks = drawShocks(cal, cfg);
   const regRand = mulberry32(cfg.seed + 1);
   const cut = Float64Array.from({ length: cfg.paths }, () => (regRand() < cfg.regulation.prob ? cfg.regulation.cutShare : 0));
   const K = FACTORS.length;
-  const hash = configHash(cfg);
-  const figures: Record<string, Figure> = {};
-  const add = (f: Figure) => ((figures[f.id] = f), f);
-
   const shockOf = (p: number, only?: FactorId[]): Shock => {
     const s: Shock = {};
     for (let i = 0; i < K; i++) if (!only || only.includes(FACTORS[i])) s[FACTORS[i]] = shocks[p * K + i];
     return s;
   };
+  return { cal, cut, shockOf };
+}
+
+/**
+ * Whole-farm profit in every simulated year, unsorted: the distribution behind profit.mean, p5 and
+ * p95 in simulate(). Same seed, shocks and P&L, so a chart of it matches the published figures.
+ */
+export function profitPaths(h: History, farm: FarmInputs, asOf: string, cfg: SimConfig = DEFAULT_CONFIG): Float64Array {
+  const { cut, shockOf } = setup(h, asOf, cfg);
+  return Float64Array.from({ length: cfg.paths }, (_, p) => farmPnl(farm, shockOf(p), cut[p]).profit);
+}
+
+export function simulate(h: History, farm: FarmInputs, asOf: string, cfg: SimConfig = DEFAULT_CONFIG): SimResult {
+  const { cal, cut, shockOf } = setup(h, asOf, cfg);
+  const hash = configHash(cfg);
+  const figures: Record<string, Figure> = {};
+  const add = (f: Figure) => ((figures[f.id] = f), f);
+
   const run = (f: FarmInputs, only?: FactorId[], withCut = true) => {
     const profit = new Float64Array(cfg.paths);
     const dscr = new Float64Array(cfg.paths);
