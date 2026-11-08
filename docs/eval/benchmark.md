@@ -8,6 +8,8 @@ Every harvest year is walk-forward: the origin is 1 August of the year before, a
 
 ## 1. The hedge decision vs benchmarks, with costs
 
+![Hedge vs benchmarks](benchmark-chart.png)
+
 Decision: sell 50% of expected wheat (220 ha × 8.5 t/ha × 50% = 935 t) forward at the origin, cost £3/t. **Forward-price proxy:** we have no historical forward curve, so the forward price is the spot index price at the origin (August). A real new-crop forward price differs from spot by the basis and carry; this proxy is the main limit of this test. The rest is sold at the realised August harvest-year price. Benchmarks: do nothing (all at harvest) and sell 100% forward (if the harvest falls short, the shortfall is bought back at the harvest price). Other costs, yields and rates are realised values and are the same across the three strategies.
 
 Harvest years 2017–2026: **n = 10 years, descriptive.** Intervals are 95% percentile bootstraps (10,000 resamples, seed 42); with n this small they are rough. With 10 years, the P5 is an interpolation between the two worst years.
@@ -36,6 +38,8 @@ Per year (profit, £k):
 | 2026 | £151 → £178 | £167k | £139k | £111k |  |
 
 ## 2. Whole-farm forecast vs baselines
+
+![Whole-farm forecast vs baselines](forecast-chart.png)
 
 For each harvest year, each model forecasts the farm's profit P5/P50/P95 at the origin; the farm is held fixed and unhedged. Models: **ours** (correlated Student-t Monte Carlo, ν = 5, 10,000 paths, seed 42, with the 10% scheme-cut event); **normal** (the same calibration and seed with near-Gaussian shocks, ν = 200); **historical simulation** (every 12-month price and rate move before the origin crossed with every past year's yield deviations, price and yield taken as independent, no scheme-cut event). Target: 90% of realised years inside P5–P95. Coverage intervals are Wilson 95%; pinball-loss intervals are bootstrap 95%.
 
