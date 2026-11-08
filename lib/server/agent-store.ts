@@ -109,7 +109,7 @@ export async function getAgentStore(): Promise<AgentStore> {
   const { getStore } = await import("./store");
   return (g.__agentStore ??= createMemoryAgentStore(async (p) => (await getStore()).insertPendingChange({
     fieldKey: p.fieldKey, field: p.fieldLabel, currentValue: p.currentValue, proposedValue: p.proposedValue,
-    source: "agent", reason: p.reason, status: "pending",
+    source: "agent", reason: p.reason, status: "pending", runId: p.runId, evidence: p.evidence,
   })));
 }
 

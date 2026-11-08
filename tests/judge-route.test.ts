@@ -60,3 +60,34 @@ describe("kill switch", () => {
     await data.setPaused(false);
   });
 });
+
+describe("approvals", () => {
+  it("logs the farmer's approval and rejection of an agent proposal on the run's chain", async () => {
+    const { getAgentStore } = await import("@/lib/server/agent-store");
+    const { runPhaseOne } = await import("@/lib/assess/phase-one");
+    const { verifyChain } = await import("@/lib/trace/chain");
+    const store = await getAgentStore();
+    const { run } = await runPhaseOne({
+      store, farmId: demo.FARM_ID, trigger: "demo", fields: demo.profileFields, market: demo.market,
+      now: new Date(), jev: null, extract: null, geminiAvailable: false,
+    });
+    const proposal = {
+      runId: run.id, farmId: demo.FARM_ID, fieldKey: "sales.wheat_2027_forward_t", fieldLabel: "Wheat sold forward",
+      currentValue: "0", proposedValue: "200", reason: "Contract", evidence: { observationId: "obs-1", quote: "200 tonnes" },
+    };
+    await store.insertProposal(proposal);
+    await store.insertProposal({ ...proposal, proposedValue: "300" });
+    const data = await import("@/lib/data");
+    const mine = (await data.getPendingChanges()).filter((p) => p.source === "agent");
+    expect(mine.map((p) => p.runId)).toEqual([run.id, run.id]);
+    expect(mine[0].evidence).toEqual(proposal.evidence);
+    const [reject, approve] = mine; // newest first
+    expect(await data.approveChange(approve.id)).toMatchObject({ ok: true });
+    await data.rejectChange(reject.id);
+    const events = await store.getEvents(run.id);
+    expect(events.slice(-2).map((e) => [e.type, e.actor])).toEqual([["proposal.approved", "human"], ["proposal.rejected", "human"]]);
+    expect(JSON.parse(events.at(-2)!.body)).toMatchObject({ pendingChangeId: approve.id, fieldKey: "sales.wheat_2027_forward_t", proposedValue: "200", approvedValue: 200, by: "farmer" });
+    expect(JSON.parse(events.at(-1)!.body)).toMatchObject({ pendingChangeId: reject.id, proposedValue: "300", by: "farmer" });
+    expect(verifyChain(events).ok).toBe(true);
+  });
+});

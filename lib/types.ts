@@ -106,6 +106,9 @@ export interface PendingChange {
   reason: string;
   status: PendingStatus;
   receivedAt?: string;
+  /** Agent proposals: the run that proposed it and the verbatim quote it rests on. */
+  runId?: string;
+  evidence?: { observationId: string; quote: string };
 }
 
 export type CalendarLane = "Selling" | "Inputs" | "Finance" | "Schemes" | "Markets";

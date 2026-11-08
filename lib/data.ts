@@ -151,14 +151,33 @@ export async function approveChange(
   if (!parsed.ok) return { ok: false, error: `Not saved: ${parsed.error}` };
   await store.saveProfileFields([confirmedField(def.key, parsed.value, APPROVED_SOURCE[item.source], new Date().toISOString())]);
   const updated = await store.updatePendingChange(id, "approved", value);
+  await logDecision(item, "proposal.approved", { approvedValue: parsed.value });
   refresh();
   return { ok: true, item: updated };
 }
 
 export async function rejectChange(id: string): Promise<PendingChange | null> {
-  const updated = await (await getStore()).updatePendingChange(id, "rejected");
+  const store = await getStore();
+  const item = (await store.getPendingChanges()).find((p) => p.id === id);
+  const updated = await store.updatePendingChange(id, "rejected");
+  if (item) await logDecision(item, "proposal.rejected", {});
   refresh();
   return updated;
+}
+
+/** The farmer's decision on an agent proposal, as a human event on the run that proposed it. Never blocks the decision. */
+async function logDecision(item: PendingChange, type: "proposal.approved" | "proposal.rejected", extra: Record<string, unknown>): Promise<void> {
+  if (item.source !== "agent" || !item.runId) return;
+  const runId = item.runId;
+  const payload = {
+    pendingChangeId: item.id, fieldKey: item.fieldKey ?? null, field: item.field,
+    currentValue: item.currentValue, proposedValue: item.proposedValue, evidence: item.evidence ?? null, by: "farmer", ...extra,
+  };
+  const logged = await appendHumanEvent(await getAgentStore(), runId, type, payload).catch((e) => {
+    console.error(`[data] Couldn't log ${type} on run ${runId}`, e);
+    return true;
+  });
+  if (!logged) console.warn(`[data] ${type} not chained: run ${runId} still has a writer; pending_changes records it`);
 }
 
 /* ---------- Farm profile ---------- */
