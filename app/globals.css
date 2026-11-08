@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --nav-w: 264px; /* sidebar width; the page padding follows it */
     /* Hedged: ink on paper (docs/design-system.md) */
     --background: 54 36% 95%; /* paper #F6F5EC */
     --foreground: 108 13% 8%; /* ink #121611 */
@@ -25,6 +26,9 @@
     --input: 53 9% 80%;
     --ring: 108 13% 8%;
     --radius: 0.75rem;
+  }
+  :root[data-nav="collapsed"] {
+    --nav-w: 72px;
   }
 }
 
