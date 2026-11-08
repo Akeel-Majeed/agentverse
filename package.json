@@ -13,6 +13,7 @@
     "inkbox:setup": "bun scripts/inkbox-setup.ts",
     "history:load": "bun scripts/load-history.ts",
     "backtest": "bun scripts/backtest.ts",
+    "eval:benchmark": "bun scripts/benchmark.ts",
     "screen:eval": "bun --preload ./scripts/shims.ts scripts/screen-eval.ts",
     "agent:demo": "bun --preload ./scripts/shims.ts scripts/risk-agent.ts"
   },

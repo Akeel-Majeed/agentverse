@@ -75,37 +75,46 @@ const level = (h: History, f: PriceFactor | "bank_rate", date: string) => {
   return p.value;
 };
 
-/** Harvest years 2019–2025: forecast from August of the year before, farm held fixed and unhedged. */
-export function wholeFarmBacktest(h: History, cfg: SimConfig): WholeFarmRow[] {
+/** The fictional farm as it would have stood at asOf: unhedged, no stock, prices anchored to today's £/t through the Defra index. */
+export function farmAt(h: History, asOf: string): FarmInputs {
   const { farm: today } = farmFromProfile(valuesOf(demo.profileFields), demo.market);
   const latest = (f: PriceFactor) => h[f].points.at(-1)!.value;
+  // £/t at asOf = today's £/t × index(asOf) ÷ index(latest). Labelled as an index-anchored estimate.
+  const priceToday = Object.fromEntries(
+    (["wheat", "barley", "osr", "an", "fuel"] as const).map((f) => [f, (today.priceToday[f] * level(h, f, asOf)) / latest(f)]),
+  ) as FarmInputs["priceToday"];
+  return {
+    ...today,
+    crops: Object.fromEntries(CROPS.map((c) => [c, { ...today.crops[c], forwardT: 0 }])) as FarmInputs["crops"],
+    stockT: { wheat: 0, barley: 0, osr: 0 },
+    anBoughtT: 0,
+    dieselBoughtPct: 0,
+    priceToday,
+    bankRatePct: level(h, "bank_rate", asOf),
+  };
+}
+
+/** What actually happened between asOf and at: price log-changes, rate change, yield vs trend (0 = trend when a year is missing). */
+export function realisedShock(h: History, asOf: string, at: string, year: number): Partial<Record<FactorId, number>> {
+  const shock: Partial<Record<FactorId, number>> = {};
+  for (const f of ["wheat", "barley", "osr", "an", "fuel"] as const) shock[f] = Math.log(level(h, f, at) / level(h, f, asOf));
+  shock.bank_rate = level(h, "bank_rate", at) - level(h, "bank_rate", asOf);
+  for (const f of YIELD_FACTORS) {
+    const fit = yieldFit(h[f], asOf);
+    const actual = h[f].points.find((p) => p.date === String(year));
+    shock[f] = actual ? actual.value / (fit.intercept + fit.slope * year) - 1 : 0;
+  }
+  return shock;
+}
+
+/** Harvest years 2019–2025: forecast from August of the year before, farm held fixed and unhedged. */
+export function wholeFarmBacktest(h: History, cfg: SimConfig): WholeFarmRow[] {
   const rows: WholeFarmRow[] = [];
   for (let year = 2019; year <= 2025; year++) {
     const asOf = `${year - 1}-08-01`;
-    const at = `${year}-08-01`;
-    // £/t at asOf = today's £/t × index(asOf) ÷ index(latest). Labelled as an index-anchored estimate.
-    const priceToday = Object.fromEntries(
-      (["wheat", "barley", "osr", "an", "fuel"] as const).map((f) => [f, (today.priceToday[f] * level(h, f, asOf)) / latest(f)]),
-    ) as FarmInputs["priceToday"];
-    const farm: FarmInputs = {
-      ...today,
-      crops: Object.fromEntries(CROPS.map((c) => [c, { ...today.crops[c], forwardT: 0 }])) as FarmInputs["crops"],
-      stockT: { wheat: 0, barley: 0, osr: 0 },
-      anBoughtT: 0,
-      dieselBoughtPct: 0,
-      priceToday,
-      bankRatePct: level(h, "bank_rate", asOf),
-    };
+    const farm = farmAt(h, asOf);
     const sim = simulate(h, farm, asOf, cfg);
-    const shock: Partial<Record<FactorId, number>> = {};
-    for (const f of ["wheat", "barley", "osr", "an", "fuel"] as const) shock[f] = Math.log(level(h, f, at) / level(h, f, asOf));
-    shock.bank_rate = level(h, "bank_rate", at) - level(h, "bank_rate", asOf);
-    for (const f of YIELD_FACTORS) {
-      const fit = yieldFit(h[f], asOf);
-      const actual = h[f].points.find((p) => p.date === String(year));
-      shock[f] = actual ? actual.value / (fit.intercept + fit.slope * year) - 1 : 0;
-    }
-    const realised = farmPnl(farm, shock).profit;
+    const realised = farmPnl(farm, realisedShock(h, asOf, `${year}-08-01`, year)).profit;
     rows.push({
       harvestYear: year, asOf,
       p5: sim.profit.p5.value, p50: sim.profit.p50.value, p95: sim.profit.p95.value, realised,

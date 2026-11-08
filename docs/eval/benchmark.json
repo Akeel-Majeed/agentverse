@@ -1,0 +1,861 @@
+{
+ "configHash": "17b55fc0fe1a0b73",
+ "heldOutFrom": "2024-01-01",
+ "dataCutoff": {
+  "prices": "2026-08-01",
+  "yields": "2026",
+  "bankRate": "2026-11-01"
+ },
+ "generatedAt": "2026-11-08T12:27:13.737Z",
+ "hedge": {
+  "rows": [
+   {
+    "harvestYear": 2017,
+    "origin": "2016-08-01",
+    "harvest": "2017-08-01",
+    "wheatOriginGbpT": 108.9925303970797,
+    "wheatHarvestGbpT": 120.20681014530915,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 21013.24050683796,
+     "forward_50": 7722.888942243415,
+     "forward_100": -5567.462622351071
+    }
+   },
+   {
+    "harvestYear": 2018,
+    "origin": "2017-08-01",
+    "harvest": "2018-08-01",
+    "wheatOriginGbpT": 120.20681014530915,
+    "wheatHarvestGbpT": 162.79339734952768,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 85593.12293310714,
+     "forward_50": 42969.66389716283,
+     "forward_100": 346.204861218459
+    }
+   },
+   {
+    "harvestYear": 2019,
+    "origin": "2018-08-01",
+    "harvest": "2019-08-01",
+    "wheatOriginGbpT": 162.79339734952765,
+    "wheatHarvestGbpT": 120.28687453260082,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 16497.315820814634,
+     "forward_50": 53435.91465464124,
+     "forward_100": 90374.51348846778
+    }
+   },
+   {
+    "harvestYear": 2020,
+    "origin": "2019-08-01",
+    "harvest": "2020-08-01",
+    "wheatOriginGbpT": 120.28687453260082,
+    "wheatHarvestGbpT": 146.14492325509931,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": -45739.688999106584,
+     "forward_50": -72721.96455464268,
+     "forward_100": -99704.24011017877
+    }
+   },
+   {
+    "harvestYear": 2021,
+    "origin": "2020-08-01",
+    "harvest": "2021-08-01",
+    "wheatOriginGbpT": 146.14492325509934,
+    "wheatHarvestGbpT": 167.50010179213083,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 116758.38760369294,
+     "forward_50": 93986.2956715686,
+     "forward_100": 71214.20373944414
+    }
+   },
+   {
+    "harvestYear": 2022,
+    "origin": "2021-08-01",
+    "harvest": "2022-08-01",
+    "wheatOriginGbpT": 167.50010179213086,
+    "wheatHarvestGbpT": 224.29133499160577,
+    "yieldsImputedAtTrend": true,
+    "profit": {
+     "do_nothing": 231026.33563407278,
+     "forward_50": 175121.53259256366,
+     "forward_100": 119216.72955105483
+    }
+   },
+   {
+    "harvestYear": 2023,
+    "origin": "2022-08-01",
+    "harvest": "2023-08-01",
+    "wheatOriginGbpT": 224.29133499160577,
+    "wheatHarvestGbpT": 162.74879049864148,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 49089.482722289395,
+     "forward_50": 103826.76182321087,
+     "forward_100": 158564.04092413245
+    }
+   },
+   {
+    "harvestYear": 2024,
+    "origin": "2023-08-01",
+    "harvest": "2024-08-01",
+    "wheatOriginGbpT": 162.74879049864148,
+    "wheatHarvestGbpT": 161.93587581351107,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 12407.468797422072,
+     "forward_50": 10362.544028019009,
+     "forward_100": 8317.619258615945
+    }
+   },
+   {
+    "harvestYear": 2025,
+    "origin": "2024-08-01",
+    "harvest": "2025-08-01",
+    "wheatOriginGbpT": 161.93587581351107,
+    "wheatHarvestGbpT": 151.01802201730865,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 47182.16446171916,
+     "forward_50": 54585.357761168445,
+     "forward_100": 61988.55106061773
+    }
+   },
+   {
+    "harvestYear": 2026,
+    "origin": "2025-08-01",
+    "harvest": "2026-08-01",
+    "wheatOriginGbpT": 151.01802201730862,
+    "wheatHarvestGbpT": 177.99999999999997,
+    "yieldsImputedAtTrend": false,
+    "profit": {
+     "do_nothing": 166732.5589495676,
+     "forward_50": 138699.4095357512,
+     "forward_100": 110666.26012193481
+    }
+   }
+  ],
+  "summary": [
+   {
+    "strategy": "do_nothing",
+    "label": "Do nothing (sell all at harvest)",
+    "n": 10,
+    "meanProfit": 70056.03884304171,
+    "meanProfitCI": [
+     25076.306359973936,
+     119214.70206541057
+    ],
+    "worstYear": -45739.688999106584,
+    "worstYearHarvest": 2020,
+    "p5": -19573.467990668687,
+    "sdAcrossYears": 82089.95611230088,
+    "tailMeanWorst2": -16666.110100842256,
+    "hedgeCostPerYear": 0,
+    "hedgeCostTotal": 0,
+    "meanGainVsNothing": 0,
+    "meanGainVsNothingCI": [
+     0,
+     0
+    ],
+    "yearsWorseThanNothing": []
+   },
+   {
+    "strategy": "forward_50",
+    "label": "Sell 50% forward (the agent's option)",
+    "n": 10,
+    "meanProfit": 60798.84043516866,
+    "meanProfitCI": [
+     18985.17458459337,
+     102487.06780007786
+    ],
+    "worstYear": -72721.96455464268,
+    "worstYearHarvest": 2020,
+    "p5": -36521.780481043934,
+    "sdAcrossYears": 71251.0174419692,
+    "tailMeanWorst2": -32499.53780619963,
+    "hedgeCostPerYear": 2805,
+    "hedgeCostTotal": 28050,
+    "meanGainVsNothing": -9257.198407873051,
+    "meanGainVsNothingCI": [
+     -28135.156362524638,
+     12397.850945091412
+    ],
+    "yearsWorseThanNothing": [
+     2017,
+     2018,
+     2020,
+     2021,
+     2022,
+     2024,
+     2026
+    ]
+   },
+   {
+    "strategy": "forward_100",
+    "label": "Sell 100% forward",
+    "n": 10,
+    "meanProfit": 51541.64202729563,
+    "meanProfitCI": [
+     5426.142623620646,
+     95203.90603665219
+    ],
+    "worstYear": -99704.24011017877,
+    "worstYearHarvest": 2020,
+    "p5": -57342.6902406563,
+    "sdAcrossYears": 76128.2740064192,
+    "tailMeanWorst2": -52635.85136626492,
+    "hedgeCostPerYear": 5610,
+    "hedgeCostTotal": 56100,
+    "meanGainVsNothing": -18514.39681574608,
+    "meanGainVsNothingCI": [
+     -56270.31272504921,
+     24795.701890182823
+    ],
+    "yearsWorseThanNothing": [
+     2017,
+     2018,
+     2020,
+     2021,
+     2022,
+     2024,
+     2026
+    ]
+   }
+  ]
+ },
+ "forecast": {
+  "rows": [
+   {
+    "harvestYear": 2018,
+    "origin": "2017-08-01",
+    "heldOut": false,
+    "model": "mc",
+    "p5": -65380.47019290449,
+    "p50": 18900.925322169387,
+    "p95": 124513.12908440003,
+    "realised": 85593.12293310714,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 7548.679656300582,
+    "pinballP50": 33346.09880546888,
+    "pinballP95": 1946.0003075646464
+   },
+   {
+    "harvestYear": 2018,
+    "origin": "2017-08-01",
+    "heldOut": false,
+    "model": "normal_refit",
+    "p5": -70339.91273889106,
+    "p50": 18263.207794673202,
+    "p95": 132528.66897174978,
+    "realised": 85593.12293310714,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 7796.65178359991,
+    "pinballP50": 33664.95756921697,
+    "pinballP95": 2346.7773019321344
+   },
+   {
+    "harvestYear": 2018,
+    "origin": "2017-08-01",
+    "heldOut": false,
+    "model": "hist_sim",
+    "p5": -80076.64025726412,
+    "p50": 28098.86910992826,
+    "p95": 185665.88761042806,
+    "realised": 85593.12293310714,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 288,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 8283.488159518563,
+    "pinballP50": 28747.12691158944,
+    "pinballP95": 5003.6382338660505
+   },
+   {
+    "harvestYear": 2019,
+    "origin": "2018-08-01",
+    "heldOut": false,
+    "model": "mc",
+    "p5": 6042.488161413897,
+    "p50": 113249.11875376408,
+    "p95": 246297.51254061225,
+    "realised": 16497.315820814634,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 522.7413829700369,
+    "pinballP50": 48375.90146647472,
+    "pinballP95": 11490.009835989891
+   },
+   {
+    "harvestYear": 2019,
+    "origin": "2018-08-01",
+    "heldOut": false,
+    "model": "normal_refit",
+    "p5": 1175.4683056230783,
+    "p50": 112193.09187073327,
+    "p95": 259309.71174282255,
+    "realised": 16497.315820814634,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 766.0923757595779,
+    "pinballP50": 47847.88802495932,
+    "pinballP95": 12140.619796100407
+   },
+   {
+    "harvestYear": 2019,
+    "origin": "2018-08-01",
+    "heldOut": false,
+    "model": "hist_sim",
+    "p5": -8020.5824962954375,
+    "p50": 124450.22055304673,
+    "p95": 307278.9884957787,
+    "realised": 16497.315820814634,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 440,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 1225.8949158555035,
+    "pinballP50": 53976.45236611605,
+    "pinballP95": 14539.083633748216
+   },
+   {
+    "harvestYear": 2020,
+    "origin": "2019-08-01",
+    "heldOut": false,
+    "model": "mc",
+    "p5": -70488.14126156626,
+    "p50": 10277.456221817554,
+    "p95": 109139.87969118883,
+    "realised": -45739.688999106584,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 1237.4226131229836,
+    "pinballP50": 28008.57261046207,
+    "pinballP95": 7743.978434514778
+   },
+   {
+    "harvestYear": 2020,
+    "origin": "2019-08-01",
+    "heldOut": false,
+    "model": "normal_refit",
+    "p5": -75591.97105688577,
+    "p50": 10179.768667677192,
+    "p95": 116383.0867759595,
+    "realised": -45739.688999106584,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 1492.6141028889595,
+    "pinballP50": 27959.728833391888,
+    "pinballP95": 8106.138788753311
+   },
+   {
+    "harvestYear": 2020,
+    "origin": "2019-08-01",
+    "heldOut": false,
+    "model": "hist_sim",
+    "p5": -76875.79522146385,
+    "p50": 23846.858209894595,
+    "p95": 161469.56845553295,
+    "realised": -45739.688999106584,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 616,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 1556.8053111178633,
+    "pinballP50": 34793.27360450059,
+    "pinballP95": 10360.462872731985
+   },
+   {
+    "harvestYear": 2021,
+    "origin": "2020-08-01",
+    "heldOut": false,
+    "model": "mc",
+    "p5": -12169.766306224969,
+    "p50": 76800.62428062249,
+    "p95": 185381.4073691278,
+    "realised": 116758.38760369294,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 6446.4076954958955,
+    "pinballP50": 19978.881661535226,
+    "pinballP95": 3431.1509882717455
+   },
+   {
+    "harvestYear": 2021,
+    "origin": "2020-08-01",
+    "heldOut": false,
+    "model": "normal_refit",
+    "p5": -16616.959188652585,
+    "p50": 76062.33592761081,
+    "p95": 194209.0339690792,
+    "realised": 116758.38760369294,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 6668.767339617276,
+    "pinballP50": 20348.025838041067,
+    "pinballP95": 3872.5323182693164
+   },
+   {
+    "harvestYear": 2021,
+    "origin": "2020-08-01",
+    "heldOut": false,
+    "model": "hist_sim",
+    "p5": -25651.34602632103,
+    "p50": 85402.98010019117,
+    "p95": 240904.3115257349,
+    "realised": 116758.38760369294,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 816,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 7120.486681500699,
+    "pinballP50": 15677.703751750887,
+    "pinballP95": 6207.296196102103
+   },
+   {
+    "harvestYear": 2022,
+    "origin": "2021-08-01",
+    "heldOut": false,
+    "model": "mc",
+    "p5": 40733.74781155706,
+    "p50": 161937.8318183964,
+    "p95": 307081.348985568,
+    "realised": 231026.33563407278,
+    "yieldsImputedAtTrend": true,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 9514.629391125787,
+    "pinballP50": 34544.25190783819,
+    "pinballP95": 3802.7506675747636
+   },
+   {
+    "harvestYear": 2022,
+    "origin": "2021-08-01",
+    "heldOut": false,
+    "model": "normal_refit",
+    "p5": 34551.569134023004,
+    "p50": 160382.50028847845,
+    "p95": 316816.54822057293,
+    "realised": 231026.33563407278,
+    "yieldsImputedAtTrend": true,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 9823.738325002489,
+    "pinballP50": 35321.917672797164,
+    "pinballP95": 4289.510629325012
+   },
+   {
+    "harvestYear": 2022,
+    "origin": "2021-08-01",
+    "heldOut": false,
+    "model": "hist_sim",
+    "p5": 28967.079211031574,
+    "p50": 195123.87413719145,
+    "p95": 392055.3823425575,
+    "realised": 231026.33563407278,
+    "yieldsImputedAtTrend": true,
+    "scenarios": 1040,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 10102.962821152061,
+    "pinballP50": 17951.230748440663,
+    "pinballP95": 8051.452335424242
+   },
+   {
+    "harvestYear": 2023,
+    "origin": "2022-08-01",
+    "heldOut": false,
+    "model": "mc",
+    "p5": 43940.51227614127,
+    "p50": 226887.2900185419,
+    "p95": 456266.15134799184,
+    "realised": 49089.482722289395,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 257.44852230740617,
+    "pinballP50": 88898.90364812626,
+    "pinballP95": 20358.83343128514
+   },
+   {
+    "harvestYear": 2023,
+    "origin": "2022-08-01",
+    "heldOut": false,
+    "model": "normal_refit",
+    "p5": 34921.870712723365,
+    "p50": 224562.9527047238,
+    "p95": 476936.3589125355,
+    "realised": 49089.482722289395,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 708.3806004783015,
+    "pinballP50": 87736.7349912172,
+    "pinballP95": 21392.343809512324
+   },
+   {
+    "harvestYear": 2023,
+    "origin": "2022-08-01",
+    "heldOut": false,
+    "model": "hist_sim",
+    "p5": 63244.466617501894,
+    "p50": 278281.341291047,
+    "p95": 529980.6510935109,
+    "realised": 49089.482722289395,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 1288,
+    "inside": false,
+    "breachLow": true,
+    "breachHigh": false,
+    "pinballP5": 13447.234700451874,
+    "pinballP50": 114595.9292843788,
+    "pinballP95": 24044.558418561097
+   },
+   {
+    "harvestYear": 2024,
+    "origin": "2023-08-01",
+    "heldOut": false,
+    "model": "mc",
+    "p5": -72123.91858218194,
+    "p50": 61294.57748503918,
+    "p95": 233297.7367549877,
+    "realised": 12407.468797422072,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 4226.569368980201,
+    "pinballP50": 24443.554343808555,
+    "pinballP95": 11044.513397878292
+   },
+   {
+    "harvestYear": 2024,
+    "origin": "2023-08-01",
+    "heldOut": false,
+    "model": "normal_refit",
+    "p5": -77932.46780858409,
+    "p50": 59212.44412840093,
+    "p95": 247940.09783906746,
+    "realised": 12407.468797422072,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 4516.996830300308,
+    "pinballP50": 23402.48766548943,
+    "pinballP95": 11776.63145208228
+   },
+   {
+    "harvestYear": 2024,
+    "origin": "2023-08-01",
+    "heldOut": false,
+    "model": "hist_sim",
+    "p5": -95176.1496735478,
+    "p50": 95084.23458544555,
+    "p95": 284131.43825428037,
+    "realised": 12407.468797422072,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 1456,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 5379.180923548494,
+    "pinballP50": 41338.38289401174,
+    "pinballP95": 13586.198472842927
+   },
+   {
+    "harvestYear": 2025,
+    "origin": "2024-08-01",
+    "heldOut": true,
+    "model": "mc",
+    "p5": -58330.49654000047,
+    "p50": 73167.9654235242,
+    "p95": 241440.44315739765,
+    "realised": 47182.16446171916,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 5275.633050085982,
+    "pinballP50": 12992.900480902521,
+    "pinballP95": 9712.913934783934
+   },
+   {
+    "harvestYear": 2025,
+    "origin": "2024-08-01",
+    "heldOut": true,
+    "model": "normal_refit",
+    "p5": -63100.37012308697,
+    "p50": 71348.65993642903,
+    "p95": 257133.82284037216,
+    "realised": 47182.16446171916,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 5514.126729240306,
+    "pinballP50": 12083.247737354934,
+    "pinballP95": 10497.58291893266
+   },
+   {
+    "harvestYear": 2025,
+    "origin": "2024-08-01",
+    "heldOut": true,
+    "model": "hist_sim",
+    "p5": -94003.52871710715,
+    "p50": 96404.11128694948,
+    "p95": 295459.17855230026,
+    "realised": 47182.16446171916,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 1740,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 7059.284658941316,
+    "pinballP50": 24610.97341261516,
+    "pinballP95": 12413.850704529066
+   },
+   {
+    "harvestYear": 2026,
+    "origin": "2025-08-01",
+    "heldOut": true,
+    "model": "mc",
+    "p5": -70722.46485475735,
+    "p50": 53796.036713667694,
+    "p95": 212645.97571048228,
+    "realised": 166732.5589495676,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 11872.75119021625,
+    "pinballP50": 56468.26111794996,
+    "pinballP95": 2295.6708380457353
+   },
+   {
+    "harvestYear": 2026,
+    "origin": "2025-08-01",
+    "heldOut": true,
+    "model": "normal_refit",
+    "p5": -77036.75662089448,
+    "p50": 52027.966076213736,
+    "p95": 224231.95445603202,
+    "realised": 166732.5589495676,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 10000,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 12188.465778523105,
+    "pinballP50": 57352.29643667694,
+    "pinballP95": 2874.969775323223
+   },
+   {
+    "harvestYear": 2026,
+    "origin": "2025-08-01",
+    "heldOut": true,
+    "model": "hist_sim",
+    "p5": -98205.65914131928,
+    "p50": 76253.46796674377,
+    "p95": 260532.83660189697,
+    "realised": 166732.5589495676,
+    "yieldsImputedAtTrend": false,
+    "scenarios": 2048,
+    "inside": true,
+    "breachLow": false,
+    "breachHigh": false,
+    "pinballP5": 13246.910904544346,
+    "pinballP50": 45239.54549141192,
+    "pinballP95": 4690.013882616472
+   }
+  ],
+  "summary": [
+   {
+    "model": "mc",
+    "period": "all",
+    "n": 9,
+    "coverage": 1,
+    "coverageCI": [
+     0.7008472464490407,
+     1
+    ],
+    "breachLowYears": [],
+    "breachHighYears": [],
+    "pinballP5": 5211.36476340057,
+    "pinballP5CI": [
+     2778.458465247305,
+     7740.089909842242
+    ],
+    "pinballP50": 38561.92511584071,
+    "pinballP95": 7980.6468706565465
+   },
+   {
+    "model": "normal_refit",
+    "period": "all",
+    "n": 9,
+    "coverage": 1,
+    "coverageCI": [
+     0.7008472464490407,
+     1
+    ],
+    "breachLowYears": [],
+    "breachHighYears": [],
+    "pinballP5": 5497.31487393447,
+    "pinballP5CI": [
+     3083.5692355789492,
+     8016.3578379707105
+    ],
+    "pinballP50": 38413.0316410161,
+    "pinballP95": 8588.56742113674
+   },
+   {
+    "model": "hist_sim",
+    "period": "all",
+    "n": 9,
+    "coverage": 0.8888888888888888,
+    "coverageCI": [
+     0.5649937852319399,
+     0.9801096286728695
+    ],
+    "breachLowYears": [
+     2023
+    ],
+    "breachHighYears": [],
+    "pinballP5": 7491.361008514524,
+    "pinballP5CI": [
+     4796.8723648383975,
+     10187.524764264277
+    ],
+    "pinballP50": 41881.17982942393,
+    "pinballP95": 10988.506083380238
+   },
+   {
+    "model": "mc",
+    "period": "held_out",
+    "n": 2,
+    "coverage": 1,
+    "coverageCI": [
+     0.34237195288961925,
+     1
+    ],
+    "breachLowYears": [],
+    "breachHighYears": [],
+    "pinballP5": 8574.192120151116,
+    "pinballP5CI": [
+     5275.633050085982,
+     11872.75119021625
+    ],
+    "pinballP50": 34730.58079942624,
+    "pinballP95": 6004.292386414834
+   },
+   {
+    "model": "normal_refit",
+    "period": "held_out",
+    "n": 2,
+    "coverage": 1,
+    "coverageCI": [
+     0.34237195288961925,
+     1
+    ],
+    "breachLowYears": [],
+    "breachHighYears": [],
+    "pinballP5": 8851.296253881705,
+    "pinballP5CI": [
+     5514.126729240306,
+     12188.465778523105
+    ],
+    "pinballP50": 34717.77208701594,
+    "pinballP95": 6686.276347127941
+   },
+   {
+    "model": "hist_sim",
+    "period": "held_out",
+    "n": 2,
+    "coverage": 1,
+    "coverageCI": [
+     0.34237195288961925,
+     1
+    ],
+    "breachLowYears": [],
+    "breachHighYears": [],
+    "pinballP5": 10153.09778174283,
+    "pinballP5CI": [
+     7059.284658941316,
+     13246.910904544346
+    ],
+    "pinballP50": 34925.25945201354,
+    "pinballP95": 8551.932293572769
+   }
+  ],
+  "pairedPinballP5": [
+   {
+    "baseline": "normal_refit",
+    "n": 9,
+    "meanBaselineMinusMc": 285.95011053390095,
+    "ci": [
+     249.40437570021652,
+     334.08978531044613
+    ],
+    "mcBetterYears": 9
+   },
+   {
+    "baseline": "hist_sim",
+    "n": 9,
+    "meanBaselineMinusMc": 2279.996245113955,
+    "ci": [
+     701.0427064753778,
+     5109.559652373879
+    ],
+    "mcBetterYears": 9
+   }
+  ]
+ }
+}
