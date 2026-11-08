@@ -95,6 +95,10 @@ export async function confirmationGate(
   if (!shownIn || !textOf(shownIn).toUpperCase().includes(change.ref.toUpperCase())) {
     return { ok: false, reason: `Change ${change.ref} wasn't in the message the farmer just replied to. Show them the change with its ref and wait for their answer.` };
   }
+  // The farmer must have seen the stored new value, not just the ref: the model's wording is not evidence of what is applied.
+  if (!textOf(shownIn).includes(change.to)) {
+    return { ok: false, reason: `The message the farmer replied to didn't show the new value (${change.to}) for ${change.ref}. Show them the change exactly as stored and wait for their answer.` };
+  }
   const reply = textOf(last).trim();
 
   let fallbackNote: string | undefined;
