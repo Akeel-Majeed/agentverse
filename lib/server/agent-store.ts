@@ -168,7 +168,8 @@ const toEvent = (r: Row): TraceEvent => ({
   createdAt: iso(r.created_at),
 });
 
-const toControls = (r: Row | undefined | null): Controls =>
+/** A missing agent_controls row fails closed: paused, so no judge runs until a human looks. The memory store never gets here. */
+export const toControls = (r: Row | undefined | null): Controls =>
   r
     ? {
         paused: Boolean(r.paused),
@@ -180,7 +181,7 @@ const toControls = (r: Row | undefined | null): Controls =>
         updatedAt: iso(r.updated_at),
         updatedBy: strOrNull(r.updated_by),
       }
-    : { ...DEFAULT_CONTROLS };
+    : { ...DEFAULT_CONTROLS, paused: true, updatedBy: "missing agent_controls row: paused (fail closed)" };
 
 const proposalRow = (p: AgentProposal & { farmId: string }): Row => ({
   farm_id: p.farmId,

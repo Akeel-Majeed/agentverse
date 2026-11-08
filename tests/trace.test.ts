@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonical, GENESIS, TraceWriter, verifyChain } from "@/lib/trace/chain";
-import { createMemoryAgentStore } from "@/lib/server/agent-store";
+import { createMemoryAgentStore, toControls } from "@/lib/server/agent-store";
 
 describe("canonical JSON", () => {
   it("sorts keys at every depth", () => {
@@ -49,5 +49,9 @@ describe("trace", () => {
     expect((await store.getControls()).paused).toBe(false);
     await store.setPaused(true, "akeel");
     expect(await store.getControls()).toMatchObject({ paused: true, updatedBy: "akeel" });
+  });
+  it("fails closed when the database has no controls row", () => {
+    expect(toControls(null).paused).toBe(true);
+    expect(toControls(undefined).updatedBy).toMatch(/missing/i);
   });
 });
