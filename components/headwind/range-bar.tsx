@@ -20,8 +20,8 @@ export function RangeBar({ low, high, marker }: { low: number; high: number; mar
           Expected
         </div>
         <div className="absolute inset-x-0 top-[26px] flex h-3 overflow-hidden rounded-full">
-          <div className="h-full bg-[#FCA5A5]" style={{ width: `${zero}%` }} />
-          <div className="h-full flex-1 bg-[#86EFAC]" />
+          <div className="h-full bg-[#E9B3A6]" style={{ width: `${zero}%` }} />
+          <div className="h-full flex-1 bg-[#B8CC6E]" />
         </div>
         <div className="absolute top-[20px] h-6 w-px bg-ink/50" style={{ left: `${zero}%` }} />
         <div

@@ -119,7 +119,7 @@ export function WhatIfPanel({
             <CardHeader title="Farm profit" description={`${harvestYear} harvest year`} />
             <CardBody className="flex flex-col gap-4" aria-live="polite">
               <div className="flex flex-wrap items-end justify-between gap-3">
-                <p className={`text-[40px] font-semibold leading-none tracking-tight tabular ${result.profitK < 0 ? "text-bad" : "text-ink"}`}>
+                <p className={`text-[40px] font-medium leading-none tracking-[-0.03em] tabular ${result.profitK < 0 ? "text-bad" : "text-ink"}`}>
                   {gbpK(result.profitK)}
                 </p>
                 <p

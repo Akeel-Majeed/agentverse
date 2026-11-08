@@ -20,8 +20,8 @@ const geistMono = localFont({
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Headwind · Farm risk agent",
-  description: "AI risk agent for UK arable farms. Demo data.",
+  title: "Hedged · Risk intelligence for UK farmers",
+  description: "Every risk on one screen, scored in pounds. Demo farm, demo data.",
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

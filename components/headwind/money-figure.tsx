@@ -33,10 +33,10 @@ export function MoneyFigure({
       </SheetTrigger>
       <SheetContent side="right" className="flex flex-col gap-0 p-0">
         <SheetHeader className="space-y-2 border-b border-line px-6 pb-5 pt-6 text-left">
-          <SheetTitle className="pr-6 text-[17px] font-semibold tracking-tight">{detail.title}</SheetTitle>
-          <p className="text-[32px] font-semibold leading-none tracking-tight tabular">{detail.value}</p>
+          <SheetTitle className="pr-6 text-[17px] font-medium tracking-[-0.03em]">{detail.title}</SheetTitle>
+          <p className="text-[32px] font-medium leading-none tracking-[-0.03em] tabular">{detail.value}</p>
           <SheetDescription className="text-[13px] leading-relaxed text-sub">
-            {detail.description ?? "How Headwind worked this figure out, and where each input came from."}
+            {detail.description ?? "How Hedged worked this figure out, and where each input came from."}
           </SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-6 px-6 py-6">

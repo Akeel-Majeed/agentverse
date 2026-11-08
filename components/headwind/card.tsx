@@ -13,7 +13,7 @@ export function Card({
   label?: string;
 }) {
   return (
-    <section aria-label={label} className={cn("min-w-0 rounded-card border border-line bg-white shadow-card", className)}>
+    <section aria-label={label} className={cn("min-w-0 rounded-card bg-card shadow-card", className)}>
       {children}
     </section>
   );
@@ -37,7 +37,7 @@ export function CardHeader({
       <div className="flex min-w-0 items-center gap-2.5">
         {leading}
         <div className="min-w-0">
-          <h2 className="text-[14.5px] font-semibold tracking-tight text-ink">{title}</h2>
+          <h2 className="text-[14.5px] font-medium tracking-[-0.03em] text-ink">{title}</h2>
           {description ? <p className="mt-0.5 text-[13px] text-sub">{description}</p> : null}
         </div>
       </div>
@@ -56,7 +56,7 @@ export function Disclosure({ title, description, children }: { title: ReactNode;
     <details className="group min-w-0">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-3.5 hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
-          <h2 className="text-[14.5px] font-semibold tracking-tight text-ink">{title}</h2>
+          <h2 className="text-[14.5px] font-medium tracking-[-0.03em] text-ink">{title}</h2>
           {description ? <p className="mt-0.5 text-[13px] text-sub">{description}</p> : null}
         </div>
         <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-sub transition-transform group-open:rotate-180" />

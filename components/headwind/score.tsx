@@ -26,7 +26,7 @@ export function ScoreRing({
       style={{ width: size, height: size }}
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EDECE8" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E6E5DA" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -41,7 +41,7 @@ export function ScoreRing({
         />
       </svg>
       <div aria-hidden className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-semibold leading-none tracking-tight text-ink tabular" style={{ fontSize: Math.round(size * 0.3) }}>
+        <span className="font-medium leading-none tracking-[-0.03em] text-ink tabular" style={{ fontSize: Math.round(size * 0.3) }}>
           {score}
         </span>
         <span className="mt-1 leading-none text-sub" style={{ fontSize: Math.max(10, Math.round(size * 0.085)) }}>
@@ -65,7 +65,7 @@ export function ScoreMeter({ score, name, className }: { score: number; name?: s
         <span
           key={i}
           className="h-1.5 flex-1 rounded-[2px] transition-colors duration-300"
-          style={{ backgroundColor: i < score ? band.color : "#E9E8E4" }}
+          style={{ backgroundColor: i < score ? band.color : "#E6E5DA" }}
         />
       ))}
     </div>

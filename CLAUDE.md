@@ -1,11 +1,11 @@
-# Farm risk agent
+# Hedged
 
-AI risk agent for UK arable farms (hackathon project, no product name yet: don't invent one in code or UI). Builds a farm's risk profile from its own data, tracks prices, inputs, weather, rates and policy, and shows in £ what each risk could cost and which options would reduce it. Demo farm: Fenland Ridge Farm Ltd (fictional, 450 ha near Sleaford, Lincolnshire).
+Risk intelligence for UK farmers (hackathon project). The product is called **Hedged**; use that name in the UI. Look and feel: `docs/design-system.md` (tokens in `tailwind.config.ts` and `app/globals.css`). It builds a farm's risk profile from its own data, tracks prices, inputs, weather, rates and policy, and shows in £ what each risk could cost and which options would reduce it. Demo farm: Fenland Ridge Farm Ltd (fictional, 450 ha near Sleaford, Lincolnshire).
 
 ## Codebase
 
 ```
-app/                    pages: overview, risks, risks/[id], what-if, profile, calendar
+app/                    pages: onboarding (setup flow), overview, risks, risks/[id], what-if, profile, calendar
                         api/inkbox/webhook   iMessage in → chat agent → reply
 components/headwind/    app components; ui/ = shadcn
 lib/data.ts             the only data import for components (server functions + actions)

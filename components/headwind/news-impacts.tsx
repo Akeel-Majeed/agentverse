@@ -30,10 +30,10 @@ export function NewsImpactList({
           <details className="group">
             <summary className="flex cursor-pointer list-none items-start justify-between gap-4 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
               <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] font-semibold tracking-tight">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] font-medium tracking-[-0.03em]">
                   {signal.title}
                   {alert ? (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-[#FDE68A] bg-[#FFFBEB] px-1.5 py-0.5 text-[11px] font-medium text-[#92400E]">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-[#E8D58A] bg-[#FAF3D6] px-1.5 py-0.5 text-[11px] font-medium text-[#6B5200]">
                       <BellRing className="h-3 w-3" aria-hidden /> Alert
                     </span>
                   ) : null}
