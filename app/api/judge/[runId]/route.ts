@@ -10,9 +10,13 @@ export const maxDuration = 300;
 
 export async function POST(_req: Request, { params }: { params: { runId: string } }) {
   const store = await getAgentStore();
-  const run = await store.getRun(params.runId);
-  if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
-  if (run.status !== "queued") return NextResponse.json({ error: `Run is ${run.status}, not queued` }, { status: 409 });
+  // Claim before starting: two clicks (or a click and a cron) must not run two judges on one chain.
+  const run = await store.claimRun(params.runId);
+  if (!run) {
+    const existing = await store.getRun(params.runId);
+    if (!existing) return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    return NextResponse.json({ error: `Run is ${existing.status}, not queued` }, { status: 409 });
+  }
   const profile = await (await getStore()).getProfileFields();
   const result = await runPhaseTwo(run.id, { store, profile });
   revalidatePath("/", "layout");

@@ -28,6 +28,8 @@ export interface AgentStore extends EventSink {
   latestRun(farmId: string): Promise<AgentRun | null>;
   /** Atomically moves the oldest queued run to running. */
   claimQueuedRun(): Promise<AgentRun | null>;
+  /** Atomically moves this run from queued to running; null if it isn't queued (or doesn't exist). */
+  claimRun(id: string): Promise<AgentRun | null>;
   insertObservation(o: Omit<Observation, "id">): Promise<Observation>;
   getObservations(runId: string): Promise<Observation[]>;
   /** Passed documents for the farm across runs, newest first. */
@@ -68,6 +70,13 @@ export function createMemoryAgentStore(onProposal?: (p: AgentProposal & { farmId
       if (!r) return null;
       const claimed = { ...r, status: "running" as const };
       runs.set(r.id, claimed);
+      return claimed;
+    },
+    async claimRun(id) {
+      const r = runs.get(id);
+      if (r?.status !== "queued") return null;
+      const claimed = { ...r, status: "running" as const };
+      runs.set(id, claimed);
       return claimed;
     },
     async insertObservation(o) {
@@ -236,6 +245,10 @@ export function createSupabaseAgentStore(): AgentStore {
       );
       return rows?.[0] ? toRun(rows[0]) : null;
     },
+    async claimRun(id) {
+      const rows = check(await db.from("agent_runs").update({ status: "running" }).eq("id", id).eq("status", "queued").select(), "claim run");
+      return rows?.[0] ? toRun(rows[0]) : null;
+    },
     async insertObservation(o) {
       return toObservation(check(await db.from("observations").insert(snake(o)).select().single(), "insert observation")!);
     },
@@ -300,6 +313,10 @@ export async function createPostgresAgentStore(url: string): Promise<AgentStore>
         update agent_runs set status = 'running'
         where id = (select id from agent_runs where status = 'queued' order by started_at limit 1 for update skip locked)
         returning *`;
+      return row ? toRun(row) : null;
+    },
+    async claimRun(id) {
+      const [row] = await sql`update agent_runs set status = 'running' where id = ${id} and status = 'queued' returning *`;
       return row ? toRun(row) : null;
     },
     async insertObservation(o) {

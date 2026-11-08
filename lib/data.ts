@@ -21,8 +21,8 @@ import { addDays, formatValue, parseValue } from "./profile/values";
 import { jevFromEnv } from "./screen/screen";
 import { createSupabaseAgentStore, getAgentStore, type AgentStore } from "./server/agent-store";
 import { getStore, type Assessment, type Store } from "./server/store";
-import { GENESIS, TraceWriter, verifyChain } from "./trace/chain";
-import type { Actor, AgentRun, Controls, Observation, TraceEvent } from "./trace/types";
+import { TraceWriter, verifyChain } from "./trace/chain";
+import type { AgentRun, Controls, Observation, TraceEvent } from "./trace/types";
 import type {
   AssessmentMeta,
   BreakEven,
@@ -406,10 +406,22 @@ async function controlStore(): Promise<AgentStore> {
   return getAgentStore();
 }
 
-/** One event on an existing run's chain, continuing from its last stored event. */
-async function appendEvent(store: AgentStore, runId: string, type: string, actor: Actor, payload: unknown): Promise<void> {
-  const last = (await store.getEvents(runId)).at(-1);
-  await TraceWriter.resume(runId, store, last?.seq ?? 0, last?.hash ?? GENESIS).append(type, actor, payload);
+/** Last events of a finished writer: phase one done and not queued, the judge's run.end, or an earlier human event. */
+const SETTLED_AFTER = new Set(["run.numbers_published", "run.end", "control.paused", "proposal.approved", "proposal.rejected"]);
+
+/**
+ * A human event on a run's chain, continuing from its last stored event. Each chain has one writer
+ * at a time (phase one, then the judge), so nothing is appended while the run is queued or running
+ * or its writer hasn't finished; returns false then (the controls row or pending_changes still records it).
+ */
+async function appendHumanEvent(store: AgentStore, runId: string, type: string, payload: unknown): Promise<boolean> {
+  const run = await store.getRun(runId);
+  const events = await store.getEvents(runId);
+  const last = events.at(-1);
+  if (!run || run.status === "queued" || run.status === "running" || !last || !SETTLED_AFTER.has(last.type)) return false;
+  // ponytail: two humans at the same ms (approve + kill switch) collide on seq; the second insert fails and is logged.
+  await TraceWriter.resume(runId, store, last.seq, last.hash).append(type, "human", payload);
+  return true;
 }
 
 /** The farmer's kill switch. Logged on the latest run's trace as a human event. */
@@ -417,10 +429,9 @@ export async function setPaused(paused: boolean): Promise<Controls> {
   const store = await controlStore();
   await store.setPaused(paused, "farmer");
   const run = await store.latestRun(FARM_ID);
-  // A running judge owns its run's chain and logs control.kill_switch itself; a second writer would
-  // collide on seq. ponytail: the ms between the judge reading a queued run and marking it running is unguarded.
-  if (run && run.status !== "running") {
-    await appendEvent(store, run.id, "control.paused", "human", { paused, by: "farmer" }).catch((e) =>
+  // A queued or running run belongs to the judge, which logs control.kill_switch itself.
+  if (run) {
+    await appendHumanEvent(store, run.id, "control.paused", { paused, by: "farmer" }).catch((e) =>
       console.error(`[data] Couldn't log the kill switch on run ${run.id}`, e)
     );
   }
