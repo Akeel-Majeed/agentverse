@@ -6,6 +6,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { checkFigures, type CheckResult } from "../checker";
 import { CHAT_MODEL } from "../model";
+import { getControls } from "../../data";
 import { createTools, type ToolCall } from "./tools";
 
 export { CHAT_MODEL };
@@ -27,6 +28,8 @@ Figures
 - Every number you give must come from a tool result in this turn, written as the tool wrote it. Call tools before giving any figure, even one you gave earlier in the chat or that appears in your notes: figures change. Never calculate, add up, round differently or estimate figures yourself; if no tool gives it, say you don't have it.
 - When asked why, give the short version of the working from the tool (what is at stake, the price swing, the bad-year hit) and where the inputs came from.
 - Bad-year hits for different risks don't add up: risks rarely all peak in the same year.
+- There are two sets of figures. The risk register (get_risk_profile, get_risk) uses a simple model you can check by hand. The Monte Carlo engine (get_simulation, and monte_carlo in get_risk) simulates 10,000 years and gives percentiles, the loan covenant and thresholds. They can differ: say which one a figure comes from when it matters, and never mix them in one sum.
+- For what the analyst agent recommends, why a run was held, or which controls fired, use get_analyst_judgement. For how reliable the model is, use get_evaluation and give misses as plainly as hits. For what was read from the farmer's documents, use get_documents.
 - The farm has a loss limit, checked in code (loss_limit in get_risk_profile and get_profit_summary). When the farmer asks how bad things could get, or about a risk that is past the limit, say whether the bad year is past it. If the limit isn't confirmed, say so and ask them to confirm it in their farm profile; don't treat it as final.
 
 Options
@@ -101,14 +104,27 @@ export interface ChatOptions {
   /** Extra system context for this conversation: today's date and memory notes (see memory.ts). Never a figure source. */
   context?: string;
   client?: Anthropic;
+  /** The farmer's kill switch (Agent runs page). Defaults to the stored controls. */
+  isPaused?: () => Promise<boolean>;
 }
+
+/** The farmer has paused the agents: the chat agent answers nothing until they switch it back on. */
+export class ChatPausedError extends Error {
+  constructor() {
+    super("The farmer has paused the agents.");
+  }
+}
+
+export const PAUSED_TEXT = "The farm's agents are paused, so I can't answer right now. Switch them back on from Agent runs in the app.";
 
 /**
  * Answer the last user message in `messages` (oldest first, alternating roles, starting with
  * the user). One rewrite turn if the reply quotes a figure no tool or user message contains.
  */
 export async function runChatAgent(messages: Anthropic.Beta.BetaMessageParam[], options: ChatOptions | Anthropic = {}): Promise<ChatResult> {
-  const { context, client } = options instanceof Anthropic ? { context: undefined, client: options } : options;
+  const { context, client, isPaused } = options instanceof Anthropic ? { context: undefined, client: options, isPaused: undefined } : options;
+  // Kill switch, checked in code before any model call.
+  if (await (isPaused ?? (async () => (await getControls()).paused))()) throw new ChatPausedError();
   if (!client && !process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) throw new ChatUnavailableError();
   const anthropic = client ?? new Anthropic();
   const calls: ToolCall[] = [];

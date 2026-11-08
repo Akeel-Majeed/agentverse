@@ -2,7 +2,7 @@
  * In-app assistant. GET: the shared conversation (iMessage and app). POST { question }: ask.
  */
 import { waitUntil } from "@vercel/functions";
-import { ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
+import { ChatPausedError, ChatUnavailableError, PAUSED_TEXT, runChatAgent } from "@/lib/agents/chat/agent";
 import { nextMemory } from "@/lib/agents/chat/memory";
 import { AssistantInputError, AssistantRateLimitError, askFromWeb } from "@/lib/agents/chat/web";
 import { getStore } from "@/lib/server/store";
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
   } catch (err) {
     if (err instanceof AssistantInputError) return Response.json({ error: err.message }, { status: 400 });
     if (err instanceof AssistantRateLimitError) return Response.json({ error: err.message }, { status: 429 });
+    if (err instanceof ChatPausedError) return Response.json({ error: PAUSED_TEXT }, { status: 423 });
     if (err instanceof ChatUnavailableError) {
       return Response.json({ error: NOT_SET_UP }, { status: 503 });
     }

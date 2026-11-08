@@ -14,7 +14,7 @@ plugin({
   setup(build) {
     build.module("server-only", () => ({ exports: {}, loader: "object" }));
     // React's cache() only exists in the Next server runtime; outside it, just call through.
-    build.module("react", () => ({ exports: { ...React, cache: <T>(fn: T) => fn }, loader: "object" }));
+    build.module("react", () => ({ exports: { ...React, default: React, cache: <T>(fn: T) => fn }, loader: "object" }));
     build.module("next/cache", () => ({ exports: { revalidatePath: () => undefined, revalidateTag: () => undefined }, loader: "object" }));
   },
 });
