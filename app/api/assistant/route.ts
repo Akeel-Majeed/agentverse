@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       finish: (id, r) => store.finishChatTurn(id, r),
       turns: (n) => store.listChatTurns(n),
       recall: () => store.getChatMemory(),
-      answer: (messages, context) => runChatAgent(messages, { context }),
+      answer: (messages, context) => runChatAgent(messages, { context, channel: "web" }),
       // After the response: updating the notes is another model call the farmer shouldn't wait for.
       remember: async (previous, exchange) =>
         waitUntil(

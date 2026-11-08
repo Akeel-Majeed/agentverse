@@ -148,6 +148,7 @@ const APPROVED_SOURCE: Record<PendingSource, string> = {
   mcp: "Adviser agent · approved by you",
   companies_house: "Companies House · approved by you",
   agent: "Risk agent · approved by you",
+  chat: "Chat · confirmed by you",
 };
 
 export async function getPendingChanges(): Promise<PendingChange[]> {
