@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { ChatUnavailableError, runChatAgent } from "@/lib/agents/chat/agent";
-import { checkFigures, extractFigures } from "@/lib/agents/checker";
+import { checkFigures, checkFiguresStrict, extractFigures } from "@/lib/agents/checker";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 // React's cache() only exists in the Next server runtime; run the data layer without memoising.
@@ -23,6 +23,49 @@ describe("figure checker", () => {
 
   it("does not confuse t/ha yields with tonnes", () => {
     expect(extractFigures("8.5 t/ha").map((f) => f.key)).toEqual([]);
+  });
+});
+
+describe("strict figure checker (judge): fails closed", () => {
+  const SRC = [JSON.stringify({
+    figures: {
+      "risk.output_prices.p5_hit": { display: "−£17k", value: -17234.5 },
+      "dscr.p_below": { display: "4.2%", value: 0.042 },
+      "threshold.rate_dscr": { display: "7.3%" },
+      "threshold.wheat_breakeven": { display: "£185/t" },
+      "risk.output_prices.score": { display: "8/10" },
+      "option.sell_forward_wheat_50.cost": { display: "£3k" },
+    },
+    dscr: { threshold: 1.25 },
+    meta: { paths: 10000, asOf: "2026-08-01" },
+  })];
+  const untraced = (text: string) => checkFiguresStrict(text, SRC).untraced;
+
+  it("passes engine display strings, ids, years, crop years and the 1-in-20 label", () => {
+    expect(untraced(
+      "In the 1-in-20 year (profit.p5, P5, cvar5) you lose £17k; the bad-year hit is −£17k. DSCR falls below 1.25 in 4.2% of " +
+      "10,000 simulated years for harvest 2026/27 and 2027. Score 8/10. Wheat break-even £185/t, rate 7.3%. " +
+      "Selling forward costs £3k (option.sell_forward_wheat_50.cost, sales.wheat_2027_forward_t).",
+    )).toEqual([]);
+  });
+
+  it.each([
+    ["a gain claimed for a negative figure", "Selling forward gains £17k in the bad year."],
+    ["an explicit sign that does not match", "The bad year improves by +£17k."],
+    ["a reformatted figure", "The hit is £17,000."],
+    ["pounds written out", "That is 42,000 pounds."],
+    ["GBP prefix", "Worth GBP 50k."],
+    ["per cent written out", "A 31 per cent chance."],
+    ["a bare ratio", "DSCR drops to 0.9."],
+    ["a bare rate", "At a rate of 7.25 the loan bites."],
+    ["a number glued to a unit", "Spread 17kg of seed."],
+    ["a different precision", "Rate 7.30%."],
+  ])("flags %s", (_label, text) => {
+    expect(untraced(text).length).toBeGreaterThan(0);
+  });
+
+  it("leaves the chat checker's lenient behaviour alone", () => {
+    expect(checkFigures("It costs £11,000, down £17k", ['{"a":"£11k","b":"−£17k"}']).untraced).toEqual([]);
   });
 });
 
