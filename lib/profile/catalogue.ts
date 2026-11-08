@@ -96,6 +96,8 @@ export interface FieldDef {
   /** For number fields: "ha", "t", "t/ha", "£/t", "£/ha", "%", "L", "people". */
   unit?: string;
   risks: RiskId[];
+  /** Largest believable value; defaults by unit (see maxFor in values.ts). */
+  max?: number;
   /** Days a confirmed value stays fresh before a freshness check asks again. */
   validDays?: number;
   help?: string;
@@ -217,7 +219,7 @@ export const FIELDS: FieldDef[] = [
   // Finance
   { key: "fin.loan", section: "finance", label: "Main loan", type: "money", risks: ["interest_rates"] },
   { key: "fin.loan_rate_type", section: "finance", label: "Loan rate type", type: "text", risks: ["interest_rates"], help: "Variable or fixed." },
-  { key: "fin.loan_margin_pct", section: "finance", label: "Margin over Bank Rate", type: "number", unit: "%", risks: ["interest_rates"] },
+  { key: "fin.loan_margin_pct", section: "finance", label: "Margin over Bank Rate", type: "number", unit: "%", max: 20, risks: ["interest_rates"] },
   { key: "fin.loan_renewal", section: "finance", label: "Loan renewal", type: "date", risks: ["interest_rates"] },
   { key: "fin.lender", section: "finance", label: "Secured lender", type: "text", risks: ["interest_rates"] },
   { key: "fin.overdraft_limit", section: "finance", label: "Overdraft limit", type: "money", risks: ["interest_rates"] },

@@ -13,7 +13,8 @@ import * as mock from "./mock";
 import { reassess } from "./profile/assess";
 import { weekMoves } from "./profile/fenland-ridge";
 import { FIELDS, SECTIONS, fieldDef, riskName, RISKS } from "./profile/catalogue";
-import { makeSnapshot, measureSignals, profileChanges } from "./profile/risk-profile";
+import { describeProblems, problemFor, profileProblems } from "./profile/checks";
+import { makeSnapshot, measureSignals, profileChanges, valuesOf } from "./profile/risk-profile";
 import { addDays, formatValue, parseValue } from "./profile/values";
 import { getStore, type Assessment, type Store } from "./server/store";
 import type {
@@ -132,6 +133,10 @@ export async function approveChange(
   if (!def) return { ok: false, error: "Not saved: this change isn't linked to a profile field. Reject it, or edit the field in your profile." };
   const parsed = parseValue(def, value ?? item.proposedValue);
   if (!parsed.ok) return { ok: false, error: `Not saved: ${parsed.error}` };
+  // The same checks as the farmer's own edits: a proposal from a document, message or adviser
+  // agent can't put the profile into a state that can't be true.
+  const conflict = problemFor(profileProblems({ ...valuesOf(await store.getProfileFields()), [def.key]: parsed.value }), def.key);
+  if (conflict) return { ok: false, error: `Not saved: ${conflict}` };
   await store.saveProfileFields([confirmedField(def.key, parsed.value, APPROVED_SOURCE[item.source], new Date().toISOString())]);
   const updated = await store.updatePendingChange(id, "approved", value);
   refresh();
@@ -213,6 +218,13 @@ export async function saveSection(sectionId: string, values: Record<string, stri
     }
     const changed = String(parsed.value ?? "") !== String(current?.value ?? "");
     updates.push(confirmedField(def.key, parsed.value, changed || !current ? "Entered by you" : current.source, now));
+  }
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+
+  const problems = profileProblems({ ...valuesOf(fields), ...valuesOf(updates) });
+  for (const def of FIELDS.filter((d) => d.section === sectionId)) {
+    const conflict = problemFor(problems, def.key);
+    if (conflict) errors[def.key] = conflict;
   }
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
@@ -314,6 +326,8 @@ export async function updateRiskProfile(
 ): Promise<{ ok: true; version: number; takenAt: string; meta: AssessmentMeta } | { ok: false; error: string }> {
   const store = await getStore();
   const [fields, previous, assessment] = await Promise.all([store.getProfileFields(), store.getSnapshot(), store.getAssessment()]);
+  const problems = profileProblems(valuesOf(fields));
+  if (problems.length) return { ok: false, error: `Not updated: fix the farm profile first. ${describeProblems(problems)}` };
   const now = new Date();
   const takenAt = now.toISOString();
   const snapshot = makeSnapshot({
